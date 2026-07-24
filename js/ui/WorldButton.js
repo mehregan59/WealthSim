@@ -1,0 +1,51 @@
+class WorldButton {
+  constructor(scene,x,y,label,callback){
+    this.scene=scene;this.x=x;this.y=y;this.label=label;this.callback=callback;
+    this.container=scene.add.container(x,y).setDepth(70).setAlpha(0);
+    this._build();this._appear();
+  }
+  _build(){
+    this.outerRing=this.scene.add.graphics();
+    this.outerRing.lineStyle(2,0xe2a840,0.3);this.outerRing.strokeCircle(0,0,44);
+    this.container.add(this.outerRing);
+    this.midRing=this.scene.add.graphics();
+    this.midRing.lineStyle(1.5,0xe2a840,0.6);this.midRing.strokeCircle(0,0,34);
+    this.container.add(this.midRing);
+    this.innerCircle=this.scene.add.graphics();
+    this.innerCircle.fillStyle(0xe2a840,0.15);this.innerCircle.fillCircle(0,0,26);
+    this.innerCircle.fillStyle(0xe2a840,0.4);this.innerCircle.fillCircle(0,0,18);
+    this.container.add(this.innerCircle);
+    this.arrow=this.scene.add.text(0,0,'▶',{fontSize:16,color:'#f0c060',fontStyle:'bold'}).setOrigin(0.5);
+    this.container.add(this.arrow);
+    this.labelBg=this.scene.add.graphics();
+    this.labelBg.fillStyle(0x060e1c,0.88);this.labelBg.fillRoundedRect(-52,-72,104,26,8);
+    this.labelBg.lineStyle(1,0xe2a840,0.5);this.labelBg.strokeRoundedRect(-52,-72,104,26,8);
+    this.container.add(this.labelBg);
+    this.labelText=this.scene.add.text(0,-59,this.label,{fontFamily:'Georgia,serif',fontSize:12,color:'#f0c060'}).setOrigin(0.5);
+    this.container.add(this.labelText);
+    const shadow=this.scene.add.graphics();shadow.fillStyle(0x000000,0.2);shadow.fillEllipse(0,36,60,16);
+    this.container.addAt(shadow,0);
+    this.hitZone=this.scene.add.circle(0,0,44,0xffffff,0).setInteractive({useHandCursor:true});
+    this.container.add(this.hitZone);
+    this.hitZone.on('pointerover',()=>{this.scene.tweens.add({targets:this.container,scaleX:1.12,scaleY:1.12,duration:180});this.innerCircle.clear();this.innerCircle.fillStyle(0xe2a840,0.3);this.innerCircle.fillCircle(0,0,26);this.innerCircle.fillStyle(0xe2a840,0.7);this.innerCircle.fillCircle(0,0,18);});
+    this.hitZone.on('pointerout',()=>{this.scene.tweens.add({targets:this.container,scaleX:1,scaleY:1,duration:180});this.innerCircle.clear();this.innerCircle.fillStyle(0xe2a840,0.15);this.innerCircle.fillCircle(0,0,26);this.innerCircle.fillStyle(0xe2a840,0.4);this.innerCircle.fillCircle(0,0,18);});
+    this.hitZone.on('pointerdown',()=>{this.scene.cameras.main.shake(80,0.003);this._disappear(()=>{if(this.callback)this.callback();});});
+  }
+  _appear(){
+    for(let i=0;i<8;i++){const angle=(i/8)*Math.PI*2;const p=this.scene.add.graphics().setDepth(71);p.fillStyle(0xe2a840,0.8);p.fillCircle(0,0,2.5);p.setPosition(this.x,this.y);this.scene.tweens.add({targets:p,x:this.x+Math.cos(angle)*55,y:this.y+Math.sin(angle)*55,alpha:0,duration:500,onComplete:()=>p.destroy()});}
+    this.container.setScale(0.3);
+    this.scene.tweens.add({targets:this.container,alpha:1,scaleX:1,scaleY:1,duration:500,ease:'Back.easeOut'});
+    this.scene.tweens.add({targets:this.outerRing,scaleX:{from:0.85,to:1.4},scaleY:{from:0.85,to:1.4},alpha:{from:0.5,to:0},duration:1400,repeat:-1});
+    this.scene.tweens.add({targets:this.midRing,alpha:{from:0.8,to:0.3},duration:800,yoyo:true,repeat:-1});
+    this.scene.tweens.add({targets:this.container,y:this.y-10,duration:1100,yoyo:true,repeat:-1,ease:'Sine.easeInOut'});
+    this.scene.tweens.add({targets:this.arrow,x:4,duration:500,yoyo:true,repeat:-1,ease:'Sine.easeInOut'});
+  }
+  _disappear(callback){
+    this.scene.tweens.killTweensOf(this.container);this.scene.tweens.killTweensOf(this.outerRing);this.scene.tweens.killTweensOf(this.midRing);this.scene.tweens.killTweensOf(this.arrow);
+    this.scene.tweens.add({targets:this.container,alpha:0,scaleX:1.5,scaleY:1.5,duration:350,ease:'Power2.easeIn',onComplete:()=>{this.container.destroy();if(callback)callback();}});
+  }
+  destroy(){
+    this.scene.tweens.killTweensOf(this.container);this.scene.tweens.killTweensOf(this.outerRing);this.scene.tweens.killTweensOf(this.midRing);this.scene.tweens.killTweensOf(this.arrow);
+    try{this.container.destroy();}catch(e){}
+  }
+}
