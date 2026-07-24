@@ -2,227 +2,80 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>WealthSim — Build Your Future</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+    #game-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+    canvas { display: block; }
+    #loading { position: fixed; inset: 0; background: #0a1628; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.8s ease; }
+    #loading.fade-out { opacity: 0; pointer-events: none; }
+    #loading h1 { font-family: Georgia, serif; font-size: 2.5rem; color: #e2a840; margin-bottom: 0.5rem; letter-spacing: 0.05em; }
+    #loading p { font-family: Arial, sans-serif; font-size: 0.9rem; color: #4a6080; margin-bottom: 2rem; }
+    #loading-bar-bg { width: 280px; height: 4px; background: #1a2744; border-radius: 2px; overflow: hidden; }
+    #loading-bar { height: 100%; background: linear-gradient(90deg, #e2a840, #f0c060); border-radius: 2px; width: 0%; transition: width 0.3s ease; }
+    #loading-hint { margin-top: 1rem; font-family: Arial, sans-serif; font-size: 0.75rem; color: #2a3a5a; }
+  </style>
 </head>
 <body>
-
-  <!-- Language Toggle -->
-  <div class="lang-toggle" id="langToggle">
-    <button class="lang-btn active" data-lang="en">EN</button>
-    <span class="lang-divider">|</span>
-    <button class="lang-btn" data-lang="de">DE</button>
+  <div id="loading">
+    <h1>WealthSim</h1>
+    <p>Build Your Future</p>
+    <div id="loading-bar-bg"><div id="loading-bar"></div></div>
+    <p id="loading-hint">Loading city...</p>
   </div>
-
-  <div id="app">
-
-    <!-- Opening -->
-    <div class="screen active" id="screen-opening">
-      <div class="city-bg">
-        <div class="city-sky"></div>
-        <div class="city-horizon"></div>
-        <div class="city-ground"></div>
-        <div class="sun"></div>
-        <div class="birds"><span></span><span></span><span></span></div>
-      </div>
-      <div class="opening-content">
-        <p class="opening-tagline" data-i18n="opening.tagline"></p>
-        <h1 class="opening-title" data-i18n="opening.title"></h1>
-        <p class="opening-sub" data-i18n="opening.sub"></p>
-        <button class="btn-primary" id="btn-start" data-i18n="opening.btn"></button>
-      </div>
-    </div>
-
-    <!-- Player Info -->
-    <div class="screen" id="screen-info">
-      <div class="screen-inner">
-        <div class="step-indicator">
-          <span class="step active"></span><span class="step"></span><span class="step"></span>
-        </div>
-        <h2 data-i18n="info.title"></h2>
-        <p class="screen-sub" data-i18n="info.sub"></p>
-        <div class="form-group">
-          <label data-i18n="info.age"></label>
-          <div class="option-grid" id="age-options">
-            <button class="option-btn" data-value="18-27">18–27</button>
-            <button class="option-btn" data-value="28-37">28–37</button>
-            <button class="option-btn" data-value="38-47">38–47</button>
-            <button class="option-btn" data-value="48-57">48–57</button>
-            <button class="option-btn" data-value="58-65">58–65</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label data-i18n="info.employment"></label>
-          <div class="option-grid" id="employment-options">
-            <button class="option-btn" data-value="employed" data-i18n="info.employed"></button>
-            <button class="option-btn" data-value="self-employed" data-i18n="info.selfEmployed"></button>
-            <button class="option-btn" data-value="student" data-i18n="info.student"></button>
-            <button class="option-btn" data-value="retired" data-i18n="info.retired"></button>
-            <button class="option-btn" data-value="other" data-i18n="info.other"></button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label data-i18n="info.experience"></label>
-          <div class="option-grid" id="experience-options">
-            <button class="option-btn" data-value="none" data-i18n="info.expNone"></button>
-            <button class="option-btn" data-value="basic" data-i18n="info.expBasic"></button>
-            <button class="option-btn" data-value="experienced" data-i18n="info.expExperienced"></button>
-          </div>
-        </div>
-        <button class="btn-primary btn-disabled" id="btn-info-next" data-i18n="common.next"></button>
-      </div>
-    </div>
-
-    <!-- German Retirement Context -->
-    <div class="screen" id="screen-context">
-      <div class="screen-inner">
-        <div class="step-indicator">
-          <span class="step done"></span><span class="step active"></span><span class="step"></span>
-        </div>
-        <h2 data-i18n="context.title"></h2>
-        <p class="screen-sub" data-i18n="context.sub"></p>
-        <div class="form-group">
-          <label data-i18n="context.q1"></label>
-          <div class="option-stack" id="saule-options">
-            <button class="option-btn wide" data-value="grv" data-i18n="context.grv"></button>
-            <button class="option-btn wide" data-value="bav" data-i18n="context.bav"></button>
-            <button class="option-btn wide" data-value="s3" data-i18n="context.s3"></button>
-            <button class="option-btn wide" data-value="unsure" data-i18n="context.unsure"></button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label data-i18n="context.q2"></label>
-          <div class="option-grid" id="years-options">
-            <button class="option-btn" data-value="30plus" data-i18n="context.y30plus"></button>
-            <button class="option-btn" data-value="15-30" data-i18n="context.y1530"></button>
-            <button class="option-btn" data-value="under15" data-i18n="context.yUnder15"></button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label data-i18n="context.q3"></label>
-          <div class="option-grid" id="buildexp-options">
-            <button class="option-btn" data-value="none" data-i18n="context.bNone"></button>
-            <button class="option-btn" data-value="basic" data-i18n="context.bBasic"></button>
-            <button class="option-btn" data-value="experienced" data-i18n="context.bExperienced"></button>
-          </div>
-        </div>
-        <button class="btn-primary btn-disabled" id="btn-context-next" data-i18n="common.next"></button>
-      </div>
-    </div>
-
-    <!-- Starting Questions -->
-    <div class="screen" id="screen-questions">
-      <div class="screen-inner">
-        <div class="step-indicator">
-          <span class="step done"></span><span class="step done"></span><span class="step active"></span>
-        </div>
-        <div class="question-progress"><span id="q-current">1</span> / <span id="q-total">3</span></div>
-        <h2 id="question-text"></h2>
-        <div class="option-stack" id="question-options"></div>
-      </div>
-    </div>
-
-    <!-- Game -->
-    <div class="screen" id="screen-game">
-      <div class="city-display" id="city-display">
-        <div class="city-visual" id="city-visual">
-          <div class="cv-sky"></div>
-          <div class="cv-buildings" id="cv-buildings"></div>
-          <div class="cv-ground"></div>
-          <div class="weather-overlay" id="weather-overlay"></div>
-        </div>
-        <div class="city-stats" id="city-stats">
-          <div class="stat">
-            <span class="stat-icon">❤️</span>
-            <div class="stat-bar-wrap"><div class="stat-bar" id="bar-happiness"></div></div>
-            <span class="stat-label" data-i18n="game.happiness"></span>
-          </div>
-          <div class="stat">
-            <span class="stat-icon">🏗</span>
-            <div class="stat-bar-wrap"><div class="stat-bar" id="bar-development"></div></div>
-            <span class="stat-label" data-i18n="game.development"></span>
-          </div>
-          <div class="stat">
-            <span class="stat-icon">💰</span>
-            <div class="stat-bar-wrap"><div class="stat-bar" id="bar-resources"></div></div>
-            <span class="stat-label" data-i18n="game.resources"></span>
-          </div>
-        </div>
-      </div>
-      <div class="game-panel" id="game-panel">
-        <div class="level-tag" id="level-tag"></div>
-        <h2 class="level-title" id="level-title"></h2>
-        <p class="level-story" id="level-story"></p>
-        <div class="option-stack" id="level-options"></div>
-        <div class="allocation-ui hidden" id="allocation-ui">
-          <div id="allocation-districts"></div>
-          <div class="allocation-remaining">
-            <span data-i18n="game.remaining"></span>
-            <strong id="remaining-credits">600</strong>
-          </div>
-          <button class="btn-primary btn-disabled" id="btn-allocate" data-i18n="game.confirmAllocation"></button>
-        </div>
-        <div class="consequence hidden" id="consequence-panel">
-          <p id="consequence-text"></p>
-          <button class="btn-primary" id="btn-consequence-next" data-i18n="common.continue"></button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Reveal -->
-    <div class="screen" id="screen-reveal">
-      <div class="screen-inner reveal-inner">
-        <div class="reveal-city" id="reveal-city"></div>
-        <p class="reveal-narration" data-i18n="reveal.narration"></p>
-        <div class="reveal-table">
-          <h3 data-i18n="reveal.tableTitle"></h3>
-          <div class="reveal-rows" id="reveal-rows"></div>
-        </div>
-        <button class="btn-primary" id="btn-reveal-next" data-i18n="reveal.btn"></button>
-      </div>
-    </div>
-
-    <!-- Profile -->
-    <div class="screen" id="screen-profile">
-      <div class="screen-inner">
-        <h2 data-i18n="profile.title"></h2>
-        <div class="persona-card" id="persona-card">
-          <div class="persona-icon" id="persona-icon"></div>
-          <h3 id="persona-name"></h3>
-          <p id="persona-description"></p>
-        </div>
-        <div class="trait-table" id="trait-table"></div>
-        <div class="profile-explanation" id="profile-explanation"></div>
-        <div class="disclaimer-box">
-          <p data-i18n="profile.sessionDisclaimer"></p>
-          <p class="legal-note" data-i18n="profile.legalNote"></p>
-        </div>
-        <div class="debrief-box" id="debrief-box">
-          <h3 data-i18n="profile.debriefTitle"></h3>
-          <p id="debrief-text"></p>
-        </div>
-        <div class="edu-box" id="edu-box">
-          <h3 data-i18n="profile.eduTitle"></h3>
-          <p id="edu-text"></p>
-        </div>
-        <div class="action-buttons">
-          <button class="btn-secondary" id="btn-replay" data-i18n="profile.replay"></button>
-          <button class="btn-primary" id="btn-learn" data-i18n="profile.learn"></button>
-        </div>
-        <div class="ai-coming-soon">
-          <p data-i18n="profile.aiSoon"></p>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  <script src="js/i18n.js"></script>
-  <script src="js/scoring.js"></script>
-  <script src="js/game.js"></script>
+  <div id="game-container"></div>
+  <script>
+    let currentLang = 'en';
+    function t(key) { return key; }
+    function setLang(lang) { currentLang = lang; }
+  </script>
+  <script>
+    const ScoringEngine = {
+      decisions: [], startingAnswers: [], levelStartTime: null,
+      reset() { this.decisions = []; this.startingAnswers = []; },
+      startTimer() { this.levelStartTime = Date.now(); },
+      recordDecision(level, value, extra = {}) {
+        const elapsed = this.levelStartTime ? Date.now() - this.levelStartTime : null;
+        this.decisions.push({ level, value, elapsed, ...extra });
+        console.log('[WealthSim] Level ' + level + ': ' + value + ' (' + elapsed + 'ms)');
+      },
+      recordStartingAnswer(idx, value) { this.startingAnswers[idx] = value; }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+  <script src="js/city/District.js"></script>
+  <script src="js/city/ResourceCube.js"></script>
+  <script src="js/city/AmbientSystem.js"></script>
+  <script src="js/city/WeatherSystem.js"></script>
+  <script src="js/ui/TooltipManager.js"></script>
+  <script src="js/ui/HUD.js"></script>
+  <script src="js/scenes/Boot.js"></script>
+  <script src="js/scenes/GameScene.js"></script>
+  <script src="js/main.js"></script>
+  <script>
+    let loadProgress = 0;
+    const bar = document.getElementById('loading-bar');
+    const hint = document.getElementById('loading-hint');
+    const hints = ['Building districts...', 'Placing roads...', 'Planting trees...', 'Lighting the city...'];
+    let hintIdx = 0;
+    const hintTimer = setInterval(() => {
+      loadProgress = Math.min(loadProgress + 15, 85);
+      bar.style.width = loadProgress + '%';
+      hint.textContent = hints[hintIdx % hints.length];
+      hintIdx++;
+    }, 400);
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        clearInterval(hintTimer);
+        bar.style.width = '100%';
+        setTimeout(() => {
+          document.getElementById('loading').classList.add('fade-out');
+          setTimeout(() => document.getElementById('loading').remove(), 800);
+        }, 400);
+      }, 1800);
+    });
+  </script>
 </body>
 </html>
