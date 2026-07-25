@@ -3,10 +3,11 @@ class GameScene extends Phaser.Scene {
 
   create() {
     this.W = this.scale.width; this.H = this.scale.height;
+    this.PANEL = 170; // left stats panel reserve
 
     const ground = this.add.graphics().setDepth(-5);
-    ground.fillStyle(0x0c1810,1); ground.fillRect(0,352,this.W,this.H-352);
-    ground.fillStyle(0x091309,1); ground.fillRect(0,362,this.W,14);
+    ground.fillStyle(0x18351c,1); ground.fillRect(0,352,this.W,this.H-352);
+    ground.fillStyle(0x122a15,1); ground.fillRect(0,362,this.W,14);
 
     this.ambient = new AmbientSystem(this);
     this.weather = new WeatherSystem(this);
@@ -24,41 +25,47 @@ class GameScene extends Phaser.Scene {
     this.hud = new HUD(this);
     this.statsPanel = new StatsPanel(this);
     this.statsPanel.updateStats(this.cityStats.happiness,this.cityStats.development,this.cityStats.resources);
-    this.statsPanel.recordSnapshot(this.cityStats.happiness,this.cityStats.development,this.cityStats.resources);
+    this.statsPanel.recordSnapshot(this.cityStats.happiness,this.cityStats.development,this.cityStats.resources,0);
 
     this.input.keyboard.on('keydown-R', () => this._spawnResourceCube());
     this.input.keyboard.on('keydown-S', () => this._startLevel(8));
+    this.input.keyboard.on('keydown-P', () => this._toProfile());
     this.events.on('resourceDropped', ({district,value}) => this._onResourceDropped(district,value));
     this._introSequence();
   }
 
+  // Responsive district placement across available width
   _buildDistricts() {
+    const L = this.PANEL + 40, R = this.W - 60, span = R - L;
+    const px = f => Math.round(L + span * f);
     this.districts = [
       new District(this, {id:'housing',name:'Housing',nameDE:'Wohnviertel',label:'Housing District',labelDE:'Wohnviertel',
-        color:0x2f8a42,darkColor:0x143d1c,accentColor:0x4aaa5c,cx:300,cy:470,health:45,
+        color:0x2f8a42,darkColor:0x143d1c,accentColor:0x4aaa5c,cx:px(0.06),cy:470,health:45,
         tooltip:'Stable homes for citizens.\nLow risk, steady growth.\nLike bonds in a portfolio.',
         tooltipDE:'Stabile Häuser für Bürger.\nGeringes Risiko, stetiges Wachstum.\nWie Anleihen im Portfolio.'}),
       new District(this, {id:'transport',name:'Transport',nameDE:'Verkehrsviertel',label:'Transport District',labelDE:'Verkehrsviertel',
-        color:0x33608f,darkColor:0x142a44,accentColor:0x5c8ab0,cx:575,cy:432,health:45,
+        color:0x33608f,darkColor:0x142a44,accentColor:0x5c8ab0,cx:px(0.36),cy:432,health:45,
         tooltip:'Roads and transit connect the city.\nModerate risk, reliable returns.\nKeeps everything moving.',
         tooltipDE:'Straßen verbinden die Stadt.\nModerates Risiko, zuverlässige Erträge.\nHält alles in Bewegung.'}),
       new District(this, {id:'technology',name:'Technology',nameDE:'Technologieviertel',label:'Technology District',labelDE:'Technologieviertel',
-        color:0x6b3fae,darkColor:0x2a1450,accentColor:0x9966cc,cx:855,cy:432,health:45,
+        color:0x6b3fae,darkColor:0x2a1450,accentColor:0x9966cc,cx:px(0.66),cy:432,health:45,
         tooltip:'High growth potential.\nHigh uncertainty.\nCan double — or fall sharply.',
         tooltipDE:'Hohes Wachstumspotenzial.\nHohe Unsicherheit.\nKann sich verdoppeln — oder stark fallen.'}),
       new District(this, {id:'energy',name:'Energy',nameDE:'Energieviertel',label:'Energy District',labelDE:'Energieviertel',
-        color:0xa8850f,darkColor:0x5c4408,accentColor:0xddaa00,cx:1120,cy:478,health:45,
+        color:0xa8850f,darkColor:0x5c4408,accentColor:0xddaa00,cx:px(0.94),cy:478,health:45,
         tooltip:'Wind and solar power the city.\nEssential infrastructure.\nSteady and reliable.',
         tooltipDE:'Wind und Solar versorgen die Stadt.\nWesentliche Infrastruktur.\nStabil und zuverlässig.'})
     ];
   }
+
+  _cx(){ return this.PANEL + (this.W - this.PANEL)/2; }
 
   _introSequence() {
     const fi=this.add.graphics().setDepth(200);
     fi.fillStyle(0x000000,1); fi.fillRect(0,0,this.W,this.H);
     this.tweens.add({targets:fi,alpha:0,duration:2000,delay:300,onComplete:()=>{fi.destroy();this._startLevel(1);}});
     const txt=this.add.text(this.W/2,this.H/2,'Your city awaits.',{fontFamily:'Playfair Display, Georgia, serif',fontSize:30,color:'#e2a840'}).setOrigin(0.5).setDepth(201).setAlpha(0);
-    this.tweens.add({targets:txt,alpha:1,duration:700,delay:600,hold:1100,yoyo:true,onComplete:()=>txt.destroy()});
+    this.tweens.add({targets:txt,alpha:1,duration:900,delay:700,hold:1600,yoyo:true,onComplete:()=>txt.destroy()});
   }
 
   _startLevel(n) {
@@ -77,12 +84,17 @@ class GameScene extends Phaser.Scene {
 
   _nextLevel(){
     this._clearConsequence(); this._clearWorldBtn();
-    this.statsPanel.recordSnapshot(this.cityStats.happiness,this.cityStats.development,this.cityStats.resources);
+    this.statsPanel.recordSnapshot(this.cityStats.happiness,this.cityStats.development,this.cityStats.resources,this.currentLevel);
     const next=this.currentLevel+1;
     if(next<=8) this._startLevel(next);
   }
 
-  // LEVEL 1 — districts themselves are clickable
+  _toProfile(){
+    this.tweens.killAll();
+    this.scene.start('ProfileScene', { stats: this.cityStats });
+  }
+
+  // LEVEL 1
   _level1() {
     this.hud.showLevelTitle(1,'The First Opportunity');
     this.time.delayedCall(2600,()=>{
@@ -95,7 +107,6 @@ class GameScene extends Phaser.Scene {
       this.siteMarkers=[];
       choices.forEach((c,i)=>{
         this.time.delayedCall(i*280,()=>{
-          // Choice label sits BELOW the district name label — no overlap
           const m=this._choiceLabel(c.d.cx, c.d.cy-74, c.label, c.col);
           this.siteMarkers.push(m);
           c.d.setSelectable(true, ()=>this._onLevel1Choice(c.d, c.val));
@@ -110,12 +121,12 @@ class GameScene extends Phaser.Scene {
     const t=this.add.text(0,0,text,{fontFamily:'Inter, Arial, sans-serif',fontSize:12,color:'#ffffff',fontStyle:'600'}).setOrigin(0.5);
     const w=t.width+20,h=22;
     const bg=this.add.graphics();
-    bg.fillStyle(color,0.22); bg.fillRoundedRect(-w/2,-h/2,w,h,11);
-    bg.lineStyle(1.5,color,0.9); bg.strokeRoundedRect(-w/2,-h/2,w,h,11);
+    bg.fillStyle(color,0.28); bg.fillRoundedRect(-w/2,-h/2,w,h,11);
+    bg.lineStyle(1.5,color,0.95); bg.strokeRoundedRect(-w/2,-h/2,w,h,11);
     c.add([bg,t]);
     c.setAlpha(0); c.setScale(0.8);
-    this.tweens.add({targets:c,alpha:1,scaleX:1,scaleY:1,duration:320,ease:'Back.easeOut'});
-    this.tweens.add({targets:c,y:y-5,duration:1100,yoyo:true,repeat:-1,ease:'Sine.easeInOut',delay:320});
+    this.tweens.add({targets:c,alpha:1,scaleX:1,scaleY:1,duration:400,ease:'Back.easeOut'});
+    this.tweens.add({targets:c,y:y-5,duration:1400,yoyo:true,repeat:-1,ease:'Sine.easeInOut',delay:400});
     return c;
   }
 
@@ -129,7 +140,7 @@ class GameScene extends Phaser.Scene {
   _onLevel1Choice(district, val) {
     this._clearSiteMarkers(); this._clearPersistentMessage();
     this.districts.forEach(d=>d.setSelectable(false));
-    ScoringEngine.recordDecision(1, val);
+    ScoringEngine.recordDecision(1, val, {districtId:district.id});
     district.receiveResource(2);
     this.cameras.main.shake(240,0.004);
     this._updateStats(5,10,-5);
@@ -148,7 +159,7 @@ class GameScene extends Phaser.Scene {
       this._workersLeave();
       this.districts[2].takeDamage(28);
       this._updateStats(-5,-8,0);
-      this.time.delayedCall(1700,()=>{
+      this.time.delayedCall(1900,()=>{
         this._showPersistentMessage('The technology district has lost value.\nWhat does the city do?');
         this._showDecisionPanel([
           {icon:'🛡',label:'Protect',desc:'Stop the project',value:'cancel',color:0x3a5f8a},
@@ -177,10 +188,9 @@ class GameScene extends Phaser.Scene {
     for(let i=0;i<9;i++){
       this.time.delayedCall(i*170,()=>{
         const w=this.add.graphics().setDepth(19);
-        w.fillStyle(0xffcc88,1); w.fillCircle(0,0,2.6);
-        w.fillRect(-1.2,0,2.4,5);
+        w.fillStyle(0xffcc88,1); w.fillCircle(0,0,2.6); w.fillRect(-1.2,0,2.4,5);
         w.setPosition(t.cx+Phaser.Math.Between(-28,28), t.cy);
-        this.tweens.add({targets:w,x:t.cx+Phaser.Math.Between(90,210),y:t.cy+Phaser.Math.Between(-20,30),alpha:0,duration:1500,onComplete:()=>w.destroy()});
+        this.tweens.add({targets:w,x:t.cx+Phaser.Math.Between(90,210),y:t.cy+Phaser.Math.Between(-20,30),alpha:0,duration:1700,onComplete:()=>w.destroy()});
       });
     }
     const s=this.add.graphics().setDepth(12);
@@ -188,7 +198,7 @@ class GameScene extends Phaser.Scene {
     for(let i=0;i<5;i++) s.lineBetween(t.cx-26+i*12,t.cy-40,t.cx-26+i*12,t.cy+10);
     s.lineBetween(t.cx-26,t.cy-26,t.cx+22,t.cy-26);
     s.lineBetween(t.cx-26,t.cy-8,t.cx+22,t.cy-8);
-    this.time.delayedCall(5500,()=>this.tweens.add({targets:s,alpha:0,duration:1000,onComplete:()=>s.destroy()}));
+    this.time.delayedCall(6500,()=>this.tweens.add({targets:s,alpha:0,duration:1400,onComplete:()=>s.destroy()}));
   }
 
   // LEVEL 3
@@ -202,16 +212,18 @@ class GameScene extends Phaser.Scene {
 
   _spawnResourceCubes(n) {
     this.cubeTotal=n; this.cubeDropped=0;
+    const startX = this.PANEL + 40;
     for(let i=0;i<n;i++){
       this.time.delayedCall(i*250,()=>{
-        this.cubes.push(new ResourceCube(this, 175+i*88, this.H-70, 1));
+        this.cubes.push(new ResourceCube(this, startX+i*84, this.H-70, 1));
       });
     }
   }
-  _spawnResourceCube(){ this.cubes.push(new ResourceCube(this,Phaser.Math.Between(180,520),this.H-70,1)); }
+  _spawnResourceCube(){ this.cubes.push(new ResourceCube(this,Phaser.Math.Between(this.PANEL+40,this.PANEL+400),this.H-70,1)); }
 
   _onResourceDropped(district,value) {
     this.cubeDropped=(this.cubeDropped||0)+1;
+    if (this.currentLevel===3) ScoringEngine.recordDecision(3,'allocate',{districtId:district.id});
     this._updateStats(2,4,-3);
     if(this.currentLevel===3 && this.cubeDropped>=(this.cubeTotal||6)){
       this._clearPersistentMessage();
@@ -317,7 +329,7 @@ class GameScene extends Phaser.Scene {
     this.hud.showLevelTitle(7,'Breaking News');
     this.time.delayedCall(2600,()=>{
       this._newsTicker(['📰 Several major cities abandoning technology districts!','📰 Friends and advisors recommending immediate action...']);
-      this.time.delayedCall(1900,()=>{
+      this.time.delayedCall(2200,()=>{
         this._showPersistentMessage('News arrives from across the region.\nTake your time. The decision sits open.');
         this._showDecisionPanel([
           {icon:'📤',label:'Sell tech',desc:'Act immediately.',value:'sell',color:0xe74c3c},
@@ -351,12 +363,12 @@ class GameScene extends Phaser.Scene {
         this._updateStats(-15,-20,-10); this.cameras.main.shake(900,0.012);
         if(this.hasUniversity){
           this.time.delayedCall(2000,()=>{
-            this._tempMessage('The Research University opens its doors.\nGraduates create companies. Income rises. Your patience pays off.',4000);
+            this._tempMessage('The Research University opens its doors.\nGraduates create companies. Income rises. Your patience pays off.',6000);
             this.districts[0].receiveResource(2); this.districts[1].receiveResource(1);
             this._updateStats(10,15,0);
           });
         }
-        this.time.delayedCall(3700,()=>{
+        this.time.delayedCall(this.hasUniversity ? 7200 : 3900,()=>{
           this._showPersistentMessage('An economic storm hits every city.\nYou cannot prevent it. What do you protect?');
           this._showDecisionPanel([
             {icon:'🏃',label:'Sell all',desc:'Protect remaining\nresources.',value:'sell_all',color:0xe74c3c},
@@ -375,7 +387,7 @@ class GameScene extends Phaser.Scene {
               const m={sell_all:'Resources secured.\nThe city stops building and waits for calmer times.',hold:'The plan holds.\nThe city weathers the storm with its structure intact.',rebalance:'A more resilient structure emerges.\nThe city reorganises thoughtfully.',opportunistic:'The city invests carefully during the downturn.\nIf recovery comes, these decisions will matter.'};
               const dl={sell_all:[-5,-15,15],hold:[5,0,-5],rebalance:[5,8,-5],opportunistic:[3,12,-10]}[ch]||[0,0,0];
               this._updateStats(dl[0],dl[1],dl[2]);
-              this._showConsequence(m[ch]||m.hold,()=>this._ending());
+              this._showConsequence(m[ch]||m.hold,()=>this._finish());
             });
           });
         });
@@ -383,24 +395,18 @@ class GameScene extends Phaser.Scene {
     });
   }
 
-  _ending() {
+  _finish() {
     this._clearConsequence(); this._clearWorldBtn();
-    this.statsPanel.recordSnapshot(this.cityStats.happiness,this.cityStats.development,this.cityStats.resources);
-    const W=this.W,H=this.H;
-    const ov=this.add.graphics().setDepth(150);
-    this.tweens.add({targets:ov,alpha:1,duration:2000,onUpdate:(t)=>{ov.clear();ov.fillStyle(0x040a14,t.getValue()*0.88);ov.fillRect(0,0,W,H);}});
-    this.time.delayedCall(1400,()=>{
-      const n=this.add.text(W/2,H/2-60,'The city you built was never just a city.',{fontFamily:'Playfair Display, Georgia, serif',fontSize:27,color:'#e2a840',align:'center'}).setOrigin(0.5).setDepth(151).setAlpha(0);
-      this.tweens.add({targets:n,alpha:1,y:H/2-70,duration:1000,delay:400});
-      const s=this.add.text(W/2,H/2+10,'Your behavioral profile is ready.',{fontFamily:'Inter, Arial, sans-serif',fontSize:16,color:'#a8b2c1'}).setOrigin(0.5).setDepth(151).setAlpha(0);
-      this.tweens.add({targets:s,alpha:1,duration:800,delay:1700});
-      const b=this.add.text(W/2,H/2+72,'[ View My Profile ]',{fontFamily:'Playfair Display, Georgia, serif',fontSize:18,color:'#f0c060'}).setOrigin(0.5).setDepth(151).setAlpha(0).setInteractive({useHandCursor:true});
-      this.tweens.add({targets:b,alpha:1,duration:600,delay:2800});
-      b.on('pointerover',()=>b.setColor('#ffe090')); b.on('pointerout',()=>b.setColor('#f0c060'));
-      b.on('pointerdown',()=>{console.log('[WealthSim] Decisions:',JSON.stringify(ScoringEngine.decisions));this.hud.showMessage('Profile scene coming soon. Check console.',4000);});
+    this.statsPanel.recordSnapshot(this.cityStats.happiness,this.cityStats.development,this.cityStats.resources,8);
+    const ov = this.add.graphics().setDepth(180);
+    this.tweens.add({
+      targets:ov, alpha:1, duration:1800,
+      onUpdate:(t)=>{ ov.clear(); ov.fillStyle(0x061019, t.getValue()); ov.fillRect(0,0,this.W,this.H); },
+      onComplete:()=>this._toProfile()
     });
   }
 
+  // News ticker — 50% slower
   _newsTicker(lines){
     const bg=this.add.graphics().setDepth(45);
     bg.fillStyle(0x9e1600,0.94); bg.fillRect(0,54,this.W,34);
@@ -408,7 +414,8 @@ class GameScene extends Phaser.Scene {
     const br=this.add.text(14,63,'BREAKING',{fontFamily:'Inter, Arial, sans-serif',fontSize:11,color:'#ffeecc',fontStyle:'700',letterSpacing:2}).setDepth(46);
     const sep=this.add.graphics().setDepth(46); sep.fillStyle(0xffffff,0.3); sep.fillRect(88,60,1,20);
     const tk=this.add.text(this.W+20,64,lines.join('   ★   '),{fontFamily:'Inter, Arial, sans-serif',fontSize:13,color:'#ffffff',fontStyle:'600'}).setDepth(46);
-    this.tweens.add({targets:tk,x:-(tk.width+100),duration:Math.max(11000,tk.width*14),ease:'Linear',onComplete:()=>{tk.destroy();bg.destroy();br.destroy();sep.destroy();}});
+    const dur = Math.max(22000, tk.width*28);  // was width*14 — 2x slower
+    this.tweens.add({targets:tk,x:-(tk.width+100),duration:dur,ease:'Linear',onComplete:()=>{tk.destroy();bg.destroy();br.destroy();sep.destroy();}});
   }
 
   _reportModal(title,text,cb){
@@ -427,41 +434,44 @@ class GameScene extends Phaser.Scene {
 
   _showPersistentMessage(text){
     this._clearPersistentMessage();
-    this.persistentMsg=this.add.text(this.W/2,60,text,{fontFamily:'Playfair Display, Georgia, serif',fontSize:16,color:'#dfe8f7',align:'center',wordWrap:{width:720},backgroundColor:'#040a14',padding:{x:20,y:11},lineSpacing:3}).setOrigin(0.5).setDepth(48).setAlpha(0);
-    this.tweens.add({targets:this.persistentMsg,alpha:1,y:66,duration:400});
+    this.persistentMsg=this.add.text(this._cx(),60,text,{fontFamily:'Playfair Display, Georgia, serif',fontSize:16,color:'#dfe8f7',align:'center',wordWrap:{width:Math.min(720,this.W-this.PANEL-80)},backgroundColor:'#040a14',padding:{x:20,y:11},lineSpacing:3}).setOrigin(0.5).setDepth(48).setAlpha(0);
+    this.tweens.add({targets:this.persistentMsg,alpha:1,y:66,duration:600});
   }
   _clearPersistentMessage(){ if(this.persistentMsg){this.tweens.killTweensOf(this.persistentMsg);this.persistentMsg.destroy();this.persistentMsg=null;} }
 
+  // Temporary message — much slower fade and longer hold
   _tempMessage(text,dur){
-    const m=this.add.text(this.W/2,this.H-110,text,{fontFamily:'Playfair Display, Georgia, serif',fontSize:15,color:'#e2a840',align:'center',backgroundColor:'#040a14',padding:{x:18,y:10},lineSpacing:3}).setOrigin(0.5).setDepth(66).setAlpha(0);
-    this.tweens.add({targets:m,alpha:1,y:this.H-118,duration:400,hold:dur||2500,yoyo:true,onComplete:()=>m.destroy()});
+    const m=this.add.text(this._cx(),this.H-110,text,{fontFamily:'Playfair Display, Georgia, serif',fontSize:15,color:'#e2a840',align:'center',backgroundColor:'#040a14',padding:{x:18,y:10},lineSpacing:3}).setOrigin(0.5).setDepth(66).setAlpha(0);
+    this.tweens.add({targets:m,alpha:1,y:this.H-118,duration:1000,hold:dur||5000,yoyo:true,onComplete:()=>m.destroy()});
   }
 
   _showConsequence(text,onContinue){
     this._clearConsequence(); this._clearDecisionPanel();
-    const W=this.W,pw=Math.min(640,W-260),ph=88,px=(W-pw)/2+60,py=this.H-166;
+    const cx=this._cx();
+    const pw=Math.min(640,this.W-this.PANEL-80), ph=88, px=cx-pw/2, py=this.H-166;
     const bg=this.add.graphics();
     bg.fillStyle(0x040a14,0.94); bg.fillRoundedRect(px,py,pw,ph,12);
     bg.lineStyle(1,0x4ecdc4,0.5); bg.strokeRoundedRect(px,py,pw,ph,12);
     bg.lineStyle(3,0x4ecdc4,0.75); bg.lineBetween(px,py+8,px,py+ph-8);
-    const t=this.add.text(px+pw/2,py+44,text,{fontFamily:'Playfair Display, Georgia, serif',fontSize:14,color:'#cfe0ee',align:'center',wordWrap:{width:pw-44},lineSpacing:4}).setOrigin(0.5);
+    const t=this.add.text(cx,py+44,text,{fontFamily:'Playfair Display, Georgia, serif',fontSize:14,color:'#cfe0ee',align:'center',wordWrap:{width:pw-44},lineSpacing:4}).setOrigin(0.5);
     this.consequencePanel=this.add.container(0,0).setDepth(62);
     this.consequencePanel.add([bg,t]); this.consequencePanel.setAlpha(0);
-    this.tweens.add({targets:this.consequencePanel,alpha:1,duration:450});
-    this.time.delayedCall(900,()=>{
+    this.tweens.add({targets:this.consequencePanel,alpha:1,duration:650});
+    this.time.delayedCall(1100,()=>{
       const lbl=(typeof currentLang!=='undefined'&&currentLang==='de')?'Weiter →':'Continue →';
-      this.worldBtn=new WorldButton(this,px+pw/2,this.H-236,lbl,()=>{this.worldBtn=null;if(onContinue)onContinue();});
+      this.worldBtn=new WorldButton(this,cx,this.H-236,lbl,()=>{this.worldBtn=null;if(onContinue)onContinue();});
     });
   }
   _clearConsequence(){ if(this.consequencePanel){this.tweens.killTweensOf(this.consequencePanel);this.consequencePanel.destroy();this.consequencePanel=null;} }
 
   _showDecisionPanel(options,cb){
     this._clearDecisionPanel();
-    const W=this.W, cols=Math.min(options.length,4);
-    const availW = W - 150;
-    const btnW=Math.min(155,(availW-40-(cols-1)*10)/cols);
+    const cx=this._cx();
+    const cols=Math.min(options.length,4);
+    const availW = this.W - this.PANEL - 80;
+    const btnW=Math.min(158,(availW-40-(cols-1)*10)/cols);
     const panelW=cols*btnW+(cols-1)*10+40;
-    const panelH=112, panelX=(W-panelW)/2+58, panelY=this.H-panelH-16;
+    const panelH=112, panelX=cx-panelW/2, panelY=this.H-panelH-16;
     this.decisionPanel=this.add.container(0,0).setDepth(60);
     const bg=this.add.graphics();
     bg.fillStyle(0x040a14,0.95); bg.fillRoundedRect(panelX,panelY,panelW,panelH,12);
@@ -482,7 +492,7 @@ class GameScene extends Phaser.Scene {
       this.decisionPanel.add(hit);
     });
     this.decisionPanel.y=70;
-    this.tweens.add({targets:this.decisionPanel,y:0,duration:400,ease:'Back.easeOut'});
+    this.tweens.add({targets:this.decisionPanel,y:0,duration:450,ease:'Back.easeOut'});
   }
   _clearDecisionPanel(){ if(this.decisionPanel){this.tweens.killTweensOf(this.decisionPanel);this.decisionPanel.destroy();this.decisionPanel=null;} }
   _clearWorldBtn(){ if(this.worldBtn){this.worldBtn.destroy();this.worldBtn=null;} }
