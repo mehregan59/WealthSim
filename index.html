@@ -9,8 +9,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet" />
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    html,body{width:100%;height:100%;background:#061019;overflow:hidden;display:flex;align-items:center;justify-content:center}
-    #game-container{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+    html,body{width:100%;height:100%;background:#061019;overflow:hidden}
+    #game-container{width:100vw;height:100vh;overflow:hidden}
     canvas{display:block;image-rendering:auto}
     #loading{position:fixed;inset:0;background:#061019;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .8s ease}
     #loading.out{opacity:0;pointer-events:none}
@@ -46,7 +46,7 @@
         extra = extra || {};
         const elapsed=this.levelStartTime?Date.now()-this.levelStartTime:null;
         this.decisions.push(Object.assign({level:level,value:value,elapsed:elapsed},extra));
-        console.log('[WealthSim] L'+level+': '+value+' ('+elapsed+'ms)');
+        console.log('[WealthSim] L'+level+': '+value);
       },
       recordStartingAnswer(idx,value){
         this.startingAnswers[idx]=value;
@@ -67,6 +67,7 @@
   <script src="js/ui/HUD.js"></script>
   <script src="js/ui/StatsPanel.js"></script>
   <script src="js/ui/WorldButton.js"></script>
+  <script src="js/ui/Tutorial.js"></script>
 
   <script src="js/scenes/Boot.js"></script>
   <script src="js/scenes/PlayerSetup.js"></script>
