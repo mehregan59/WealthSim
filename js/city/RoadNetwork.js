@@ -92,9 +92,10 @@ class RoadNetwork {
     main.forEach(p=>g.lineTo(p.x,p.y+this.s(15))); g.strokePath();
   }
 
-  // Signpost sits far down the branch, clear of every district. Hidden by default.
+  // Signpost sits well down the branch, past Technology, clear of every
+  // district. Hidden by default, shown only during the Level 6 delegation.
   _buildSign() {
-    const b=this.lanes[2].pts[2];
+    const b=this.lanes[2].pts[3];
     const sg=this.signGfx;
     sg.fillStyle(0x6b7a8d,1); sg.fillRect(b.x-this.s(1.5), b.y-this.s(38), this.s(3), this.s(38));
     sg.fillStyle(0x1e3350,0.96); sg.fillRoundedRect(b.x-this.s(6), b.y-this.s(56), this.s(84), this.s(21), this.s(4));
