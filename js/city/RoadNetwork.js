@@ -92,17 +92,20 @@ class RoadNetwork {
     main.forEach(p=>g.lineTo(p.x,p.y+this.s(15))); g.strokePath();
   }
 
-  // Signpost sits well down the branch, past Technology, clear of every
-  // district. Hidden by default, shown only during the Level 6 delegation.
+  // Signpost sits right at the start of the fork — where the branch road
+  // splits from the main road — rather than further down the branch.
+  // Sized 10% smaller than the original. Hidden by default, shown only
+  // during the Level 6 delegation.
   _buildSign() {
-    const b=this.lanes[2].pts[3];
+    const b=this.lanes[2].pts[0];
+    const K=0.9; // 10% smaller than the original sign
     const sg=this.signGfx;
-    sg.fillStyle(0x6b7a8d,1); sg.fillRect(b.x-this.s(1.5), b.y-this.s(38), this.s(3), this.s(38));
-    sg.fillStyle(0x1e3350,0.96); sg.fillRoundedRect(b.x-this.s(6), b.y-this.s(56), this.s(84), this.s(21), this.s(4));
-    sg.lineStyle(1,0x5c8ab0,0.9);  sg.strokeRoundedRect(b.x-this.s(6), b.y-this.s(56), this.s(84), this.s(21), this.s(4));
-    this.signText=this.scene.add.text(b.x+this.s(36), b.y-this.s(45),
+    sg.fillStyle(0x6b7a8d,1); sg.fillRect(b.x-this.s(1.5*K), b.y-this.s(38*K), this.s(3*K), this.s(38*K));
+    sg.fillStyle(0x1e3350,0.96); sg.fillRoundedRect(b.x-this.s(6*K), b.y-this.s(56*K), this.s(84*K), this.s(21*K), this.s(4*K));
+    sg.lineStyle(1,0x5c8ab0,0.9);  sg.strokeRoundedRect(b.x-this.s(6*K), b.y-this.s(56*K), this.s(84*K), this.s(21*K), this.s(4*K));
+    this.signText=this.scene.add.text(b.x+this.s(36*K), b.y-this.s(45*K),
       (typeof currentLang!=='undefined'&&currentLang==='de')?'Nachbarstadt \u203A':'Neighbour city \u203A',{
-      fontFamily:'Inter, Arial, sans-serif', fontSize:this.s(11), color:'#bcd8f0'
+      fontFamily:'Inter, Arial, sans-serif', fontSize:this.s(11*K), color:'#bcd8f0'
     }).setOrigin(0.5).setDepth(12).setAlpha(0);
   }
 
