@@ -70,7 +70,13 @@ class Tutorial {
     const de=(typeof currentLang!=='undefined'&&currentLang==='de');
     const c=Tutorial.copy(level,de);
     if(!c){ if(onClose) onClose(); return; }
-    this._render(c.t, c.b, 0, 0, de?'Verstanden':'Got it', onClose, false);
+    // The button now reads "Continue" (matching every other Continue button
+    // in the game) instead of "Got it" — some players didn't realize a
+    // guide card was a modal they had to close to proceed. The body copy
+    // also gets an explicit closing hint saying so.
+    const hint = de ? '\n\nTippe auf Weiter, um diese Anleitung zu schlie\u00dfen und zu beginnen.'
+                     : '\n\nTap Continue to close this guide and begin.';
+    this._render(c.t, c.b + hint, 0, 0, de?'Weiter \u2192':'Continue \u2192', onClose, false);
   }
 
   _render(titleTxt, bodyTxt, page, pages, btnLabel, onClose, centred) {
