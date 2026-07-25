@@ -1,6 +1,7 @@
 class WorldButton {
   constructor(scene,x,y,label,callback){
     this.scene=scene;this.x=x;this.y=y;this.label=label;this.callback=callback;
+    this.used=false;
     this.container=scene.add.container(x,y).setDepth(70).setAlpha(0);
     this._build();this._appear();
   }
@@ -18,8 +19,7 @@ class WorldButton {
     this.arrow=this.scene.add.text(0,0,'▶',{fontSize:16,color:'#f0c060',fontStyle:'bold'}).setOrigin(0.5);
     this.container.add(this.arrow);
     // Single label, stacked directly beneath the circle — one visual unit,
-    // not a separate floating chip (previously sat above with a gap and
-    // read as a second button).
+    // not a separate floating chip.
     this.labelBg=this.scene.add.graphics();
     this.labelBg.fillStyle(0x060e1c,0.88);this.labelBg.fillRoundedRect(-52,50,104,26,8);
     this.labelBg.lineStyle(1,0xe2a840,0.5);this.labelBg.strokeRoundedRect(-52,50,104,26,8);
@@ -33,9 +33,18 @@ class WorldButton {
     this.container.addAt(shadow,0);
     this.hitZone=this.scene.add.circle(0,0,44,0xffffff,0).setInteractive({useHandCursor:true});
     this.container.add(this.hitZone);
-    this.hitZone.on('pointerover',()=>{this.scene.tweens.add({targets:this.container,scaleX:1.12,scaleY:1.12,duration:180});this.innerCircle.clear();this.innerCircle.fillStyle(0xe2a840,0.3);this.innerCircle.fillCircle(0,0,26);this.innerCircle.fillStyle(0xe2a840,0.7);this.innerCircle.fillCircle(0,0,18);});
-    this.hitZone.on('pointerout',()=>{this.scene.tweens.add({targets:this.container,scaleX:1,scaleY:1,duration:180});this.innerCircle.clear();this.innerCircle.fillStyle(0xe2a840,0.15);this.innerCircle.fillCircle(0,0,26);this.innerCircle.fillStyle(0xe2a840,0.4);this.innerCircle.fillCircle(0,0,18);});
-    this.hitZone.on('pointerdown',()=>{this.scene.cameras.main.shake(80,0.003);this._disappear(()=>{if(this.callback)this.callback();});});
+    this.hitZone.on('pointerover',()=>{if(this.used)return;this.scene.tweens.add({targets:this.container,scaleX:1.12,scaleY:1.12,duration:180});this.innerCircle.clear();this.innerCircle.fillStyle(0xe2a840,0.3);this.innerCircle.fillCircle(0,0,26);this.innerCircle.fillStyle(0xe2a840,0.7);this.innerCircle.fillCircle(0,0,18);});
+    this.hitZone.on('pointerout',()=>{if(this.used)return;this.scene.tweens.add({targets:this.container,scaleX:1,scaleY:1,duration:180});this.innerCircle.clear();this.innerCircle.fillStyle(0xe2a840,0.15);this.innerCircle.fillCircle(0,0,26);this.innerCircle.fillStyle(0xe2a840,0.4);this.innerCircle.fillCircle(0,0,18);});
+    this.hitZone.on('pointerdown',()=>{
+      // Guard against a second pointerdown (double-tap, or a click landing
+      // mid hover-tween) firing the disappear/callback sequence twice —
+      // that race is what left the button stuck on screen.
+      if(this.used) return;
+      this.used=true;
+      this.hitZone.disableInteractive();
+      this.scene.cameras.main.shake(80,0.003);
+      this._disappear(()=>{if(this.callback)this.callback();});
+    });
   }
   _appear(){
     for(let i=0;i<8;i++){const angle=(i/8)*Math.PI*2;const p=this.scene.add.graphics().setDepth(71);p.fillStyle(0xe2a840,0.8);p.fillCircle(0,0,2.5);p.setPosition(this.x,this.y);this.scene.tweens.add({targets:p,x:this.x+Math.cos(angle)*55,y:this.y+Math.sin(angle)*55,alpha:0,duration:500,onComplete:()=>p.destroy()});}
@@ -48,9 +57,11 @@ class WorldButton {
   }
   _disappear(callback){
     this.scene.tweens.killTweensOf(this.container);this.scene.tweens.killTweensOf(this.outerRing);this.scene.tweens.killTweensOf(this.midRing);this.scene.tweens.killTweensOf(this.arrow);
-    this.scene.tweens.add({targets:this.container,alpha:0,scaleX:1.5,scaleY:1.5,duration:350,ease:'Power2.easeIn',onComplete:()=>{this.container.destroy();if(callback)callback();}});
+    this.scene.tweens.add({targets:this.container,alpha:0,scaleX:1.5,scaleY:1.5,duration:350,ease:'Power2.easeIn',onComplete:()=>{try{this.container.destroy();}catch(e){}if(callback)callback();}});
   }
   destroy(){
+    this.used=true;
+    try{ if(this.hitZone) this.hitZone.disableInteractive(); }catch(e){}
     this.scene.tweens.killTweensOf(this.container);this.scene.tweens.killTweensOf(this.outerRing);this.scene.tweens.killTweensOf(this.midRing);this.scene.tweens.killTweensOf(this.arrow);
     try{this.container.destroy();}catch(e){}
   }
