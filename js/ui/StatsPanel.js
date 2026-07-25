@@ -1,17 +1,19 @@
-// Full-height side panel: stats, trend chart with axes, text-size control
+// Full-height side panel: city stats, trend chart, per-district performance,
+// and a text-size control.
 class StatsPanel {
   constructor(scene) {
     this.scene = scene;
     this.S = scene.S || 1;
     this.container = scene.add.container(0,0).setDepth(56);
     this.bars = {};
+    this.perf = {};
     this.history = { happiness:[], development:[], resources:[] };
     this.levels = [];
     this.xLabels = [];
     this.px = 0;
-    this.py = this.s(44);                    // flush under the top bar
+    this.py = this.s(44);
     this.pw = scene.PANEL;
-    this.ph = scene.scale.height - this.py;  // flush to the bottom
+    this.ph = scene.scale.height - this.py;
     this._build();
   }
   s(v){ return Math.round(v * this.S); }
@@ -25,14 +27,14 @@ class StatsPanel {
     this.container.add(bg);
 
     const pad = this.s(18);
-    let y = py + this.s(26);
+    let y = py + this.s(24);
 
     const title = this.scene.add.text(px+pad, y, 'CITY STATUS', {
       fontFamily:'Inter, Arial, sans-serif', fontSize:this.s(11),
       color:'#e2a840', letterSpacing:3, fontStyle:'700'
     }).setOrigin(0,0.5);
     this.container.add(title);
-    y += this.s(28);
+    y += this.s(26);
 
     const stats = [
       {id:'happiness',   icon:'\u2764', label:'Happy',  color:0xe74c7c, hex:'#e74c7c'},
@@ -52,19 +54,46 @@ class StatsPanel {
       }).setOrigin(1,0.5);
       const bBg = this.scene.add.graphics();
       bBg.fillStyle(0x152744,1);
-      bBg.fillRoundedRect(px+pad, y+this.s(13), pw-pad*2, this.s(8), this.s(4));
+      bBg.fillRoundedRect(px+pad, y+this.s(12), pw-pad*2, this.s(8), this.s(4));
       const bFill = this.scene.add.graphics();
-      this.bars[st.id] = { fill:bFill, color:st.color, x:px+pad, y:y+this.s(13),
+      this.bars[st.id] = { fill:bFill, color:st.color, x:px+pad, y:y+this.s(12),
                            maxW:pw-pad*2, h:this.s(8), disp:50, text:vt };
       this.container.add([ic,lb,vt,bBg,bFill]);
-      y += this.s(44);
+      y += this.s(40);
     });
 
-    // Trend chart
+    // ── Per-district performance ──
+    y += this.s(4);
+    const pTitle = this.scene.add.text(px+pad, y, 'DISTRICT PERFORMANCE', {
+      fontFamily:'Inter, Arial, sans-serif', fontSize:this.s(10),
+      color:'#5a7d9e', letterSpacing:2, fontStyle:'600'
+    }).setOrigin(0,0.5);
+    this.container.add(pTitle);
+    y += this.s(18);
+
+    const ds = this.scene.districts || [];
+    ds.forEach(d => {
+      const nm = this.scene.add.text(px+pad, y, d.name, {
+        fontFamily:'Inter, Arial, sans-serif', fontSize:this.s(12), color:'#8aa4c0'
+      }).setOrigin(0,0.5);
+      const vt = this.scene.add.text(px+pw-pad, y, '45', {
+        fontFamily:'Inter, Arial, sans-serif', fontSize:this.s(12), color:'#c8d8ea', fontStyle:'600'
+      }).setOrigin(1,0.5);
+      const bBg = this.scene.add.graphics();
+      bBg.fillStyle(0x152744,1);
+      bBg.fillRoundedRect(px+pad, y+this.s(10), pw-pad*2, this.s(6), this.s(3));
+      const bFill = this.scene.add.graphics();
+      this.perf[d.id] = { fill:bFill, color:d.accentColor, x:px+pad, y:y+this.s(10),
+                          maxW:pw-pad*2, h:this.s(6), text:vt, district:d, disp:d.health };
+      this.container.add([nm,vt,bBg,bFill]);
+      y += this.s(30);
+    });
+
+    // ── Trend chart ──
     y += this.s(6);
     const cTitle = this.scene.add.text(px+pad, y, 'CITY TREND', {
       fontFamily:'Inter, Arial, sans-serif', fontSize:this.s(10),
-      color:'#5a7d9e', letterSpacing:3, fontStyle:'600'
+      color:'#5a7d9e', letterSpacing:2, fontStyle:'600'
     }).setOrigin(0,0.5);
     this.container.add(cTitle);
     y += this.s(16);
@@ -72,7 +101,7 @@ class StatsPanel {
     const plotX = px + pad + this.s(24);
     const plotY = y;
     const plotW = pw - pad*2 - this.s(24);
-    const plotH = this.s(190);
+    const plotH = Math.max(this.s(110), Math.min(this.s(170), py+ph-y-this.s(140)));
     this.chart = { x:plotX, y:plotY, w:plotW, h:plotH };
 
     const ax = this.scene.add.graphics();
@@ -98,7 +127,7 @@ class StatsPanel {
     }).setOrigin(0.5).setAngle(-90);
     this.container.add(yCap);
 
-    const xCap = this.scene.add.text(plotX+plotW/2, plotY+plotH+this.s(26), 'LEVEL', {
+    const xCap = this.scene.add.text(plotX+plotW/2, plotY+plotH+this.s(24), 'LEVEL', {
       fontFamily:'Inter, Arial, sans-serif', fontSize:this.s(9), color:'#456a8c', letterSpacing:2
     }).setOrigin(0.5);
     this.container.add(xCap);
@@ -106,7 +135,7 @@ class StatsPanel {
     this.chartGfx = this.scene.add.graphics().setDepth(58);
     this.container.add(this.chartGfx);
 
-    y = plotY + plotH + this.s(42);
+    y = plotY + plotH + this.s(38);
     [{c:0xe74c7c,t:'Happy'},{c:0x4ecdc4,t:'Growth'},{c:0xe2a840,t:'Funds'}].forEach((l,i)=>{
       const lx = px+pad + i*this.s(52);
       const d = this.scene.add.graphics();
@@ -117,23 +146,22 @@ class StatsPanel {
       this.container.add([d,tx]);
     });
 
-    // Text size control
-    const cy = py + ph - this.s(56);
+    // ── Text size control ──
+    const cy = py + ph - this.s(54);
     const cLbl = this.scene.add.text(px+pad, cy, 'TEXT SIZE', {
       fontFamily:'Inter, Arial, sans-serif', fontSize:this.s(9),
       color:'#456a8c', letterSpacing:2, fontStyle:'600'
     }).setOrigin(0,0.5);
     this.container.add(cLbl);
 
-    const opts = [{l:'A',v:2},{l:'A+',v:3},{l:'A++',v:4}];
-    opts.forEach((o,i)=>{
+    [{l:'A',v:2},{l:'A+',v:3},{l:'A++',v:4}].forEach((o,i)=>{
       const bw=this.s(36), bh=this.s(26);
       const bx = px+pad + i*(bw+this.s(6)), by = cy + this.s(14);
       const g = this.scene.add.graphics();
       const txt = this.scene.add.text(bx+bw/2, by+bh/2, o.l, {
         fontFamily:'Inter, Arial, sans-serif', fontSize:this.s(12), fontStyle:'700', color:'#6b8fb0'
       }).setOrigin(0.5);
-      const draw = (hov) => {
+      const draw=(hov)=>{
         g.clear();
         const on = Math.round(window.WS_TEXT_RES) === o.v;
         g.fillStyle(on?0xe2a840:0x152744, on?0.92:1);
@@ -152,14 +180,37 @@ class StatsPanel {
     });
 
     this._redrawAll();
+    this.refreshPerformance();
   }
 
   updateStats(h,d,r) {
-    const vals={happiness:h,development:d,resources:r};
-    Object.entries(this.bars).forEach(([id,b])=>{
-      const target=Math.max(0,Math.min(100,vals[id]));
-      this.scene.tweens.add({targets:b,disp:target,duration:750,ease:'Power2.easeOut',onUpdate:()=>this._redrawBar(id)});
+    const vals = {happiness:h, development:d, resources:r};
+    Object.entries(this.bars).forEach(([id,bar]) => {
+      const target = Math.max(0, Math.min(100, vals[id]));
+      this.scene.tweens.add({ targets:bar, disp:target, duration:750, ease:'Power2.easeOut', onUpdate:()=>this._redrawBar(id) });
     });
+    this.refreshPerformance();
+  }
+
+  // Live per-district performance — the player reads this and decides for themselves
+  refreshPerformance() {
+    Object.keys(this.perf).forEach(id=>{
+      const p=this.perf[id];
+      const target=Math.max(0,Math.min(100,p.district.health));
+      this.scene.tweens.add({targets:p,disp:target,duration:600,ease:'Power2.easeOut',
+        onUpdate:()=>this._redrawPerf(id)});
+    });
+  }
+
+  _redrawPerf(id) {
+    const p=this.perf[id], pct=p.disp/100, r=p.h/2;
+    p.fill.clear();
+    p.fill.fillStyle(p.color,0.14); p.fill.fillRoundedRect(p.x,p.y,p.maxW,p.h,r);
+    p.fill.fillStyle(p.color,0.95); p.fill.fillRoundedRect(p.x,p.y,Math.max(p.h,p.maxW*pct),p.h,r);
+    if(p.text){
+      p.text.setText(Math.round(p.disp));
+      p.text.setColor(pct<0.3?'#e74c3c':pct>0.7?'#4ecdc4':'#c8d8ea');
+    }
   }
 
   recordSnapshot(h,d,r,level) {
@@ -175,7 +226,8 @@ class StatsPanel {
   }
 
   _drawChart() {
-    const g=this.chartGfx, x=this.chart.x, y=this.chart.y, w=this.chart.w, h=this.chart.h;
+    const g=this.chartGfx;
+    const x=this.chart.x, y=this.chart.y, w=this.chart.w, h=this.chart.h;
     g.clear();
     this.xLabels.forEach(t=>{try{t.destroy();}catch(e){}});
     this.xLabels=[];
@@ -184,7 +236,7 @@ class StatsPanel {
       const step = n>1 ? w/(n-1) : 0;
       this.levels.forEach((lv,i)=>{
         if (n>6 && i%2!==0 && i!==n-1) return;
-        const t=this.scene.add.text(x+i*step, y+h+this.s(9), String(lv), {
+        const t=this.scene.add.text(x+i*step, y+h+this.s(8), String(lv), {
           fontFamily:'Inter, Arial, sans-serif', fontSize:this.s(10), color:'#5a7d9e'
         }).setOrigin(0.5,0).setDepth(58);
         this.xLabels.push(t); this.container.add(t);
