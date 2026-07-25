@@ -43,26 +43,29 @@ class GameScene extends Phaser.Scene {
   _availW(){ return this.W - this.PANEL - this.s(60); }
 
   _buildDistricts() {
-    const L = this.PANEL + this.s(70);
-    const R = this.W - this.s(70);
+    // Extra margin off both the panel and the right edge of the screen,
+    // and Housing/Energy pulled ~20% closer to their inner neighbours
+    // (Transport/Technology) instead of sitting right at the outer bounds.
+    const L = this.PANEL + this.s(96);
+    const R = this.W - this.s(96);
     const span = R - L;
     const px = f => Math.round(L + span * f);
     const baseY = this.s(470);
     this.districts = [
       new District(this, {id:'housing',name:'Housing',nameDE:'Wohnviertel',label:'Housing District',labelDE:'Wohnviertel',
-        color:0x2f8a42,darkColor:0x143d1c,accentColor:0x4aaa5c,cx:px(0.00),cy:baseY,health:45,scale:this.S,
+        color:0x2f8a42,darkColor:0x143d1c,accentColor:0x4aaa5c,cx:px(0.07),cy:baseY,health:45,scale:this.S,
         tooltip:'Stable homes for citizens.\nLow risk, steady growth.\nLike bonds in a portfolio.',
         tooltipDE:'Stabile Häuser für Bürger.\nGeringes Risiko, stetiges Wachstum.'}),
       new District(this, {id:'transport',name:'Transport',nameDE:'Verkehrsviertel',label:'Transport District',labelDE:'Verkehrsviertel',
-        color:0x33608f,darkColor:0x142a44,accentColor:0x5c8ab0,cx:px(0.33),cy:baseY-this.s(38),health:45,scale:this.S,
+        color:0x33608f,darkColor:0x142a44,accentColor:0x5c8ab0,cx:px(0.36),cy:baseY-this.s(38),health:45,scale:this.S,
         tooltip:'Roads and transit connect the city.\nModerate risk, reliable returns.',
         tooltipDE:'Straßen verbinden die Stadt.\nModerates Risiko, zuverlässige Erträge.'}),
       new District(this, {id:'technology',name:'Technology',nameDE:'Technologieviertel',label:'Technology District',labelDE:'Technologieviertel',
-        color:0x6b3fae,darkColor:0x2a1450,accentColor:0x9966cc,cx:px(0.67),cy:baseY-this.s(38),health:45,scale:this.S,
+        color:0x6b3fae,darkColor:0x2a1450,accentColor:0x9966cc,cx:px(0.64),cy:baseY-this.s(38),health:45,scale:this.S,
         tooltip:'High growth potential.\nHigh uncertainty.\nCan double — or fall sharply.',
         tooltipDE:'Hohes Wachstumspotenzial.\nHohe Unsicherheit.'}),
       new District(this, {id:'energy',name:'Energy',nameDE:'Energieviertel',label:'Energy District',labelDE:'Energieviertel',
-        color:0xa8850f,darkColor:0x5c4408,accentColor:0xddaa00,cx:px(1.00),cy:baseY+this.s(8),health:45,scale:this.S,
+        color:0xa8850f,darkColor:0x5c4408,accentColor:0xddaa00,cx:px(0.93),cy:baseY+this.s(8),health:45,scale:this.S,
         tooltip:'Wind and solar power the city.\nEssential infrastructure.',
         tooltipDE:'Wind und Solar versorgen die Stadt.'})
     ];
@@ -313,28 +316,59 @@ class GameScene extends Phaser.Scene {
     }
   }
 
+  // City-wide celebration burst — every district gets fireworks plus one big banner.
+  // Used when a big shared "yes" moment happens (e.g. accepting the Level 6 delegation).
+  _celebrateCity(bannerText){
+    this.districts.forEach((d,i)=>{
+      for(let i2=0;i2<10;i2++) this.time.delayedCall(i*90+i2*90,()=>this._firework(d.cx+Phaser.Math.Between(-70,70),d.cy+Phaser.Math.Between(-70,0)));
+    });
+    this.cameras.main.shake(260,0.004);
+    const banner=this.add.text(this._cx(),this.H*0.32,bannerText,{
+      fontFamily:'Playfair Display, Georgia, serif',fontSize:this.s(30),color:'#ffe9ab',
+      align:'center',stroke:'#3a2600',strokeThickness:this.s(3)
+    }).setOrigin(0.5).setDepth(80).setAlpha(0).setScale(0.7);
+    this.tweens.add({targets:banner,alpha:1,scaleX:1,scaleY:1,duration:500,ease:'Back.easeOut',hold:1600,yoyo:true,onComplete:()=>banner.destroy()});
+  }
+
   // ══ LEVEL 6 — a delegation drives in from the neighbouring city ══
   _level6() {
     this._showPersistentMessage('A delegation is arriving from the neighbouring city...');
     this.roads.sendVisitor(()=>{
-      this._showPersistentMessage('They offer to share their water infrastructure.\nWhat does the city do?');
-      this._showDecisionPanel([
-        {icon:'🤝',label:'Accept offer',desc:'200 resources now.\nSome dependency risk.',value:'accept',color:0x4ecdc4},
-        {icon:'🏗',label:'Build own',desc:'400 resources.\nFull control.',value:'independent',color:0x4aaa5c},
-        {icon:'❌',label:'Decline both',desc:'Keep resources\nfor other priorities.',value:'decline',color:0x6b7a8d},
-        {icon:'🔍',label:'Research first',desc:'Gather more info\nbefore deciding.',value:'research',color:0xe2a840}
-      ],(c)=>{
-        ScoringEngine.recordDecision(6,c); this._clearPersistentMessage();
-        const m={accept:'The delegation drives into the city.\nShared infrastructure is established — and celebrated.',
-                 independent:'The delegation turns around and leaves.\nThe city builds its own — more expensive, fully controlled.',
-                 decline:'The delegation turns around and leaves.\nResources are preserved for other priorities.',
-                 research:'The delegation waits while the city checks the facts.\nThe decision is made with greater confidence.'};
-        const dl={accept:[-8,5,-8],independent:[-5,8,-15],decline:[0,0,5],research:[3,0,0]}[c]||[0,0,0];
-        this._updateStats(dl[0],dl[1],dl[2]);
-        if(c==='accept'){ this.roads.visitorAccept(this.districts[0]); this.districts[0].receiveResource(1); }
-        else { this.roads.visitorDecline(); if(c==='independent') this.districts[0].receiveResource(1); }
-        this._showConsequence(m[c]||m.research,()=>this._nextLevel());
-      });
+      this._level6Decide(false);
+    });
+  }
+
+  _level6Decide(hasRead) {
+    this._showPersistentMessage(hasRead
+      ? 'You have the full picture. What does the city do?'
+      : 'They offer to share their water infrastructure.\nWhat does the city do?');
+    const opts=[
+      {icon:'🤝',label:'Accept offer',desc:'200 resources now.\nSome dependency risk.',value:'accept',color:0x4ecdc4},
+      {icon:'🏗',label:'Build own',desc:'400 resources.\nFull control.',value:'independent',color:0x4aaa5c},
+      {icon:'❌',label:'Decline both',desc:'Keep resources\nfor other priorities.',value:'decline',color:0x6b7a8d}
+    ];
+    if (!hasRead) opts.push({icon:'🔍',label:'Research first',desc:'Gather more info\nbefore deciding.',value:'research',color:0xe2a840});
+    this._showDecisionPanel(opts,(c)=>{
+      this._clearPersistentMessage();
+      if(c==='research'){
+        ScoringEngine.recordDecision(6,'research');
+        this._reportModal('Delegation Report',
+          'Their infrastructure is well maintained but ties your city to their maintenance schedule. Building independently costs more but removes any dependency. Declining keeps every option open for later.',
+          ()=>{ this._updateStats(3,0,0); this.time.delayedCall(300,()=>this._level6Decide(true)); });
+        return;
+      }
+      ScoringEngine.recordDecision(6,c,{afterResearch:hasRead});
+      const m={accept:'The delegation drives into the city.\nShared infrastructure is established — and celebrated.',
+               independent:'The delegation turns around and leaves.\nThe city builds its own — more expensive, fully controlled.',
+               decline:'The delegation turns around and leaves.\nResources are preserved for other priorities.'};
+      const dl={accept:[-8,5,-8],independent:[-5,8,-15],decline:[0,0,5]}[c]||[0,0,0];
+      this._updateStats(dl[0],dl[1],dl[2]);
+      if(c==='accept'){
+        this.roads.visitorAccept(this.districts[0], ()=>{ this.districts[0].receiveResource(1); this._celebrateCity('🎉 Partnership Celebrated!'); });
+      } else {
+        this.roads.visitorDecline(); if(c==='independent') this.districts[0].receiveResource(1);
+      }
+      this._showConsequence(m[c]||m.decline,()=>this._nextLevel());
     });
   }
 
@@ -351,7 +385,8 @@ class GameScene extends Phaser.Scene {
     const opts=[
       {icon:'📤',label:'Sell tech',desc:'Act immediately.',value:'sell',color:0xe74c3c},
       {icon:'⬇',label:'Reduce',desc:'Cautious middle path.',value:'reduce',color:0xe2a840},
-      {icon:'🔒',label:'Hold steady',desc:'Ignore headlines.',value:'hold',color:0x4aaa5c}
+      {icon:'🔒',label:'Hold steady',desc:'Ignore headlines.',value:'hold',color:0x4aaa5c},
+      {icon:'📈',label:'Invest more',desc:'Buy into the dip.',value:'invest_more',color:0x9966cc}
     ];
     if (!hasRead) opts.push({icon:'📋',label:'Read report',desc:'Free — gather facts\nthen still decide.',value:'research',color:0x5c8ab0});
     this._showDecisionPanel(opts,(c)=>{
@@ -366,10 +401,12 @@ class GameScene extends Phaser.Scene {
       ScoringEngine.recordDecision(7,c,{afterResearch:hasRead});
       const m={sell:'The technology district is sold.\nResources protected from further decline.',
                reduce:'Exposure reduced.\nThe city retains some technology interest.',
-               hold:'The city holds its position.\nTime will tell whether the headlines were right.'};
-      const dl={sell:[-5,-12,12],reduce:[-2,-5,5],hold:[2,0,0]}[c]||[0,0,0];
+               hold:'The city holds its position.\nTime will tell whether the headlines were right.',
+               invest_more:'The city buys into the dip.\nA confident bet against the headlines.'};
+      const dl={sell:[-5,-12,12],reduce:[-2,-5,5],hold:[2,0,0],invest_more:[-3,10,-15]}[c]||[0,0,0];
       this._updateStats(dl[0],dl[1],dl[2]);
       if(c==='sell') this.districts[2].takeDamage(15);
+      if(c==='invest_more') this.districts[2].receiveResource(2);
       this._showConsequence(m[c]||m.hold,()=>this._nextLevel());
     });
   }
