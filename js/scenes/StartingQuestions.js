@@ -14,7 +14,7 @@ class StartingQuestions extends Phaser.Scene {
       {text:'Some projects need many years before producing results.\nHow do you feel?',options:[{label:'⚡ I prefer quick results',value:'impatient'},{label:'⏳ I can wait if the outcome is better',value:'moderate'},{label:'🎓 Long-term results are worth it',value:'patient'}]},
       {text:'One project suddenly loses value.\nWhat would you instinctively do?',options:[{label:'🛑 Stop immediately',value:'stop'},{label:'👁 Wait and observe',value:'wait'},{label:'🔍 Gather more information first',value:'research'}]}
     ];
-    this._drawBackground(); this._renderQuestion(); this._fadeIn();
+    this._drawBackground(); this._showWelcomeBriefing(); this._fadeIn();
   }
 
   _drawBackground() {
@@ -23,6 +23,44 @@ class StartingQuestions extends Phaser.Scene {
     [[0,80,90],[120,50,70],[260,90,100],[430,60,80],[600,70,90],[760,50,70],[900,80,100],[1050,60,80],[1160,90,80],[1240,70,40]].forEach(([x,h,w])=>sil.fillRect(x,this.H-h,w,h));
     this.stars=[];
     for(let i=0;i<30;i++){const s=this.add.graphics().setDepth(-1);s.fillStyle(0xffffff,Math.random()*0.4+0.1);s.fillCircle(0,0,Math.random()+0.4);s.setPosition(Phaser.Math.Between(0,this.W),Phaser.Math.Between(0,this.H-180));this.stars.push({gfx:s,phase:Math.random()*Math.PI*2});}
+  }
+
+  // A short welcome card shown once, before the first question.
+  // Explains why the questions exist, what the side panel does during play,
+  // and warns that pace/timing matters in some levels — all before anything
+  // is asked of the player.
+  _showWelcomeBriefing() {
+    const lang=typeof currentLang!=='undefined'?currentLang:'en';
+    const cx=this.W/2, cy=this.H/2;
+    const copy = lang==='de' ? {
+      title:'Bevor wir beginnen',
+      body:'Du wirst gleich drei kurze Fragen beantworten. Es gibt keine richtigen oder falschen Antworten — sie helfen nur dabei, deinen Ausgangspunkt festzulegen.\n\nDanach baust du eine Stadt auf. Ein Seitenpanel zeigt dir jederzeit, wie die Stadt auf deine Entscheidungen reagiert — Stimmung, Wachstum, Mittel und die Leistung jedes Stadtteils. Beobachte es, wann immer du willst.\n\nEine Sache noch: In manchen Levels zählt auch, wie du dich verhältst, wenn du dir Zeit lässt — nicht nur, was du wählst.',
+      btn:'Verstanden →'
+    } : {
+      title:'Before we begin',
+      body:'You are about to answer three quick questions. There are no right or wrong answers — they simply set your starting point.\n\nAfter that, you will build a city. A side panel is always visible and shows how the city reacts to your choices — happiness, growth, funds, and how each district is performing. Check it whenever you like.\n\nOne more thing: in some levels, how you behave when you take your time matters too — not only what you choose.',
+      btn:'Got it →'
+    };
+
+    const ov=this.add.graphics().setDepth(150); ov.fillStyle(0x000000,0.55); ov.fillRect(0,0,this.W,this.H);
+    const bw=Math.min(620,this.W-64), bh=340, bx=cx-bw/2, by=cy-bh/2;
+    const box=this.add.graphics().setDepth(151);
+    box.fillStyle(0x0a1626,0.98); box.fillRoundedRect(bx,by,bw,bh,14);
+    box.lineStyle(1,0xe2a840,0.55); box.strokeRoundedRect(bx,by,bw,bh,14);
+    const t=this.add.text(cx,by+40,copy.title,{
+      fontFamily:'Playfair Display, Georgia, serif',fontSize:24,color:'#e2a840'}).setOrigin(0.5).setDepth(152);
+    const b=this.add.text(cx,by+bh/2+4,copy.body,{
+      fontFamily:'Inter, Arial, sans-serif',fontSize:14,color:'#c3d4e6',
+      align:'center',wordWrap:{width:bw-84},lineSpacing:6}).setOrigin(0.5).setDepth(152);
+    const btn=this.add.text(cx,by+bh-38,copy.btn,{
+      fontFamily:'Playfair Display, Georgia, serif',fontSize:16,color:'#f0c060'})
+      .setOrigin(0.5).setDepth(152).setInteractive({useHandCursor:true});
+    btn.on('pointerover',()=>btn.setColor('#ffe090')); btn.on('pointerout',()=>btn.setColor('#f0c060'));
+    btn.on('pointerdown',()=>{
+      this.cameras.main.shake(60,0.002);
+      [ov,box,t,b,btn].forEach(e=>{try{ this.tweens.add({targets:e,alpha:0,duration:300,onComplete:()=>e.destroy()}); }catch(err){} });
+      this.time.delayedCall(320,()=>this._renderQuestion());
+    });
   }
 
   _renderQuestion() {
