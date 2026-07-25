@@ -3,142 +3,134 @@ class RoadNetwork {
     this.scene = scene;
     this.districts = districts;
     this.cars = [];
-    this.gfx = scene.add.graphics().setDepth(2);
-    this.carGfx = scene.add.graphics().setDepth(6);
-    this.roadPaths = this._buildPaths();
-    this._drawRoads();
-    this._startCars();
+    this.gfx = scene.add.graphics().setDepth(3);
+    this.carGfx = scene.add.graphics().setDepth(10);
+    this.lanes = this._buildLanes();
+    this._drawRoad();
+    this._seedCars();
   }
 
-  _buildPaths() {
-    return [
-      {
-        points: [
-          {x:60,y:418},{x:280,y:450},{x:420,y:428},{x:560,y:410},
-          {x:700,y:408},{x:840,y:408},{x:960,y:430},{x:1060,y:460},{x:1240,y:458}
-        ],
-        reversed: false
-      },
-      {
-        points: [
-          {x:1240,y:426},{x:1060,y:468},{x:960,y:438},{x:840,y:416},
-          {x:700,y:416},{x:560,y:418},{x:420,y:436},{x:280,y:458},{x:60,y:426}
-        ],
-        reversed: true
-      }
+  _buildLanes() {
+    const d = this.districts;
+    const n = d.map(x => ({ x: x.cx, y: x.cy + 30 }));
+    const east = [
+      {x:40,  y:n[0].y-6},
+      {x:n[0].x, y:n[0].y},
+      {x:(n[0].x+n[1].x)/2, y:(n[0].y+n[1].y)/2 - 4},
+      {x:n[1].x, y:n[1].y},
+      {x:(n[1].x+n[2].x)/2, y:(n[1].y+n[2].y)/2},
+      {x:n[2].x, y:n[2].y},
+      {x:(n[2].x+n[3].x)/2, y:(n[2].y+n[3].y)/2 + 4},
+      {x:n[3].x, y:n[3].y},
+      {x:1250, y:n[3].y+4}
     ];
+    const west = east.slice().reverse().map(p => ({ x:p.x, y:p.y + 13 }));
+    return [ {pts: east}, {pts: west} ];
   }
 
-  _drawRoads() {
+  _drawRoad() {
     const g = this.gfx;
-    const path = this.roadPaths[0].points;
-    for (let i = 0; i < path.length - 1; i++) {
-      const p1=path[i], p2=path[i+1];
-      const dx=p2.x-p1.x, dy=p2.y-p1.y;
-      const len=Math.sqrt(dx*dx+dy*dy);
-      const nx=-dy/len*7, ny=dx/len*7;
-      g.fillStyle(0x1e1e1e, 0.7);
+    const pts = this.lanes[0].pts;
+    for (let i = 0; i < pts.length-1; i++) {
+      const p1=pts[i], p2=pts[i+1];
+      const dx=p2.x-p1.x, dy=p2.y-p1.y, len=Math.hypot(dx,dy);
+      const nx=-dy/len*11, ny=dx/len*11;
+      g.fillStyle(0x23252b, 0.9);
       g.beginPath();
-      g.moveTo(p1.x+nx,p1.y+ny); g.lineTo(p2.x+nx,p2.y+ny);
-      g.lineTo(p2.x-nx,p2.y-ny); g.lineTo(p1.x-nx,p1.y-ny);
+      g.moveTo(p1.x+nx, p1.y+ny+6); g.lineTo(p2.x+nx, p2.y+ny+6);
+      g.lineTo(p2.x-nx, p2.y-ny+6); g.lineTo(p1.x-nx, p1.y-ny+6);
       g.closePath(); g.fillPath();
     }
-    // Edges
-    g.lineStyle(1, 0x383838, 0.6);
-    g.beginPath(); g.moveTo(path[0].x,path[0].y);
-    path.forEach(p=>g.lineTo(p.x,p.y)); g.strokePath();
-    // Center dashes
-    g.lineStyle(1, 0xffee66, 0.22);
-    for (let i=0;i<path.length-1;i++){
-      const p1=path[i],p2=path[i+1];
-      const steps=Math.floor(Phaser.Math.Distance.Between(p1.x,p1.y,p2.x,p2.y)/22);
-      for (let s=0;s<steps;s+=2){
-        const t1=s/steps,t2=(s+0.7)/steps;
+    g.lineStyle(1, 0x3d4048, 0.7);
+    g.beginPath(); g.moveTo(pts[0].x, pts[0].y-5);
+    pts.forEach(p=>g.lineTo(p.x, p.y-5)); g.strokePath();
+    g.beginPath(); g.moveTo(pts[0].x, pts[0].y+17);
+    pts.forEach(p=>g.lineTo(p.x, p.y+17)); g.strokePath();
+    g.lineStyle(1.6, 0xf5dd88, 0.3);
+    for (let i=0;i<pts.length-1;i++){
+      const p1=pts[i],p2=pts[i+1];
+      const steps=Math.max(2,Math.floor(Math.hypot(p2.x-p1.x,p2.y-p1.y)/24));
+      for(let s=0;s<steps;s+=2){
+        const t1=s/steps, t2=(s+0.75)/steps;
         g.beginPath();
-        g.moveTo(p1.x+(p2.x-p1.x)*t1, p1.y+(p2.y-p1.y)*t1);
-        g.lineTo(p1.x+(p2.x-p1.x)*t2, p1.y+(p2.y-p1.y)*t2);
+        g.moveTo(p1.x+(p2.x-p1.x)*t1, p1.y+(p2.y-p1.y)*t1+6);
+        g.lineTo(p1.x+(p2.x-p1.x)*t2, p1.y+(p2.y-p1.y)*t2+6);
         g.strokePath();
       }
     }
-    // District node circles
-    this.districts.forEach(d=>{
-      g.fillStyle(0xffffff,0.05); g.fillCircle(d.cx,d.cy+12,20);
-    });
   }
 
-  _startCars() {
-    this.scene.time.delayedCall(800,  ()=>this._spawnCar(0,0));
-    this.scene.time.delayedCall(3500, ()=>this._spawnCar(1,2));
-    this.scene.time.delayedCall(6500, ()=>this._spawnCar(0,4));
+  _seedCars() {
+    const starts = [0, 2, 4, 6];
+    starts.forEach((s, i) => {
+      this.scene.time.delayedCall(i*260, () => this._spawn(0, s));
+      this.scene.time.delayedCall(i*260+900, () => this._spawn(1, s));
+    });
     this.scene.time.addEvent({
-      delay:7500, loop:true,
-      callback:()=>{ if(this.cars.length<4){ this._spawnCar(Math.random()>0.5?0:1,0); } }
+      delay: 2600, loop: true,
+      callback: () => { if (this.cars.length < 8) this._spawn(Math.random()>0.5?0:1, 0); }
     });
   }
 
-  _spawnCar(pathIdx, startNode) {
-    const path=this.roadPaths[pathIdx].points;
-    const colors=[0x88aacc,0xcc8866,0x88cc88,0xcccc66,0xcc88cc,0xaaaacc];
-    const car={
-      pathIdx, nodeIdx:Math.min(startNode,path.length-2),
-      progress:Math.random()*0.5,
-      speed:0.55+Math.random()*0.5,
-      color:colors[Phaser.Math.Between(0,colors.length-1)],
-      active:true, isPaused:false, pauseTimer:0,
-      x:path[startNode].x, y:path[startNode].y
-    };
-    this.cars.push(car);
+  _spawn(laneIdx, node) {
+    const pts = this.lanes[laneIdx].pts;
+    const palette = [0x7fb3e0, 0xe08a6a, 0x86cf92, 0xe0cf72, 0xc48ada, 0x9aa8c8, 0xe0e0e6];
+    this.cars.push({
+      lane: laneIdx,
+      i: Math.min(node, pts.length-2),
+      t: Math.random(),
+      sp: 0.010 + Math.random()*0.008,
+      col: palette[Phaser.Math.Between(0,palette.length-1)],
+      alive: true,
+      stop: 0
+    });
   }
 
   update(delta, isNight) {
     this.carGfx.clear();
-    const toRemove=[];
-    this.cars.forEach((car,i)=>{
-      if(!car.active){toRemove.push(i);return;}
-      const path=this.roadPaths[car.pathIdx].points;
-      if(!car.isPaused){
-        car.progress+=car.speed*(delta/16);
-        if(car.progress>=1){
-          car.progress=0; car.nodeIdx++;
-          const node=path[car.nodeIdx];
-          if(node&&this.districts.some(d=>Phaser.Math.Distance.Between(node.x,node.y,d.cx,d.cy)<65)&&Math.random()>0.5){
-            car.isPaused=true; car.pauseTimer=700+Math.random()*900;
-          }
+    const dead = [];
+    this.cars.forEach((c, idx) => {
+      if (!c.alive) { dead.push(idx); return; }
+      const pts = this.lanes[c.lane].pts;
+      if (c.stop > 0) { c.stop -= delta; }
+      else {
+        c.t += c.sp * (delta/16);
+        while (c.t >= 1) {
+          c.t -= 1; c.i++;
+          if (Math.random() < 0.25) c.stop = 500 + Math.random()*700;
         }
-        if(car.nodeIdx>=path.length-1){car.active=false;return;}
-      } else {
-        car.pauseTimer-=delta;
-        if(car.pauseTimer<=0) car.isPaused=false;
+        if (c.i >= pts.length-1) { c.alive=false; return; }
       }
-      const p1=path[car.nodeIdx],p2=path[car.nodeIdx+1];
-      if(!p1||!p2){car.active=false;return;}
-      car.x=p1.x+(p2.x-p1.x)*car.progress;
-      car.y=p1.y+(p2.y-p1.y)*car.progress;
-      this._drawCar(car,Math.atan2(p2.y-p1.y,p2.x-p1.x),isNight);
+      const p1 = pts[c.i], p2 = pts[c.i+1];
+      if (!p1 || !p2) { c.alive=false; return; }
+      const x = p1.x + (p2.x-p1.x)*c.t;
+      const y = p1.y + (p2.y-p1.y)*c.t + 6;
+      this._car(x, y, Math.atan2(p2.y-p1.y, p2.x-p1.x), c, isNight);
     });
-    for(let i=toRemove.length-1;i>=0;i--) this.cars.splice(toRemove[i],1);
+    for (let i=dead.length-1;i>=0;i--) this.cars.splice(dead[i],1);
   }
 
-  _drawCar(car,angle,isNight){
-    const g=this.carGfx,cos=Math.cos(angle),sin=Math.sin(angle),len=13,wid=5;
-    const corners=[{x:-len/2,y:-wid/2},{x:len/2,y:-wid/2},{x:len/2,y:wid/2},{x:-len/2,y:wid/2}];
-    g.fillStyle(car.color,0.9);
-    g.beginPath();
-    corners.forEach((c,i)=>{const rx=car.x+c.x*cos-c.y*sin,ry=car.y+c.x*sin+c.y*cos;i===0?g.moveTo(rx,ry):g.lineTo(rx,ry);});
-    g.closePath(); g.fillPath();
-    const roof=[{x:-len*0.15,y:-wid/2},{x:len*0.32,y:-wid/2},{x:len*0.32,y:wid/2},{x:-len*0.15,y:wid/2}];
-    g.fillStyle(car.color,0.65);
-    g.beginPath();
-    roof.forEach((c,i)=>{const rx=car.x+c.x*cos-c.y*sin,ry=car.y+c.x*sin+c.y*cos;i===0?g.moveTo(rx,ry):g.lineTo(rx,ry);});
-    g.closePath(); g.fillPath();
-    if(isNight){
-      g.fillStyle(0xffffaa,0.9); g.fillCircle(car.x+(len/2)*cos,car.y+(len/2)*sin,3);
-      g.fillStyle(0xff4444,0.8); g.fillCircle(car.x-(len/2)*cos,car.y-(len/2)*sin,2);
+  _car(x, y, ang, c, isNight) {
+    const g = this.carGfx;
+    const cos=Math.cos(ang), sin=Math.sin(ang);
+    const L=16, W=8;
+    const put=(ox,oy)=>({x: x+ox*cos-oy*sin, y: y+ox*sin+oy*cos});
+    g.fillStyle(0x000000, 0.28); g.fillEllipse(x, y+4, L, W*0.6);
+    g.fillStyle(c.col, 0.96);
+    const b=[put(-L/2,-W/2),put(L/2,-W/2),put(L/2,W/2),put(-L/2,W/2)];
+    g.beginPath(); g.moveTo(b[0].x,b[0].y); b.forEach(p=>g.lineTo(p.x,p.y)); g.closePath(); g.fillPath();
+    g.fillStyle(0x101820, 0.55);
+    const r=[put(-L*0.12,-W/2+1),put(L*0.3,-W/2+1),put(L*0.3,W/2-1),put(-L*0.12,W/2-1)];
+    g.beginPath(); g.moveTo(r[0].x,r[0].y); r.forEach(p=>g.lineTo(p.x,p.y)); g.closePath(); g.fillPath();
+    g.fillStyle(0x14161a, 0.9);
+    [put(-L*0.28,-W/2),put(L*0.28,-W/2),put(-L*0.28,W/2),put(L*0.28,W/2)].forEach(p=>g.fillCircle(p.x,p.y,1.8));
+    if (isNight) {
+      const hl=put(L/2+1,0); g.fillStyle(0xfff2b0,0.95); g.fillCircle(hl.x,hl.y,3.2);
+      g.fillStyle(0xfff2b0,0.18); g.fillCircle(hl.x+cos*6, hl.y+sin*6, 7);
+      const tl=put(-L/2-1,0); g.fillStyle(0xff4444,0.9); g.fillCircle(tl.x,tl.y,2.2);
     }
-    if(car.isPaused){
-      g.fillStyle(0xff3300,0.9);
-      const bx=car.x-(len/2)*cos,by=car.y-(len/2)*sin;
-      g.fillCircle(bx+sin*3,by-cos*3,2); g.fillCircle(bx-sin*3,by+cos*3,2);
+    if (c.stop > 0) {
+      const tl=put(-L/2-1,0); g.fillStyle(0xff3300,0.95); g.fillCircle(tl.x,tl.y,2.6);
     }
   }
 }
