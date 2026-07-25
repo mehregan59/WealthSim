@@ -5,7 +5,10 @@ class RetirementContext extends Phaser.Scene {
     this.W = this.scale.width;
     this.H = this.scale.height;
     this._yearsFromAge = this._deriveYears();
-    this.selections = { saule: null, buildexp: null, years: this._yearsFromAge.value };
+    // saule is now multi-select: a person can genuinely have GRV + bAV +
+    // private provision at the same time, so this is an array, not a
+    // single value. "Not sure" is exclusive with everything else.
+    this.selections = { saule: [], buildexp: null, years: this._yearsFromAge.value };
     this._sectionCards = {};
     this._activeTooltip = null;
     this._btnBound = false;
@@ -48,8 +51,8 @@ class RetirementContext extends Phaser.Scene {
     const ageLabel=window.playerInfo?.age||'28-37';
     this.add.text(cx,130,(lang==='de'?`Altersgruppe: ${ageLabel}  \xB7  Gesch\xE4tzte Zeit bis zur Rente: `:`Age group: ${ageLabel}  \xB7  Estimated time until retirement: `)+this._yearsFromAge.label,{fontFamily:'Arial,sans-serif',fontSize:12,color:'#4ecdc4'}).setOrigin(0.5);
 
-    // Q1 Saule — with ℹ tooltip on each card
-    const q1Label=lang==='de'?'Welche Rentenbausteine hast du bereits?':'Which retirement pillars do you already have?';
+    // Q1 Saule — multi-select, with an ℹ tooltip on each card
+    const q1Label=lang==='de'?'Welche Rentenbausteine hast du bereits? (Mehrfachauswahl m\xF6glich)':'Which retirement pillars do you already have? (Select all that apply)';
     const sauleOpts=[
       {value:'grv',label:lang==='de'?'\uD83C\uDFDB GRV':'\uD83C\uDFDB GRV',sub:lang==='de'?'Gesetzliche Rente':'State pension',tooltipTitle:lang==='de'?'GRV \u2014 Gesetzliche Rentenversicherung':'GRV \u2014 Statutory Pension Insurance',tooltipBody:lang==='de'?'Pflicht f\xFCr fast alle Arbeitnehmer in Deutschland. Beitr\xE4ge werden automatisch vom Gehalt abgezogen. Die Rente h\xE4ngt von Einzahlungsjahren und Verdienst ab. F\xFCr die meisten Menschen allein nicht ausreichend.':'Mandatory for almost all employees in Germany. Contributions are deducted automatically from salary. Pension depends on years of contributions and earnings. For most people alone not sufficient.',link:'https://www.deutsche-rentenversicherung.de',linkLabel:'deutsche-rentenversicherung.de'},
       {value:'bav',label:lang==='de'?'\uD83C\uDFE2 bAV':'\uD83C\uDFE2 bAV',sub:lang==='de'?'Betriebliche Altersversorgung':'Occupational pension',tooltipTitle:lang==='de'?'bAV \u2014 Betriebliche Altersversorgung':'bAV \u2014 Occupational Pension',tooltipBody:lang==='de'?'Der Arbeitgeber zahlt mit in die Rente ein. Seit 2019 ist ein Arbeitgeberzuschuss von 15% bei Neuvertr\xE4gen Pflicht. Steuer- und sozialabgabenfrei bis zu bestimmten Grenzen.':'Your employer contributes to your pension. Since 2019, a 15% employer contribution is mandatory for new contracts. Tax and social security free up to certain limits.',link:'https://www.bmas.de/DE/Arbeit/Betriebliche-Altersversorgung/betriebliche-altersversorgung.html',linkLabel:'bmas.de'},
@@ -92,12 +95,30 @@ class RetirementContext extends Phaser.Scene {
       const infoIcon=this.add.text(bx+cW-22,by+10,'\u24D8',{fontFamily:'Arial,sans-serif',fontSize:14,color:'#3a5a7a'}).setInteractive({useHandCursor:true});
       const draw=(sel,hover)=>{card.clear();if(sel){card.fillStyle(0xe2a840,0.15);card.fillRoundedRect(bx,by,cW,cH,8);card.lineStyle(2,0xe2a840,0.9);card.strokeRoundedRect(bx,by,cW,cH,8);mainTxt.setColor('#f0c060');subTxt.setColor('#a08040');infoIcon.setColor('#e2a840');}else if(hover){card.fillStyle(0x1a2744,1);card.fillRoundedRect(bx,by,cW,cH,8);card.lineStyle(1,0x4a6080,1);card.strokeRoundedRect(bx,by,cW,cH,8);mainTxt.setColor('#e0eaff');subTxt.setColor('#6b8aaa');infoIcon.setColor('#5c8ab0');}else{card.fillStyle(0x0d1a2a,0.9);card.fillRoundedRect(bx,by,cW,cH,8);card.lineStyle(1,0x1a2744,1);card.strokeRoundedRect(bx,by,cW,cH,8);mainTxt.setColor('#c8d4e8');subTxt.setColor('#4a6080');infoIcon.setColor('#3a5a7a');}};
       draw(false,false);
+      const isSelected=()=>this.selections.saule.includes(opt.value);
+      const redrawAll=()=>{ if(this._sectionCards.saule) this._sectionCards.saule.forEach(c=>c.fn(this.selections.saule.includes(c.value),false)); };
       const hit=this.add.rectangle(bx+cW/2-14,by+cH/2,cW-30,cH,0xffffff,0).setInteractive({useHandCursor:true});
-      hit.on('pointerover',()=>{if(this.selections.saule!==opt.value)draw(false,true);});
-      hit.on('pointerout',()=>draw(this.selections.saule===opt.value,false));
-      hit.on('pointerdown',()=>{if(this._sectionCards.saule)this._sectionCards.saule.forEach(c=>c.fn(false,false));this.selections.saule=opt.value;draw(true,false);this.cameras.main.shake(60,0.002);this._checkAll();});
+      hit.on('pointerover',()=>{if(!isSelected())draw(false,true);});
+      hit.on('pointerout',()=>draw(isSelected(),false));
+      hit.on('pointerdown',()=>{
+        // "Not sure" is exclusive — picking it clears any other pillar
+        // selections, and picking any real pillar clears "Not sure".
+        // Otherwise, toggle this option in/out of the selection freely,
+        // since someone can genuinely have more than one pillar at once.
+        if(opt.value==='unsure'){
+          this.selections.saule = this.selections.saule.includes('unsure') ? [] : ['unsure'];
+        } else {
+          this.selections.saule = this.selections.saule.filter(v=>v!=='unsure');
+          const idx=this.selections.saule.indexOf(opt.value);
+          if(idx>=0) this.selections.saule.splice(idx,1);
+          else this.selections.saule.push(opt.value);
+        }
+        redrawAll();
+        this.cameras.main.shake(60,0.002);
+        this._checkAll();
+      });
       infoIcon.on('pointerover',()=>infoIcon.setColor('#f0c060'));
-      infoIcon.on('pointerout',()=>infoIcon.setColor(this.selections.saule===opt.value?'#e2a840':'#3a5a7a'));
+      infoIcon.on('pointerout',()=>infoIcon.setColor(isSelected()?'#e2a840':'#3a5a7a'));
       infoIcon.on('pointerdown',(ptr)=>{try{ptr.event.stopPropagation();}catch(e){}this._showTooltip(opt,bx+cW/2,by);});
       if(!this._sectionCards.saule)this._sectionCards.saule=[];
       this._sectionCards.saule.push({fn:draw,value:opt.value});
@@ -177,7 +198,7 @@ class RetirementContext extends Phaser.Scene {
 
   _checkAll() {
     const {saule,buildexp}=this.selections;
-    if(saule&&buildexp){this._drawBtn(true);if(!this._btnBound){this._btnBound=true;this.continueBtnHit.setInteractive({useHandCursor:true});this.continueBtnHit.on('pointerdown',()=>this._goNext());this.tweens.add({targets:this.continueBtnGfx,alpha:{from:1,to:0.75},duration:700,yoyo:true,repeat:-1});}}
+    if(saule.length>0 && buildexp){this._drawBtn(true);if(!this._btnBound){this._btnBound=true;this.continueBtnHit.setInteractive({useHandCursor:true});this.continueBtnHit.on('pointerdown',()=>this._goNext());this.tweens.add({targets:this.continueBtnGfx,alpha:{from:1,to:0.75},duration:700,yoyo:true,repeat:-1});}}
   }
 
   _goNext() {
