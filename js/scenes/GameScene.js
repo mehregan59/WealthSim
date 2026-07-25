@@ -25,6 +25,8 @@ class GameScene extends Phaser.Scene {
     this.hasUniversity = false; this.siteMarkers = [];
     this.tickerActive = false;
     this.snapshots = {};          // for undo
+    this._panelIntroShown = false;
+    this._level3IdleTimer = null;
 
     this._buildDistricts();
     this.roads = new RoadNetwork(this, this.districts);
@@ -109,6 +111,7 @@ class GameScene extends Phaser.Scene {
     this.currentLevel=n;
     this._clearDecisionPanel(); this._clearCubes(); this._clearConsequence();
     this._clearWorldBtn(); this._clearPersistentMessage(); this._clearSiteMarkers();
+    this._clearLevel3Idle();
     this.tutorial.hide();
     this.districts.forEach(d=>d.setSelectable(false));
     this.cubeDropped=0; this.cubeTotal=0;
@@ -117,14 +120,25 @@ class GameScene extends Phaser.Scene {
     const fn=map[n]; if(!fn)return;
     this.hud.setLevel(n,this._levelName(n));
     const run = () => this.time.delayedCall(400, fn.bind(this));
-    if (skipTutorial) run();
-    else this.time.delayedCall(700, ()=> this.tutorial.show(n, run));
+    const proceed = () => {
+      // The very first time Level 1 starts, point the player at the side
+      // panel and explain what it tracks before anything is asked of them.
+      if (n===1 && !this._panelIntroShown) {
+        this._panelIntroShown = true;
+        this.statsPanel.introHighlight(run);
+      } else {
+        run();
+      }
+    };
+    if (skipTutorial) proceed();
+    else this.time.delayedCall(700, ()=> this.tutorial.show(n, proceed));
   }
 
   _retryLevel() {
     const n = this.currentLevel;
     this._clearDecisionPanel(); this._clearConsequence(); this._clearWorldBtn();
     this._clearPersistentMessage(); this._clearSiteMarkers(); this._clearCubes();
+    this._clearLevel3Idle();
     this._restoreSnapshot(n);
     this.time.delayedCall(250, ()=>this._startLevel(n, true));
   }
@@ -132,7 +146,7 @@ class GameScene extends Phaser.Scene {
   _levelName(n){return {1:'The First Opportunity',2:'The Unexpected Setback',3:'Expansion',4:'Today or Tomorrow',5:'The Boom',6:'The Outside Offer',7:'Breaking News',8:'The Great Storm'}[n]||'Level '+n;}
 
   _nextLevel(){
-    this._clearConsequence(); this._clearWorldBtn();
+    this._clearConsequence(); this._clearWorldBtn(); this._clearLevel3Idle();
     this.statsPanel.recordSnapshot(this.cityStats.happiness,this.cityStats.development,this.cityStats.resources,this.currentLevel);
     const next=this.currentLevel+1;
     if(next<=8) this._startLevel(next);
@@ -228,6 +242,7 @@ class GameScene extends Phaser.Scene {
   _level3() {
     this._spawnResourceCubes(6);
     this._showPersistentMessage('The city receives 600 new credits.\nPlace all six cubes — 0 of 6 placed.');
+    this._armLevel3Idle();
   }
 
   _spawnResourceCubes(n) {
@@ -236,6 +251,24 @@ class GameScene extends Phaser.Scene {
     for(let i=0;i<n;i++) this.time.delayedCall(i*250,()=>this.cubes.push(new ResourceCube(this,sx+i*gap,this.H-this.s(70),1)));
   }
 
+  // Nudges the player if they pause partway through placing cubes. This is
+  // the "warning" — it is purely informational text, never a countdown and
+  // never anything that forces a decision. The Continue button still only
+  // appears after every cube is placed, regardless of how long that takes.
+  _armLevel3Idle() {
+    this._clearLevel3Idle();
+    if (this.currentLevel!==3 || this.cubeDropped>=this.cubeTotal) return;
+    this._level3IdleTimer = this.time.delayedCall(9000, ()=>{
+      if (this.currentLevel!==3 || this.cubeDropped>=this.cubeTotal) return;
+      const remaining = this.cubeTotal - this.cubeDropped;
+      const de=(typeof currentLang!=='undefined'&&currentLang==='de');
+      this._showPersistentMessage(de
+        ? `Noch am Überlegen? ${remaining} Würfel warten noch \u2014 die Stadt kann erst weiter, wenn alle platziert sind.`
+        : `Still deciding? ${remaining} cube${remaining===1?'':'s'} still waiting \u2014 the city can't move on until every one is placed.`);
+    });
+  }
+  _clearLevel3Idle(){ if(this._level3IdleTimer){ this._level3IdleTimer.remove(false); this._level3IdleTimer=null; } }
+
   _onResourceDropped(district) {
     this.cubeDropped=(this.cubeDropped||0)+1;
     if(this.currentLevel===3) ScoringEngine.recordDecision(3,'allocate',{districtId:district.id});
@@ -243,7 +276,9 @@ class GameScene extends Phaser.Scene {
     if(this.currentLevel!==3) return;
     if(this.cubeDropped < this.cubeTotal){
       this._showPersistentMessage('The city receives 600 new credits.\nPlace all six cubes — '+this.cubeDropped+' of '+this.cubeTotal+' placed.');
+      this._armLevel3Idle();
     } else {
+      this._clearLevel3Idle();
       this._clearPersistentMessage();
       this.time.delayedCall(950,()=>this._level3Outcome());
     }
@@ -416,14 +451,20 @@ class GameScene extends Phaser.Scene {
     this.weather.startStorm(()=>{
       this.districts.forEach(d=>{d.setStorm(true);d.takeDamage(26);});
       this._updateStats(-15,-20,-10); this.cameras.main.shake(900,0.012);
+      // The university reveal (when it exists) now gets its own slow,
+      // separate fade — it used to overlap with the decision panel
+      // appearing right on top of it. It now fully fades out before
+      // anything else shows.
+      const UNI_START=2000, UNI_FADE=1500, UNI_HOLD=6000;
+      const UNI_END = UNI_START + UNI_FADE + UNI_HOLD + UNI_FADE;
       if(this.hasUniversity){
-        this.time.delayedCall(2000,()=>{
-          this._tempMessage('The Research University opens its doors.\nGraduates create companies. Income rises. Your patience pays off.',6000);
+        this.time.delayedCall(UNI_START,()=>{
+          this._tempMessage('The Research University opens its doors.\nGraduates create companies. Income rises. Your patience pays off.',UNI_HOLD,UNI_FADE);
           this.districts[0].receiveResource(2); this.districts[1].receiveResource(1);
           this._updateStats(10,15,0);
         });
       }
-      this.time.delayedCall(this.hasUniversity?7400:3900,()=>{
+      this.time.delayedCall(this.hasUniversity?(UNI_END+600):3900,()=>{
         this._showPersistentMessage('An economic storm hits every city.\nYou cannot prevent it. What do you protect?');
         this._showDecisionPanel([
           {icon:'🏃',label:'Sell all',desc:'Protect remaining\nresources.',value:'sell_all',color:0xe74c3c},
@@ -514,12 +555,16 @@ class GameScene extends Phaser.Scene {
   }
   _clearPersistentMessage(){ if(this.persistentMsg){this.tweens.killTweensOf(this.persistentMsg);this.persistentMsg.destroy();this.persistentMsg=null;} }
 
-  _tempMessage(text,dur){
+  // fadeDur lets specific callers (e.g. the Level 8 university reveal) use a
+  // slower, gentler fade than the default so it doesn't visually collide
+  // with whatever appears right after it.
+  _tempMessage(text,dur,fadeDur){
+    fadeDur = fadeDur || 1000;
     const m=this.add.text(this._cx(),this.H-this.s(120),text,{
       fontFamily:'Playfair Display, Georgia, serif',fontSize:this.s(17),color:'#e2a840',
       align:'center',backgroundColor:'#040a14',padding:{x:this.s(20),y:this.s(12)},lineSpacing:this.s(5)
     }).setOrigin(0.5).setDepth(66).setAlpha(0);
-    this.tweens.add({targets:m,alpha:1,y:this.H-this.s(128),duration:1000,hold:dur||5000,yoyo:true,onComplete:()=>m.destroy()});
+    this.tweens.add({targets:m,alpha:1,y:this.H-this.s(128),duration:fadeDur,hold:dur||5000,yoyo:true,onComplete:()=>m.destroy()});
   }
 
   // opts.auto: skip the clickable World Button entirely and auto-advance
