@@ -183,6 +183,61 @@ class StatsPanel {
     this.refreshPerformance();
   }
 
+  // One-time callout shown at the very start of the game: dims the rest of
+  // the screen, pulses a border around this panel, and explains what it
+  // shows before the player is asked to do anything.
+  introHighlight(onDone) {
+    const px=this.px, py=this.py, pw=this.pw, ph=this.ph;
+    const W=this.scene.scale.width, H=this.scene.scale.height;
+    const de=(typeof currentLang!=='undefined'&&currentLang==='de');
+
+    const dim=this.scene.add.graphics().setDepth(149);
+    dim.fillStyle(0x000000,0.55); dim.fillRect(pw,0,W-pw,H);
+
+    const ring=this.scene.add.graphics().setDepth(151);
+    const pulse={a:0.5};
+    const pulseTween=this.scene.tweens.add({targets:pulse,a:1,duration:700,yoyo:true,repeat:-1,onUpdate:()=>{
+      ring.clear();
+      ring.lineStyle(this.s(3),0xe2a840,pulse.a);
+      ring.strokeRoundedRect(px+this.s(2),py+this.s(2),pw-this.s(4),ph-this.s(4),this.s(10));
+    }});
+
+    const calloutW=Math.min(this.s(360), W-pw-this.s(40));
+    const calloutX=pw+this.s(20), calloutY=py+this.s(40);
+    const text = de
+      ? 'Dieses Panel zeigt dir, wie deine Stadt reagiert \u2014 Zufriedenheit, Wachstum, Mittel \u2014 und wie jeder einzelne Stadtteil sich entwickelt. Schau jederzeit hinein, um deine Ressourcen und Leute zu beobachten.'
+      : 'This panel shows how your city is reacting \u2014 happiness, growth, funds \u2014 and how each individual district is performing. Check it any time to observe your resources and people.';
+    const box=this.scene.add.graphics().setDepth(151);
+    const txt=this.scene.add.text(0,0,text,{
+      fontFamily:'Inter, Arial, sans-serif', fontSize:this.s(15), color:'#dbe8f4',
+      wordWrap:{width:calloutW-this.s(32)}, lineSpacing:this.s(5)
+    }).setDepth(152);
+    const th = txt.height + this.s(64);
+    box.fillStyle(0x08131f,0.98); box.fillRoundedRect(calloutX,calloutY,calloutW,th,this.s(12));
+    box.lineStyle(1,0xe2a840,0.6); box.strokeRoundedRect(calloutX,calloutY,calloutW,th,this.s(12));
+    txt.setPosition(calloutX+this.s(16), calloutY+this.s(16));
+
+    const btnW=this.s(130), btnH=this.s(32);
+    const btnX=calloutX+calloutW-btnW-this.s(16), btnY=calloutY+th-btnH-this.s(14);
+    const btnBg=this.scene.add.graphics().setDepth(152);
+    const drawBtn=(hv)=>{ btnBg.clear(); btnBg.fillStyle(0xe2a840,hv?1:0.9); btnBg.fillRoundedRect(btnX,btnY,btnW,btnH,this.s(7)); };
+    drawBtn(false);
+    const btnTxt=this.scene.add.text(btnX+btnW/2,btnY+btnH/2, de?'Verstanden \u2192':'Continue \u2192', {
+      fontFamily:'Inter, Arial, sans-serif', fontSize:this.s(13), color:'#0b1725', fontStyle:'700'
+    }).setOrigin(0.5).setDepth(153);
+    const hit=this.scene.add.rectangle(btnX+btnW/2,btnY+btnH/2,btnW,btnH,0xffffff,0)
+      .setDepth(154).setInteractive({useHandCursor:true});
+    hit.on('pointerover',()=>drawBtn(true));
+    hit.on('pointerout',()=>drawBtn(false));
+
+    const group=[dim,ring,box,txt,btnBg,btnTxt,hit];
+    hit.on('pointerdown',()=>{
+      pulseTween.remove();
+      group.forEach(e=>{try{e.destroy();}catch(err){}});
+      if(onDone) onDone();
+    });
+  }
+
   updateStats(h,d,r) {
     const vals = {happiness:h, development:d, resources:r};
     Object.entries(this.bars).forEach(([id,bar]) => {
