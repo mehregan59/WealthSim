@@ -156,7 +156,7 @@ class GameScene extends Phaser.Scene {
         o.d.setSelectable(true, ()=>this._onLevel1Choice(o.d,o.v));
       });
     });
-    this._showPersistentMessage('Tap a district to choose your first project.');
+    this._showPersistentMessage('Tap directly on a district below to select it and start building there.');
   }
 
   _choiceLabel(x,y,text,color) {
@@ -193,10 +193,10 @@ class GameScene extends Phaser.Scene {
     this.time.delayedCall(1900,()=>{
       this._showPersistentMessage('The technology district has lost value.\nWhat does the city do?');
       this._showDecisionPanel([
-        {icon:'🛡',label:'Protect',desc:'Stop the project',value:'cancel',color:0x3a5f8a},
-        {icon:'▶',label:'Continue',desc:'Hold the plan',value:'continue',color:0x4aaa5c},
-        {icon:'💰',label:'Invest more',desc:'Double down',value:'invest_more',color:0xddaa00},
-        {icon:'⏳',label:'Wait',desc:'Observe first',value:'wait',color:0x6b7a8d}
+        {icon:'🛡',label:'Cancel project',desc:'Stop work now,\nkeep the resources',value:'cancel',color:0x3a5f8a},
+        {icon:'🏗',label:'Push through',desc:'Finish as planned,\naccept the dip',value:'continue',color:0x4aaa5c},
+        {icon:'💰',label:'Invest more',desc:'Double down\non the district',value:'invest_more',color:0xddaa00},
+        {icon:'⏳',label:'Pause & reassess',desc:'Halt work now,\ndecide again later',value:'wait',color:0x6b7a8d}
       ],(c)=>{
         ScoringEngine.recordDecision(2,c); this._clearPersistentMessage();
         const e={cancel:{d:[5,-10,10],m:'Resources secured.\nThe project rests. The city will not benefit if it recovers.'},
@@ -527,6 +527,13 @@ class GameScene extends Phaser.Scene {
   // Continue after already making their last decision.
   _showConsequence(text,onContinue,opts){
     opts = opts || {};
+    // This was the actual source of Continue buttons piling up on screen:
+    // this method used to clear the consequence panel and decision panel,
+    // but not any world button/timer left over from a previous call. If
+    // _showConsequence ran again before the last button's callback had
+    // fired, the old button (or its pending spawn timer) never got removed
+    // and a new one stacked on top of it.
+    this._clearWorldBtn();
     this._clearConsequence(); this._clearDecisionPanel();
     const cx=this._cx();
     const pw=Math.min(this.s(720),this._availW()), ph=this.s(104), px=cx-pw/2, py=this.H-this.s(186);
@@ -574,8 +581,7 @@ class GameScene extends Phaser.Scene {
 
     // The button itself is created after a short delay so it doesn't appear
     // instantly on top of the consequence text. That delay is tracked so it
-    // can be cancelled if the level changes before it fires — previously an
-    // orphaned timer could spawn a stray button after the level had already moved on.
+    // can be cancelled if the level changes before it fires.
     this.worldBtnTimer = this.time.delayedCall(1100,()=>{
       this.worldBtnTimer=null;
       const lbl=(typeof currentLang!=='undefined'&&currentLang==='de')?'Weiter →':'Continue →';
@@ -586,7 +592,12 @@ class GameScene extends Phaser.Scene {
 
   _showDecisionPanel(options,cb){
     this._clearDecisionPanel();
-    const cx=this._cx(), cols=Math.min(options.length,4);
+    const cx=this._cx();
+    // Was capped at 4 columns while still looping over every option — a
+    // 5th option (e.g. Level 7's "Read report") rendered outside the
+    // background box that was sized for only 4. The panel now always sizes
+    // itself to the actual number of options.
+    const cols=options.length;
     const avail=this._availW();
     const btnW=Math.min(this.s(180),(avail-this.s(48)-(cols-1)*this.s(12))/cols);
     const btnH=this.s(100);
