@@ -20,7 +20,7 @@ class GameScene extends Phaser.Scene {
     this.cityStats = { happiness:60, development:40, resources:80 };
     this.currentLevel = 0;
     this.cubes = []; this.cubeTotal = 0; this.cubeDropped = 0;
-    this.decisionPanel = null; this.worldBtn = null;
+    this.decisionPanel = null; this.worldBtn = null; this.worldBtnTimer = null;
     this.consequencePanel = null; this.persistentMsg = null;
     this.hasUniversity = false; this.siteMarkers = [];
     this.tickerActive = false;
@@ -442,7 +442,9 @@ class GameScene extends Phaser.Scene {
                      opportunistic:'The city invests carefully during the downturn.\nIf recovery comes, these decisions will matter.'};
             const dl={sell_all:[-5,-15,15],hold:[5,0,-5],rebalance:[5,8,-5],opportunistic:[3,12,-10]}[c]||[0,0,0];
             this._updateStats(dl[0],dl[1],dl[2]);
-            this._showConsequence(m[c]||m.hold,()=>this._finish());
+            // Final level: show the outcome, let the recovery animation play,
+            // then move on to the profile automatically — no Continue click needed.
+            this._showConsequence(m[c]||m.hold,()=>this._finish(),{auto:true,autoDelay:2800});
           });
         });
       });
@@ -519,7 +521,12 @@ class GameScene extends Phaser.Scene {
     this.tweens.add({targets:m,alpha:1,y:this.H-this.s(128),duration:1000,hold:dur||5000,yoyo:true,onComplete:()=>m.destroy()});
   }
 
-  _showConsequence(text,onContinue){
+  // opts.auto: skip the clickable World Button entirely and auto-advance
+  // after opts.autoDelay ms, once the outcome text/animation has had time
+  // to read. Used for the final level so the player doesn't have to click
+  // Continue after already making their last decision.
+  _showConsequence(text,onContinue,opts){
+    opts = opts || {};
     this._clearConsequence(); this._clearDecisionPanel();
     const cx=this._cx();
     const pw=Math.min(this.s(720),this._availW()), ph=this.s(104), px=cx-pw/2, py=this.H-this.s(186);
@@ -531,26 +538,46 @@ class GameScene extends Phaser.Scene {
       fontFamily:'Playfair Display, Georgia, serif',fontSize:this.s(17),color:'#dbe8f4',
       align:'center',wordWrap:{width:pw-this.s(56)},lineSpacing:this.s(6)}).setOrigin(0.5);
 
-    // Retry this level
-    const rw=this.s(120), rh=this.s(30);
-    const rx=px+pw-rw-this.s(12), ry=py+ph+this.s(10);
-    const rg=this.add.graphics();
-    const rTxt=this.add.text(rx+rw/2, ry+rh/2, (typeof currentLang!=='undefined'&&currentLang==='de')?'↺ Wiederholen':'↺ Retry level',{
-      fontFamily:'Inter, Arial, sans-serif',fontSize:this.s(12),color:'#7d97b3'}).setOrigin(0.5);
-    const drawR=(hv)=>{ rg.clear();
-      rg.fillStyle(0x0b1725,hv?1:0.85); rg.fillRoundedRect(rx,ry,rw,rh,this.s(7));
-      rg.lineStyle(1,hv?0x8aa4c0:0x2c4767,1); rg.strokeRoundedRect(rx,ry,rw,rh,this.s(7));
-      rTxt.setColor(hv?'#c8d8ea':'#7d97b3'); };
-    drawR(false);
-    const rHit=this.add.rectangle(rx+rw/2,ry+rh/2,rw,rh,0xffffff,0).setInteractive({useHandCursor:true});
-    rHit.on('pointerover',()=>drawR(true)); rHit.on('pointerout',()=>drawR(false));
-    rHit.on('pointerdown',()=>this._retryLevel());
+    const elements=[bg,t];
+
+    // Retry this level — omitted on the final auto-advancing screen, since
+    // there's nothing left to retry into once the game is wrapping up.
+    if(!opts.auto){
+      const rw=this.s(120), rh=this.s(30);
+      const rx=px+pw-rw-this.s(12), ry=py+ph+this.s(10);
+      const rg=this.add.graphics();
+      const rTxt=this.add.text(rx+rw/2, ry+rh/2, (typeof currentLang!=='undefined'&&currentLang==='de')?'↺ Wiederholen':'↺ Retry level',{
+        fontFamily:'Inter, Arial, sans-serif',fontSize:this.s(12),color:'#7d97b3'}).setOrigin(0.5);
+      const drawR=(hv)=>{ rg.clear();
+        rg.fillStyle(0x0b1725,hv?1:0.85); rg.fillRoundedRect(rx,ry,rw,rh,this.s(7));
+        rg.lineStyle(1,hv?0x8aa4c0:0x2c4767,1); rg.strokeRoundedRect(rx,ry,rw,rh,this.s(7));
+        rTxt.setColor(hv?'#c8d8ea':'#7d97b3'); };
+      drawR(false);
+      const rHit=this.add.rectangle(rx+rw/2,ry+rh/2,rw,rh,0xffffff,0).setInteractive({useHandCursor:true});
+      rHit.on('pointerover',()=>drawR(true)); rHit.on('pointerout',()=>drawR(false));
+      rHit.on('pointerdown',()=>this._retryLevel());
+      elements.push(rg,rTxt,rHit);
+    }
 
     this.consequencePanel=this.add.container(0,0).setDepth(62);
-    this.consequencePanel.add([bg,t,rg,rTxt,rHit]);
+    this.consequencePanel.add(elements);
     this.consequencePanel.setAlpha(0);
     this.tweens.add({targets:this.consequencePanel,alpha:1,duration:650});
-    this.time.delayedCall(1100,()=>{
+
+    if(opts.auto){
+      this.worldBtnTimer = this.time.delayedCall(opts.autoDelay||2600, ()=>{
+        this.worldBtnTimer=null;
+        if(onContinue) onContinue();
+      });
+      return;
+    }
+
+    // The button itself is created after a short delay so it doesn't appear
+    // instantly on top of the consequence text. That delay is tracked so it
+    // can be cancelled if the level changes before it fires — previously an
+    // orphaned timer could spawn a stray button after the level had already moved on.
+    this.worldBtnTimer = this.time.delayedCall(1100,()=>{
+      this.worldBtnTimer=null;
       const lbl=(typeof currentLang!=='undefined'&&currentLang==='de')?'Weiter →':'Continue →';
       this.worldBtn=new WorldButton(this,cx,this.H-this.s(262),lbl,()=>{this.worldBtn=null;if(onContinue)onContinue();});
     });
@@ -595,7 +622,10 @@ class GameScene extends Phaser.Scene {
     this.tweens.add({targets:this.decisionPanel,y:0,duration:450,ease:'Back.easeOut'});
   }
   _clearDecisionPanel(){ if(this.decisionPanel){this.tweens.killTweensOf(this.decisionPanel);this.decisionPanel.destroy();this.decisionPanel=null;} }
-  _clearWorldBtn(){ if(this.worldBtn){this.worldBtn.destroy();this.worldBtn=null;} }
+  _clearWorldBtn(){
+    if(this.worldBtnTimer){ this.worldBtnTimer.remove(false); this.worldBtnTimer=null; }
+    if(this.worldBtn){ this.worldBtn.destroy(); this.worldBtn=null; }
+  }
   _clearCubes(){ this.cubes.forEach(c=>{try{c.destroy();}catch(e){}}); this.cubes=[]; }
 
   _updateStats(h,d,r){
