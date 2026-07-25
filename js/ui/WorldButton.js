@@ -17,12 +17,18 @@ class WorldButton {
     this.container.add(this.innerCircle);
     this.arrow=this.scene.add.text(0,0,'▶',{fontSize:16,color:'#f0c060',fontStyle:'bold'}).setOrigin(0.5);
     this.container.add(this.arrow);
+    // Single label, stacked directly beneath the circle — one visual unit,
+    // not a separate floating chip (previously sat above with a gap and
+    // read as a second button).
     this.labelBg=this.scene.add.graphics();
-    this.labelBg.fillStyle(0x060e1c,0.88);this.labelBg.fillRoundedRect(-52,-72,104,26,8);
-    this.labelBg.lineStyle(1,0xe2a840,0.5);this.labelBg.strokeRoundedRect(-52,-72,104,26,8);
+    this.labelBg.fillStyle(0x060e1c,0.88);this.labelBg.fillRoundedRect(-52,50,104,26,8);
+    this.labelBg.lineStyle(1,0xe2a840,0.5);this.labelBg.strokeRoundedRect(-52,50,104,26,8);
     this.container.add(this.labelBg);
-    this.labelText=this.scene.add.text(0,-59,this.label,{fontFamily:'Georgia,serif',fontSize:12,color:'#f0c060'}).setOrigin(0.5);
+    this.labelText=this.scene.add.text(0,63,this.label,{fontFamily:'Georgia,serif',fontSize:12,color:'#f0c060'}).setOrigin(0.5);
     this.container.add(this.labelText);
+    const stem=this.scene.add.graphics();
+    stem.lineStyle(1,0xe2a840,0.4); stem.lineBetween(0,44,0,50);
+    this.container.add(stem);
     const shadow=this.scene.add.graphics();shadow.fillStyle(0x000000,0.2);shadow.fillEllipse(0,36,60,16);
     this.container.addAt(shadow,0);
     this.hitZone=this.scene.add.circle(0,0,44,0xffffff,0).setInteractive({useHandCursor:true});
