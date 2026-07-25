@@ -294,7 +294,15 @@ class ProfileScene extends Phaser.Scene {
   }
 
   _contextNote(ctx,de) {
-    const s=ctx.saule||'unsure', y=ctx.years||'30plus';
+    // saule is now a multi-select array (a person can have GRV + bAV + Pillar 3
+    // at once). For this single note, pick the most information-rich pillar
+    // present rather than failing to match on an array key.
+    const arr = Array.isArray(ctx.saule) ? ctx.saule : (ctx.saule ? [ctx.saule] : []);
+    let s = 'unsure';
+    if (arr.includes('s3')) s='s3';
+    else if (arr.includes('bav')) s='bav';
+    else if (arr.includes('grv')) s='grv';
+    const y=ctx.years||'30plus';
     const EN={
       grv:{under15:'Your retirement rests mainly on the state pension with limited time remaining. Your instinct to protect makes sense here — the question is whether current reserves are enough.',
            '15-30':'You rely mainly on the state pension with a moderate horizon. Your profile can guide how much growth to pursue in the years ahead.',
