@@ -4,18 +4,23 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>WealthSim — Build Your Future</title>
+  <!-- Preconnect for fast font load -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <!-- Load fonts before game starts so Phaser text renders crisp -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet" />
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     html,body{width:100%;height:100%;background:#000;overflow:hidden;display:flex;align-items:center;justify-content:center}
     #game-container{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
-    canvas{display:block}
+    canvas{display:block;image-rendering:auto;}
     #loading{position:fixed;inset:0;background:#060e1c;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.8s ease}
     #loading.out{opacity:0;pointer-events:none}
-    #loading h1{font-family:Georgia,serif;font-size:2.4rem;color:#e2a840;margin-bottom:.4rem;letter-spacing:.06em}
-    #loading p{font-family:Arial,sans-serif;font-size:.88rem;color:#4a6080;margin-bottom:1.8rem}
+    #loading h1{font-family:'Playfair Display',Georgia,serif;font-size:2.4rem;color:#e2a840;margin-bottom:.4rem;letter-spacing:.06em}
+    #loading p{font-family:'Inter',Arial,sans-serif;font-size:.88rem;color:#4a6080;margin-bottom:1.8rem}
     #lbar-bg{width:260px;height:4px;background:#1a2744;border-radius:2px;overflow:hidden}
     #lbar{height:100%;background:linear-gradient(90deg,#e2a840,#f0c060);border-radius:2px;width:0%;transition:width .3s ease}
-    #lhint{margin-top:.9rem;font-family:Arial,sans-serif;font-size:.72rem;color:#2a3a5a}
+    #lhint{margin-top:.9rem;font-family:'Inter',Arial,sans-serif;font-size:.72rem;color:#2a3a5a}
   </style>
 </head>
 <body>
@@ -27,7 +32,6 @@
   </div>
   <div id="game-container"></div>
 
-  <!-- Global state -->
   <script>
     let currentLang = 'en';
     function t(k){return k;}
@@ -35,8 +39,6 @@
     window.playerInfo = {};
     window.retirementContext = {};
   </script>
-
-  <!-- Scoring engine -->
   <script>
     const ScoringEngine = {
       decisions:[],startingAnswers:[],levelStartTime:null,
@@ -70,7 +72,7 @@
   <script src="js/ui/StatsPanel.js"></script>
   <script src="js/ui/WorldButton.js"></script>
 
-  <!-- Scenes — order matters -->
+  <!-- Scenes -->
   <script src="js/scenes/Boot.js"></script>
   <script src="js/scenes/PlayerSetup.js"></script>
   <script src="js/scenes/RetirementContext.js"></script>
@@ -80,18 +82,25 @@
   <!-- Game config -->
   <script src="js/main.js"></script>
 
-  <!-- Loading bar -->
+  <!-- Loading bar — waits for fonts + scripts -->
   <script>
     let lp=0;
     const bar=document.getElementById('lbar'),hint=document.getElementById('lhint');
     const hints=['Building districts...','Paving roads...','Planting trees...','Lighting the city...','Wiring the grid...'];
     let hi=0;
     const lt=setInterval(()=>{lp=Math.min(lp+14,88);bar.style.width=lp+'%';hint.textContent=hints[hi%hints.length];hi++;},380);
-    window.addEventListener('load',()=>{
+    // Wait for both window load and fonts
+    Promise.all([
+      new Promise(r=>window.addEventListener('load',r)),
+      document.fonts.ready
+    ]).then(()=>{
       setTimeout(()=>{
         clearInterval(lt);bar.style.width='100%';
-        setTimeout(()=>{document.getElementById('loading').classList.add('out');setTimeout(()=>document.getElementById('loading').remove(),900);},350);
-      },1600);
+        setTimeout(()=>{
+          document.getElementById('loading').classList.add('out');
+          setTimeout(()=>document.getElementById('loading').remove(),900);
+        },350);
+      },800);
     });
   </script>
 </body>
