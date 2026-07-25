@@ -442,9 +442,10 @@ class GameScene extends Phaser.Scene {
                      opportunistic:'The city invests carefully during the downturn.\nIf recovery comes, these decisions will matter.'};
             const dl={sell_all:[-5,-15,15],hold:[5,0,-5],rebalance:[5,8,-5],opportunistic:[3,12,-10]}[c]||[0,0,0];
             this._updateStats(dl[0],dl[1],dl[2]);
-            // Final level: show the outcome, let the recovery animation play,
-            // then move on to the profile automatically — no Continue click needed.
-            this._showConsequence(m[c]||m.hold,()=>this._finish(),{auto:true,autoDelay:2800});
+            // Final level: same clickable Continue flow as every other level —
+            // the player decides when to move on to their result, rather than
+            // it advancing automatically.
+            this._showConsequence(m[c]||m.hold,()=>this._finish());
           });
         });
       });
@@ -522,17 +523,14 @@ class GameScene extends Phaser.Scene {
   }
 
   // opts.auto: skip the clickable World Button entirely and auto-advance
-  // after opts.autoDelay ms, once the outcome text/animation has had time
-  // to read. Used for the final level so the player doesn't have to click
-  // Continue after already making their last decision.
+  // after opts.autoDelay ms. Currently unused (Level 8 was reverted back to
+  // the standard clickable flow), but left in place in case a future level
+  // wants a no-click ending.
   _showConsequence(text,onContinue,opts){
     opts = opts || {};
-    // This was the actual source of Continue buttons piling up on screen:
-    // this method used to clear the consequence panel and decision panel,
-    // but not any world button/timer left over from a previous call. If
-    // _showConsequence ran again before the last button's callback had
-    // fired, the old button (or its pending spawn timer) never got removed
-    // and a new one stacked on top of it.
+    // Clearing any existing world button/timer here (not just on level
+    // transitions) is what stops Continue buttons from stacking if this
+    // method is ever called again before a previous button's callback fired.
     this._clearWorldBtn();
     this._clearConsequence(); this._clearDecisionPanel();
     const cx=this._cx();
@@ -547,8 +545,6 @@ class GameScene extends Phaser.Scene {
 
     const elements=[bg,t];
 
-    // Retry this level — omitted on the final auto-advancing screen, since
-    // there's nothing left to retry into once the game is wrapping up.
     if(!opts.auto){
       const rw=this.s(120), rh=this.s(30);
       const rx=px+pw-rw-this.s(12), ry=py+ph+this.s(10);
@@ -593,10 +589,6 @@ class GameScene extends Phaser.Scene {
   _showDecisionPanel(options,cb){
     this._clearDecisionPanel();
     const cx=this._cx();
-    // Was capped at 4 columns while still looping over every option — a
-    // 5th option (e.g. Level 7's "Read report") rendered outside the
-    // background box that was sized for only 4. The panel now always sizes
-    // itself to the actual number of options.
     const cols=options.length;
     const avail=this._availW();
     const btnW=Math.min(this.s(180),(avail-this.s(48)-(cols-1)*this.s(12))/cols);
