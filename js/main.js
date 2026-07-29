@@ -35,6 +35,13 @@ const config = {
     height: '100%'
   },
   render: { antialias: true, antialiasGL: true, pixelArt: false, roundPixels: false },
+  // Required for this.add.dom(...) — used for the in-canvas city-name input
+  // in StartingQuestions.js. Without this, add.dom silently does nothing.
+  // (This replaced an earlier window.prompt()-based approach: a blocking
+  // native dialog like prompt()/alert() can desync Phaser's pointer input
+  // tracking across the interruption, which was very likely the cause of
+  // buttons appearing to "stick" and stop responding right after it.)
+  dom: { createContainer: true },
   scene: [Boot, PlayerSetup, RetirementContext, StartingQuestions, GameScene, ProfileScene],
   audio: { disableWebAudio: false }
 };
