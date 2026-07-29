@@ -3,7 +3,9 @@ class StartingQuestions extends Phaser.Scene {
 
   create() {
     this.W=this.scale.width; this.H=this.scale.height;
+    this.S=1;
     this.currentQ=0; this.answers=[]; this.questionElements=[];
+    this.tutorial=new Tutorial(this);
     const lang=typeof currentLang!=='undefined'?currentLang:'en';
     this.questions=lang==='de'?[
       {text:'Deine Stadt erhält ihr erstes Baubudget.\nWas fühlt sich am angenehmsten an?',options:[{label:'🛡 Fast alles schützen',value:'safe'},{label:'⚖ Einen Teil investieren',value:'balanced'},{label:'🚀 Das meiste investieren',value:'aggressive'}]},
@@ -14,7 +16,15 @@ class StartingQuestions extends Phaser.Scene {
       {text:'Some projects need many years before producing results.\nHow do you feel?',options:[{label:'⚡ I prefer quick results',value:'impatient'},{label:'⏳ I can wait if the outcome is better',value:'moderate'},{label:'🎓 Long-term results are worth it',value:'patient'}]},
       {text:'One project suddenly loses value.\nWhat would you instinctively do?',options:[{label:'🛑 Stop immediately',value:'stop'},{label:'👁 Wait and observe',value:'wait'},{label:'🔍 Gather more information first',value:'research'}]}
     ];
-    this._drawBackground(); this._showWelcomeBriefing(); this._fadeIn();
+    this._drawBackground();
+    // The multi-page briefing now lives in Tutorial.js (shared with the
+    // per-level guides) — that copy is deliberately careful not to reveal
+    // that decisions are being scored. This scene used to have its own,
+    // older welcome card with a line that leaked exactly that ("how you
+    // behave when you take your time matters too"); routing through
+    // Tutorial.showBriefing() instead removes that inconsistency.
+    this.tutorial.showBriefing(()=>this._nameCity());
+    this._fadeIn();
   }
 
   _drawBackground() {
@@ -25,42 +35,30 @@ class StartingQuestions extends Phaser.Scene {
     for(let i=0;i<30;i++){const s=this.add.graphics().setDepth(-1);s.fillStyle(0xffffff,Math.random()*0.4+0.1);s.fillCircle(0,0,Math.random()+0.4);s.setPosition(Phaser.Math.Between(0,this.W),Phaser.Math.Between(0,this.H-180));this.stars.push({gfx:s,phase:Math.random()*Math.PI*2});}
   }
 
-  // A short welcome card shown once, before the first question.
-  // Explains why the questions exist, what the side panel does during play,
-  // and warns that pace/timing matters in some levels — all before anything
-  // is asked of the player.
-  _showWelcomeBriefing() {
+  // Ask the player to name their city before anything else happens. All
+  // four districts will later be shown enclosed inside one boundary
+  // labelled with this name, making clear they all belong to one city
+  // the player is responsible for.
+  //
+  // NOTE for future maintenance: this uses window.prompt() rather than an
+  // in-canvas text field. Phaser has no built-in text input, and this repo
+  // doesn't currently wire up Phaser's DOM Element support (which would be
+  // the "native-feeling" way to do it). prompt() is the reliable option
+  // that works everywhere without adding that DOM layer — but it does look
+  // like a plain browser dialog rather than part of the game's visual
+  // style. Replacing it with a proper in-canvas input is a reasonable
+  // follow-up if the mismatch bothers you.
+  _nameCity() {
     const lang=typeof currentLang!=='undefined'?currentLang:'en';
-    const cx=this.W/2, cy=this.H/2;
-    const copy = lang==='de' ? {
-      title:'Bevor wir beginnen',
-      body:'Du wirst gleich drei kurze Fragen beantworten. Es gibt keine richtigen oder falschen Antworten — sie helfen nur dabei, deinen Ausgangspunkt festzulegen.\n\nDanach baust du eine Stadt auf. Ein Seitenpanel zeigt dir jederzeit, wie die Stadt auf deine Entscheidungen reagiert — Stimmung, Wachstum, Mittel und die Leistung jedes Stadtteils. Beobachte es, wann immer du willst.\n\nEine Sache noch: In manchen Levels zählt auch, wie du dich verhältst, wenn du dir Zeit lässt — nicht nur, was du wählst.',
-      btn:'Verstanden →'
-    } : {
-      title:'Before we begin',
-      body:'You are about to answer three quick questions. There are no right or wrong answers — they simply set your starting point.\n\nAfter that, you will build a city. A side panel is always visible and shows how the city reacts to your choices — happiness, growth, funds, and how each district is performing. Check it whenever you like.\n\nOne more thing: in some levels, how you behave when you take your time matters too — not only what you choose.',
-      btn:'Got it →'
-    };
-
-    const ov=this.add.graphics().setDepth(150); ov.fillStyle(0x000000,0.55); ov.fillRect(0,0,this.W,this.H);
-    const bw=Math.min(620,this.W-64), bh=340, bx=cx-bw/2, by=cy-bh/2;
-    const box=this.add.graphics().setDepth(151);
-    box.fillStyle(0x0a1626,0.98); box.fillRoundedRect(bx,by,bw,bh,14);
-    box.lineStyle(1,0xe2a840,0.55); box.strokeRoundedRect(bx,by,bw,bh,14);
-    const t=this.add.text(cx,by+40,copy.title,{
-      fontFamily:'Playfair Display, Georgia, serif',fontSize:24,color:'#e2a840'}).setOrigin(0.5).setDepth(152);
-    const b=this.add.text(cx,by+bh/2+4,copy.body,{
-      fontFamily:'Inter, Arial, sans-serif',fontSize:14,color:'#c3d4e6',
-      align:'center',wordWrap:{width:bw-84},lineSpacing:6}).setOrigin(0.5).setDepth(152);
-    const btn=this.add.text(cx,by+bh-38,copy.btn,{
-      fontFamily:'Playfair Display, Georgia, serif',fontSize:16,color:'#f0c060'})
-      .setOrigin(0.5).setDepth(152).setInteractive({useHandCursor:true});
-    btn.on('pointerover',()=>btn.setColor('#ffe090')); btn.on('pointerout',()=>btn.setColor('#f0c060'));
-    btn.on('pointerdown',()=>{
-      this.cameras.main.shake(60,0.002);
-      [ov,box,t,b,btn].forEach(e=>{try{ this.tweens.add({targets:e,alpha:0,duration:300,onComplete:()=>e.destroy()}); }catch(err){} });
-      this.time.delayedCall(320,()=>this._renderQuestion());
-    });
+    let name = null;
+    try {
+      name = window.prompt(lang==='de'
+        ? 'Wie soll deine Stadt heißen?'
+        : 'What would you like to name your city?', '');
+    } catch(e) { name = null; }
+    name = (name||'').trim().slice(0,28);
+    window.cityName = name || (lang==='de' ? 'Meine Stadt' : 'My City');
+    this._renderQuestion();
   }
 
   _renderQuestion() {
