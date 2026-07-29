@@ -10,6 +10,7 @@ class GameScene extends Phaser.Scene {
       ((typeof currentLang!=='undefined'&&currentLang==='de') ? 'Meine Stadt' : 'My City');
 
     const groundY = this.s(352);
+    this.groundY = groundY; // used to clamp the city boundary so it never rises into the sky
     const ground = this.add.graphics().setDepth(-5);
     ground.fillStyle(0x18351c,1); ground.fillRect(0,groundY,this.W,this.H-groundY);
     ground.fillStyle(0x122a15,1); ground.fillRect(0,groundY+this.s(10),this.W,this.s(14));
@@ -76,28 +77,20 @@ class GameScene extends Phaser.Scene {
     ];
   }
 
-  // One boundary drawn around all four districts. The name now lives in
-  // the HUD next to the year instead of on the ground.
+  // One boundary drawn around all four districts. The name lives in the
+  // HUD next to the year instead of on the ground.
   //
-  // This is the second rewrite of the containment logic. The first tried
-  // to guarantee coverage by reasoning about the ellipse/wobble math
-  // in advance — but an ellipse inscribed in a bounding box only touches
-  // that box at the midpoints of its four sides; a point that's at the
-  // horizontal extreme (like Housing or Energy) but off the vertical
-  // center (which all four districts are, since they sit at slightly
-  // different heights) can fall outside that ellipse even before any
-  // wobble is added. Reasoning about that in advance and getting it
-  // exactly right is easy to get wrong — this version instead builds the
-  // shape, explicitly tests whether it contains every district (center
-  // plus an approximate visual footprint, not just the pixel-center
-  // point), and grows the shape until it verifiably does, rather than
-  // trusting the geometry to work out.
+  // Containment is verified explicitly (point-in-polygon against each
+  // district's approximate footprint, growing the shape until it passes)
+  // rather than trusted from ellipse geometry — see history in git log for
+  // why. That growth loop can push the shape's top edge above the
+  // sky/ground horizon, so every rendered point is clamped to never rise
+  // above groundY: the line stays entirely on the land, never arcing into
+  // the sky, even if that flattens part of the top edge onto the horizon.
   _drawCityBoundary() {
     const cx = this.districts.reduce((s,d)=>s+d.cx,0) / this.districts.length;
-    // Centered slightly above the raw vertical average, since buildings
-    // and name labels extend much further above each district than
-    // anything extends below it.
     const cy = this.districts.reduce((s,d)=>s+d.cy,0) / this.districts.length - this.s(50);
+    const groundY = this.groundY;
 
     const N = 32;
     const wobFor = (a) => Math.max(1, 1 + 0.10*Math.sin(a*3+1.3) + 0.07*Math.sin(a*5+0.6) + 0.045*Math.sin(a*7+2.4));
@@ -120,17 +113,13 @@ class GameScene extends Phaser.Scene {
       return inside;
     };
 
-    // Test the whole approximate visual footprint of each district — its
-    // center, left/right edges, and well above/below it (labels sit high
-    // above center; buildings extend a bit below) — not just the center
-    // point, so the boundary clears the actual artwork, not just a dot.
     const footprint = this.s(95);
     const testPts = [];
     this.districts.forEach(d=>{
       testPts.push({x:d.cx, y:d.cy});
       testPts.push({x:d.cx-footprint, y:d.cy});
       testPts.push({x:d.cx+footprint, y:d.cy});
-      testPts.push({x:d.cx, y:d.cy-footprint*1.7});
+      testPts.push({x:d.cx, y:Math.max(groundY+this.s(4), d.cy-footprint*1.7)});
       testPts.push({x:d.cx, y:d.cy+footprint*0.6});
     });
 
@@ -143,6 +132,13 @@ class GameScene extends Phaser.Scene {
       guard++;
     }
 
+    // Clamp every rendered point (outer and inner ring) so nothing crosses
+    // above the horizon into the sky — flattens the top edge onto the
+    // ground line instead of letting it arc upward.
+    const clampGround = pts => pts.map(p => ({ x:p.x, y: Math.max(p.y, groundY) }));
+    ring = clampGround(ring);
+    const inner = clampGround(buildRing(rx, ry, 0.94));
+
     const g = this.add.graphics().setDepth(-4);
     g.fillStyle(0xe2a840, 0.035);
     g.beginPath();
@@ -154,7 +150,6 @@ class GameScene extends Phaser.Scene {
 
     // A faint second, smaller ring just inside the border — reads like a
     // coastline/contour line rather than a single flat outline.
-    const inner = buildRing(rx, ry, 0.94);
     g.lineStyle(1, 0xe2a840, 0.18);
     g.beginPath();
     g.moveTo(inner[0].x, inner[0].y);
