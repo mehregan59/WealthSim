@@ -6,6 +6,8 @@ class GameScene extends Phaser.Scene {
     this.H = this.scale.height;
     this.S = Math.max(0.85, Math.min(1.9, this.H / 720));
     this.PANEL = Math.round(Math.min(260, Math.max(190, this.W * 0.155)));
+    this.cityName = (window.cityName && String(window.cityName).trim()) ||
+      ((typeof currentLang!=='undefined'&&currentLang==='de') ? 'Meine Stadt' : 'My City');
 
     const groundY = this.s(352);
     const ground = this.add.graphics().setDepth(-5);
@@ -29,6 +31,7 @@ class GameScene extends Phaser.Scene {
     this._level3IdleTimer = null;
 
     this._buildDistricts();
+    this._drawCityBoundary();
     this.roads = new RoadNetwork(this, this.districts);
     this.hud = new HUD(this);
     this.statsPanel = new StatsPanel(this);
@@ -73,11 +76,39 @@ class GameScene extends Phaser.Scene {
     ];
   }
 
+  // One boundary drawn around all four districts, labelled with the
+  // player's city name, so it reads as "these four districts are all part
+  // of one city you're responsible for" rather than four unrelated plots.
+  _drawCityBoundary() {
+    const marginX = this.s(80), topPad = this.s(96), botPad = this.s(56);
+    const xs = this.districts.map(d=>d.cx), ys = this.districts.map(d=>d.cy);
+    const minX = Math.min(...xs) - marginX, maxX = Math.max(...xs) + marginX;
+    const minY = Math.min(...ys) - topPad, maxY = Math.max(...ys) + botPad;
+
+    const g = this.add.graphics().setDepth(-3);
+    g.fillStyle(0xe2a840, 0.035);
+    g.fillRoundedRect(minX, minY, maxX-minX, maxY-minY, this.s(46));
+    g.lineStyle(this.s(2), 0xe2a840, 0.4);
+    g.strokeRoundedRect(minX, minY, maxX-minX, maxY-minY, this.s(46));
+
+    const de=(typeof currentLang!=='undefined'&&currentLang==='de');
+    const label = de ? `Stadt ${this.cityName}` : `City of ${this.cityName}`;
+    const lw = Math.min(this.s(320), maxX-minX-this.s(40));
+    const lbg = this.add.graphics().setDepth(-2);
+    const lx = (minX+maxX)/2, ly = minY;
+    lbg.fillStyle(0x0b1725,0.92); lbg.fillRoundedRect(lx-lw/2, ly-this.s(15), lw, this.s(30), this.s(15));
+    lbg.lineStyle(1,0xe2a840,0.55); lbg.strokeRoundedRect(lx-lw/2, ly-this.s(15), lw, this.s(30), this.s(15));
+    this.add.text(lx, ly, label, {
+      fontFamily:'Playfair Display, Georgia, serif', fontSize:this.s(15), color:'#f0c060'
+    }).setOrigin(0.5).setDepth(-1);
+  }
+
   _introSequence() {
     const fi=this.add.graphics().setDepth(200);
     fi.fillStyle(0x000000,1); fi.fillRect(0,0,this.W,this.H);
     this.tweens.add({targets:fi,alpha:0,duration:2000,delay:300,onComplete:()=>{fi.destroy();this._startLevel(1);}});
-    const txt=this.add.text(this.W/2,this.H/2,'Your city awaits.',{
+    const de=(typeof currentLang!=='undefined'&&currentLang==='de');
+    const txt=this.add.text(this.W/2,this.H/2, de ? `${this.cityName} wartet.` : `${this.cityName} awaits.`,{
       fontFamily:'Playfair Display, Georgia, serif', fontSize:this.s(32), color:'#e2a840'
     }).setOrigin(0.5).setDepth(201).setAlpha(0);
     this.tweens.add({targets:txt,alpha:1,duration:900,delay:700,hold:1600,yoyo:true,onComplete:()=>txt.destroy()});
@@ -580,6 +611,15 @@ class GameScene extends Phaser.Scene {
     this._clearConsequence(); this._clearDecisionPanel();
     const cx=this._cx();
     const pw=Math.min(this.s(720),this._availW()), ph=this.s(104), px=cx-pw/2, py=this.H-this.s(186);
+
+    // The game area (right of the side panel) dims behind the consequence
+    // box and Continue button, so the end of a step reads as a clear,
+    // separate beat instead of the outcome text competing with the scene
+    // still going on behind it.
+    const dim=this.add.graphics();
+    dim.fillStyle(0x040a10, 0.5);
+    dim.fillRect(this.PANEL, 0, this.W-this.PANEL, this.H);
+
     const bg=this.add.graphics();
     bg.fillStyle(0x040a14,0.95); bg.fillRoundedRect(px,py,pw,ph,this.s(12));
     bg.lineStyle(1,0x4ecdc4,0.55); bg.strokeRoundedRect(px,py,pw,ph,this.s(12));
@@ -588,7 +628,7 @@ class GameScene extends Phaser.Scene {
       fontFamily:'Playfair Display, Georgia, serif',fontSize:this.s(17),color:'#dbe8f4',
       align:'center',wordWrap:{width:pw-this.s(56)},lineSpacing:this.s(6)}).setOrigin(0.5);
 
-    const elements=[bg,t];
+    const elements=[dim,bg,t];
 
     if(!opts.auto){
       const rw=this.s(120), rh=this.s(30);
