@@ -79,7 +79,10 @@ class GameScene extends Phaser.Scene {
   // One boundary drawn around all four districts, labelled with the
   // player's city name. Drawn as an irregular "coastline" polygon rather
   // than a plain rounded rectangle so it reads more like a hand-drawn map
-  // region than a UI box.
+  // region than a UI box. Built entirely from moveTo/lineTo — Phaser's
+  // Graphics object has no quadraticCurveTo/bezier method (an earlier
+  // version of this called one that doesn't exist and crashed the scene
+  // on every load — this version uses only real, supported calls).
   _drawCityBoundary() {
     const marginX = this.s(90), topPad = this.s(100), botPad = this.s(64);
     const xs = this.districts.map(d=>d.cx), ys = this.districts.map(d=>d.cy);
@@ -90,44 +93,38 @@ class GameScene extends Phaser.Scene {
     // A closed ring of points around an ellipse, wobbled with a few
     // overlaid sine waves so each edge bulges/recedes irregularly —
     // repeatable (not re-randomised on redraw) and always fully encloses
-    // the districts since the wobble only ever pushes outward from 1.0.
-    const N = 18;
-    const pts = [];
-    for (let i=0;i<N;i++){
+    // the districts since the wobble only ever scales outward from 1.0.
+    // More points than a curved version would need, since straight
+    // segments between them are what stand in for the curve here.
+    const N = 32;
+    const ringPoint = (i, scale) => {
       const a = (i/N)*Math.PI*2;
       const wob = 1 + 0.10*Math.sin(a*3+1.3) + 0.07*Math.sin(a*5+0.6) + 0.045*Math.sin(a*7+2.4);
-      pts.push({ x: cx+Math.cos(a)*rx*wob, y: cy+Math.sin(a)*ry*wob });
-    }
+      return { x: cx+Math.cos(a)*rx*wob*scale, y: cy+Math.sin(a)*ry*wob*scale };
+    };
 
     const g = this.add.graphics().setDepth(-3);
+
+    // Fill + outer stroke
     g.fillStyle(0xe2a840, 0.035);
+    g.beginPath();
+    let p0 = ringPoint(0, 1);
+    g.moveTo(p0.x, p0.y);
+    for (let i=1;i<=N;i++){ const p = ringPoint(i%N, 1); g.lineTo(p.x, p.y); }
+    g.closePath();
+    g.fillPath();
     g.lineStyle(this.s(2.4), 0xe2a840, 0.42);
-    const drawRing = (mode) => {
-      const first = { x:(pts[0].x+pts[N-1].x)/2, y:(pts[0].y+pts[N-1].y)/2 };
-      g.beginPath();
-      g.moveTo(first.x, first.y);
-      for (let i=0;i<N;i++){
-        const p1=pts[i], p2=pts[(i+1)%N];
-        const mid = { x:(p1.x+p2.x)/2, y:(p1.y+p2.y)/2 };
-        g.quadraticCurveTo(p1.x, p1.y, mid.x, mid.y);
-      }
-      g.closePath();
-      if (mode==='fill') g.fillPath(); else g.strokePath();
-    };
-    drawRing('fill');
-    drawRing('stroke');
+    g.strokePath();
 
     // A faint second, smaller ring just inside the border — reads like a
     // coastline/contour line rather than a single flat outline.
     g.lineStyle(1, 0xe2a840, 0.18);
     g.beginPath();
-    for (let i=0;i<N;i++){
-      const a=(i/N)*Math.PI*2;
-      const wob = 1 + 0.10*Math.sin(a*3+1.3) + 0.07*Math.sin(a*5+0.6) + 0.045*Math.sin(a*7+2.4);
-      const ix = cx+Math.cos(a)*rx*wob*0.94, iy = cy+Math.sin(a)*ry*wob*0.94;
-      if (i===0) g.moveTo(ix,iy); else g.lineTo(ix,iy);
-    }
-    g.closePath(); g.strokePath();
+    let q0 = ringPoint(0, 0.94);
+    g.moveTo(q0.x, q0.y);
+    for (let i=1;i<=N;i++){ const q = ringPoint(i%N, 0.94); g.lineTo(q.x, q.y); }
+    g.closePath();
+    g.strokePath();
 
     const de=(typeof currentLang!=='undefined'&&currentLang==='de');
     const label = de ? `Stadt ${this.cityName}` : `City of ${this.cityName}`;
