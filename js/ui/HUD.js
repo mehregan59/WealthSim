@@ -31,6 +31,21 @@ class HUD {
       fontFamily:'Inter, Arial, sans-serif', fontSize:this.s(13), color:'#5a7d9e'
     }).setOrigin(1,0.5);
     this.container.add(this.yearText);
+
+    // City name, sitting right next to the year rather than as a separate
+    // element elsewhere on screen.
+    const cityName = this.scene.cityName || '';
+    if (cityName) {
+      this.cityText = this.scene.add.text(this.yearText.x - this.yearText.width - this.s(16), H/2, cityName, {
+        fontFamily:'Playfair Display, Georgia, serif', fontSize:this.s(14),
+        color:'#e2a840', fontStyle:'600'
+      }).setOrigin(1,0.5);
+      this.container.add(this.cityText);
+      const sep = this.scene.add.graphics();
+      sep.fillStyle(0x2c4767,1);
+      sep.fillCircle(this.cityText.x - this.cityText.width - this.s(8), H/2, this.s(1.6));
+      this.container.add(sep);
+    }
   }
 
   updateStats(){ /* stats live in StatsPanel only */ }
