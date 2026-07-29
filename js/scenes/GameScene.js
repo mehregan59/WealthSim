@@ -76,34 +76,36 @@ class GameScene extends Phaser.Scene {
     ];
   }
 
-  // One boundary drawn around all four districts, labelled with the
-  // player's city name. Drawn as an irregular "coastline" polygon rather
-  // than a plain rounded rectangle so it reads more like a hand-drawn map
-  // region than a UI box. Built entirely from moveTo/lineTo — Phaser's
-  // Graphics object has no quadraticCurveTo/bezier method (an earlier
-  // version of this called one that doesn't exist and crashed the scene
-  // on every load — this version uses only real, supported calls).
+  // One boundary drawn around all four districts, with the city name
+  // engraved faintly into the ground rather than shown as a floating
+  // badge. Two fixes from the previous version:
+  //  1. The wobble that made the edge irregular used to be able to go
+  //     *below* 1.0 (sine dips negative), which could pull the boundary
+  //     in tighter than the plain ellipse at some angles — exactly where
+  //     a district happened to sit, putting it outside its own boundary.
+  //     It's now clamped so it only ever bulges outward.
+  //  2. The city-name label used to be a solid pill sitting right at the
+  //     top edge, which is the same crowded area where district name
+  //     labels live — visible overlap. It's now a large, low-opacity
+  //     engraved-looking watermark sitting low in the open ground, clear
+  //     of every other label.
   _drawCityBoundary() {
-    const marginX = this.s(90), topPad = this.s(100), botPad = this.s(64);
+    const marginX = this.s(130), topPad = this.s(190), botPad = this.s(110);
     const xs = this.districts.map(d=>d.cx), ys = this.districts.map(d=>d.cy);
     const minX = Math.min(...xs) - marginX, maxX = Math.max(...xs) + marginX;
     const minY = Math.min(...ys) - topPad, maxY = Math.max(...ys) + botPad;
     const cx=(minX+maxX)/2, cy=(minY+maxY)/2, rx=(maxX-minX)/2, ry=(maxY-minY)/2;
 
-    // A closed ring of points around an ellipse, wobbled with a few
-    // overlaid sine waves so each edge bulges/recedes irregularly —
-    // repeatable (not re-randomised on redraw) and always fully encloses
-    // the districts since the wobble only ever scales outward from 1.0.
-    // More points than a curved version would need, since straight
-    // segments between them are what stand in for the curve here.
     const N = 32;
     const ringPoint = (i, scale) => {
       const a = (i/N)*Math.PI*2;
-      const wob = 1 + 0.10*Math.sin(a*3+1.3) + 0.07*Math.sin(a*5+0.6) + 0.045*Math.sin(a*7+2.4);
+      // Clamped to >=1 so the boundary only ever bulges outward from the
+      // plain ellipse — never inward, never cutting inside a district.
+      const wob = Math.max(1, 1 + 0.10*Math.sin(a*3+1.3) + 0.07*Math.sin(a*5+0.6) + 0.045*Math.sin(a*7+2.4));
       return { x: cx+Math.cos(a)*rx*wob*scale, y: cy+Math.sin(a)*ry*wob*scale };
     };
 
-    const g = this.add.graphics().setDepth(-3);
+    const g = this.add.graphics().setDepth(-4);
 
     // Fill + outer stroke
     g.fillStyle(0xe2a840, 0.035);
@@ -126,16 +128,21 @@ class GameScene extends Phaser.Scene {
     g.closePath();
     g.strokePath();
 
+    // City name, engraved into the ground: low opacity, wide letter
+    // spacing, a dark offset "shadow" copy underneath for a carved look,
+    // sitting low in the open grass area below the road so it never
+    // competes with district labels or buildings above it.
     const de=(typeof currentLang!=='undefined'&&currentLang==='de');
-    const label = de ? `Stadt ${this.cityName}` : `City of ${this.cityName}`;
-    const lw = Math.min(this.s(320), maxX-minX-this.s(40));
-    const lx = cx, ly = minY + this.s(6);
-    const lbg = this.add.graphics().setDepth(-2);
-    lbg.fillStyle(0x0b1725,0.92); lbg.fillRoundedRect(lx-lw/2, ly-this.s(15), lw, this.s(30), this.s(15));
-    lbg.lineStyle(1,0xe2a840,0.55); lbg.strokeRoundedRect(lx-lw/2, ly-this.s(15), lw, this.s(30), this.s(15));
-    this.add.text(lx, ly, label, {
-      fontFamily:'Playfair Display, Georgia, serif', fontSize:this.s(15), color:'#f0c060'
-    }).setOrigin(0.5).setDepth(-1);
+    const label = this.cityName.toUpperCase();
+    const wx = cx, wy = maxY - this.s(48);
+    this.add.text(wx+this.s(2), wy+this.s(3), label, {
+      fontFamily:'Playfair Display, Georgia, serif', fontSize:this.s(30), color:'#000000',
+      fontStyle:'700', letterSpacing:7
+    }).setOrigin(0.5).setAlpha(0.22).setDepth(-3);
+    this.add.text(wx, wy, label, {
+      fontFamily:'Playfair Display, Georgia, serif', fontSize:this.s(30), color:'#e2a840',
+      fontStyle:'700', letterSpacing:7
+    }).setOrigin(0.5).setAlpha(0.16).setDepth(-2);
   }
 
   _introSequence() {
