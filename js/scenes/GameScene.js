@@ -76,73 +76,90 @@ class GameScene extends Phaser.Scene {
     ];
   }
 
-  // One boundary drawn around all four districts, with the city name
-  // engraved faintly into the ground rather than shown as a floating
-  // badge. Two fixes from the previous version:
-  //  1. The wobble that made the edge irregular used to be able to go
-  //     *below* 1.0 (sine dips negative), which could pull the boundary
-  //     in tighter than the plain ellipse at some angles — exactly where
-  //     a district happened to sit, putting it outside its own boundary.
-  //     It's now clamped so it only ever bulges outward.
-  //  2. The city-name label used to be a solid pill sitting right at the
-  //     top edge, which is the same crowded area where district name
-  //     labels live — visible overlap. It's now a large, low-opacity
-  //     engraved-looking watermark sitting low in the open ground, clear
-  //     of every other label.
+  // One boundary drawn around all four districts. The name now lives in
+  // the HUD next to the year instead of on the ground.
+  //
+  // This is the second rewrite of the containment logic. The first tried
+  // to guarantee coverage by reasoning about the ellipse/wobble math
+  // in advance — but an ellipse inscribed in a bounding box only touches
+  // that box at the midpoints of its four sides; a point that's at the
+  // horizontal extreme (like Housing or Energy) but off the vertical
+  // center (which all four districts are, since they sit at slightly
+  // different heights) can fall outside that ellipse even before any
+  // wobble is added. Reasoning about that in advance and getting it
+  // exactly right is easy to get wrong — this version instead builds the
+  // shape, explicitly tests whether it contains every district (center
+  // plus an approximate visual footprint, not just the pixel-center
+  // point), and grows the shape until it verifiably does, rather than
+  // trusting the geometry to work out.
   _drawCityBoundary() {
-    const marginX = this.s(130), topPad = this.s(190), botPad = this.s(110);
-    const xs = this.districts.map(d=>d.cx), ys = this.districts.map(d=>d.cy);
-    const minX = Math.min(...xs) - marginX, maxX = Math.max(...xs) + marginX;
-    const minY = Math.min(...ys) - topPad, maxY = Math.max(...ys) + botPad;
-    const cx=(minX+maxX)/2, cy=(minY+maxY)/2, rx=(maxX-minX)/2, ry=(maxY-minY)/2;
+    const cx = this.districts.reduce((s,d)=>s+d.cx,0) / this.districts.length;
+    // Centered slightly above the raw vertical average, since buildings
+    // and name labels extend much further above each district than
+    // anything extends below it.
+    const cy = this.districts.reduce((s,d)=>s+d.cy,0) / this.districts.length - this.s(50);
 
     const N = 32;
-    const ringPoint = (i, scale) => {
-      const a = (i/N)*Math.PI*2;
-      // Clamped to >=1 so the boundary only ever bulges outward from the
-      // plain ellipse — never inward, never cutting inside a district.
-      const wob = Math.max(1, 1 + 0.10*Math.sin(a*3+1.3) + 0.07*Math.sin(a*5+0.6) + 0.045*Math.sin(a*7+2.4));
-      return { x: cx+Math.cos(a)*rx*wob*scale, y: cy+Math.sin(a)*ry*wob*scale };
+    const wobFor = (a) => Math.max(1, 1 + 0.10*Math.sin(a*3+1.3) + 0.07*Math.sin(a*5+0.6) + 0.045*Math.sin(a*7+2.4));
+    const buildRing = (rx, ry, scale) => {
+      const pts = [];
+      for (let i=0;i<N;i++){
+        const a = (i/N)*Math.PI*2;
+        const wob = wobFor(a);
+        pts.push({ x: cx+Math.cos(a)*rx*wob*scale, y: cy+Math.sin(a)*ry*wob*scale });
+      }
+      return pts;
+    };
+    const pointInPoly = (pt, poly) => {
+      let inside = false;
+      for (let i=0, j=poly.length-1; i<poly.length; j=i++){
+        const xi=poly[i].x, yi=poly[i].y, xj=poly[j].x, yj=poly[j].y;
+        const hit = ((yi>pt.y)!==(yj>pt.y)) && (pt.x < (xj-xi)*(pt.y-yi)/(yj-yi)+xi);
+        if (hit) inside = !inside;
+      }
+      return inside;
     };
 
-    const g = this.add.graphics().setDepth(-4);
+    // Test the whole approximate visual footprint of each district — its
+    // center, left/right edges, and well above/below it (labels sit high
+    // above center; buildings extend a bit below) — not just the center
+    // point, so the boundary clears the actual artwork, not just a dot.
+    const footprint = this.s(95);
+    const testPts = [];
+    this.districts.forEach(d=>{
+      testPts.push({x:d.cx, y:d.cy});
+      testPts.push({x:d.cx-footprint, y:d.cy});
+      testPts.push({x:d.cx+footprint, y:d.cy});
+      testPts.push({x:d.cx, y:d.cy-footprint*1.7});
+      testPts.push({x:d.cx, y:d.cy+footprint*0.6});
+    });
 
-    // Fill + outer stroke
+    let rx = this.s(240), ry = this.s(160);
+    let ring = buildRing(rx, ry, 1);
+    let guard = 0;
+    while (guard < 40 && !testPts.every(p=>pointInPoly(p,ring))) {
+      rx *= 1.06; ry *= 1.06;
+      ring = buildRing(rx, ry, 1);
+      guard++;
+    }
+
+    const g = this.add.graphics().setDepth(-4);
     g.fillStyle(0xe2a840, 0.035);
     g.beginPath();
-    let p0 = ringPoint(0, 1);
-    g.moveTo(p0.x, p0.y);
-    for (let i=1;i<=N;i++){ const p = ringPoint(i%N, 1); g.lineTo(p.x, p.y); }
-    g.closePath();
-    g.fillPath();
+    g.moveTo(ring[0].x, ring[0].y);
+    for (let i=1;i<=N;i++){ const p=ring[i%N]; g.lineTo(p.x,p.y); }
+    g.closePath(); g.fillPath();
     g.lineStyle(this.s(2.4), 0xe2a840, 0.42);
     g.strokePath();
 
     // A faint second, smaller ring just inside the border — reads like a
     // coastline/contour line rather than a single flat outline.
+    const inner = buildRing(rx, ry, 0.94);
     g.lineStyle(1, 0xe2a840, 0.18);
     g.beginPath();
-    let q0 = ringPoint(0, 0.94);
-    g.moveTo(q0.x, q0.y);
-    for (let i=1;i<=N;i++){ const q = ringPoint(i%N, 0.94); g.lineTo(q.x, q.y); }
-    g.closePath();
-    g.strokePath();
-
-    // City name, engraved into the ground: low opacity, wide letter
-    // spacing, a dark offset "shadow" copy underneath for a carved look,
-    // sitting low in the open grass area below the road so it never
-    // competes with district labels or buildings above it.
-    const de=(typeof currentLang!=='undefined'&&currentLang==='de');
-    const label = this.cityName.toUpperCase();
-    const wx = cx, wy = maxY - this.s(48);
-    this.add.text(wx+this.s(2), wy+this.s(3), label, {
-      fontFamily:'Playfair Display, Georgia, serif', fontSize:this.s(30), color:'#000000',
-      fontStyle:'700', letterSpacing:7
-    }).setOrigin(0.5).setAlpha(0.22).setDepth(-3);
-    this.add.text(wx, wy, label, {
-      fontFamily:'Playfair Display, Georgia, serif', fontSize:this.s(30), color:'#e2a840',
-      fontStyle:'700', letterSpacing:7
-    }).setOrigin(0.5).setAlpha(0.16).setDepth(-2);
+    g.moveTo(inner[0].x, inner[0].y);
+    for (let i=1;i<=N;i++){ const p=inner[i%N]; g.lineTo(p.x,p.y); }
+    g.closePath(); g.strokePath();
   }
 
   _introSequence() {
