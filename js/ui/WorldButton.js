@@ -6,35 +6,37 @@ class WorldButton {
     this._build();this._appear();
   }
   _build(){
+    // Sized up (~30%) from the original so this reads as a clearly bigger,
+    // harder-to-miss "move on" moment rather than a small icon.
     this.outerRing=this.scene.add.graphics();
-    this.outerRing.lineStyle(2,0xe2a840,0.3);this.outerRing.strokeCircle(0,0,44);
+    this.outerRing.lineStyle(2,0xe2a840,0.3);this.outerRing.strokeCircle(0,0,58);
     this.container.add(this.outerRing);
     this.midRing=this.scene.add.graphics();
-    this.midRing.lineStyle(1.5,0xe2a840,0.6);this.midRing.strokeCircle(0,0,34);
+    this.midRing.lineStyle(1.5,0xe2a840,0.6);this.midRing.strokeCircle(0,0,45);
     this.container.add(this.midRing);
     this.innerCircle=this.scene.add.graphics();
-    this.innerCircle.fillStyle(0xe2a840,0.15);this.innerCircle.fillCircle(0,0,26);
-    this.innerCircle.fillStyle(0xe2a840,0.4);this.innerCircle.fillCircle(0,0,18);
+    this.innerCircle.fillStyle(0xe2a840,0.15);this.innerCircle.fillCircle(0,0,34);
+    this.innerCircle.fillStyle(0xe2a840,0.4);this.innerCircle.fillCircle(0,0,24);
     this.container.add(this.innerCircle);
-    this.arrow=this.scene.add.text(0,0,'▶',{fontSize:16,color:'#f0c060',fontStyle:'bold'}).setOrigin(0.5);
+    this.arrow=this.scene.add.text(0,0,'▶',{fontSize:21,color:'#f0c060',fontStyle:'bold'}).setOrigin(0.5);
     this.container.add(this.arrow);
     // Single label, stacked directly beneath the circle — one visual unit,
     // not a separate floating chip.
     this.labelBg=this.scene.add.graphics();
-    this.labelBg.fillStyle(0x060e1c,0.88);this.labelBg.fillRoundedRect(-52,50,104,26,8);
-    this.labelBg.lineStyle(1,0xe2a840,0.5);this.labelBg.strokeRoundedRect(-52,50,104,26,8);
+    this.labelBg.fillStyle(0x060e1c,0.88);this.labelBg.fillRoundedRect(-64,64,128,32,9);
+    this.labelBg.lineStyle(1,0xe2a840,0.5);this.labelBg.strokeRoundedRect(-64,64,128,32,9);
     this.container.add(this.labelBg);
-    this.labelText=this.scene.add.text(0,63,this.label,{fontFamily:'Georgia,serif',fontSize:12,color:'#f0c060'}).setOrigin(0.5);
+    this.labelText=this.scene.add.text(0,80,this.label,{fontFamily:'Georgia,serif',fontSize:15,color:'#f0c060',fontStyle:'bold'}).setOrigin(0.5);
     this.container.add(this.labelText);
     const stem=this.scene.add.graphics();
-    stem.lineStyle(1,0xe2a840,0.4); stem.lineBetween(0,44,0,50);
+    stem.lineStyle(1,0xe2a840,0.4); stem.lineBetween(0,58,0,64);
     this.container.add(stem);
-    const shadow=this.scene.add.graphics();shadow.fillStyle(0x000000,0.2);shadow.fillEllipse(0,36,60,16);
+    const shadow=this.scene.add.graphics();shadow.fillStyle(0x000000,0.2);shadow.fillEllipse(0,46,76,20);
     this.container.addAt(shadow,0);
-    this.hitZone=this.scene.add.circle(0,0,44,0xffffff,0).setInteractive({useHandCursor:true});
+    this.hitZone=this.scene.add.circle(0,0,58,0xffffff,0).setInteractive({useHandCursor:true});
     this.container.add(this.hitZone);
-    this.hitZone.on('pointerover',()=>{if(this.used)return;this.scene.tweens.add({targets:this.container,scaleX:1.12,scaleY:1.12,duration:180});this.innerCircle.clear();this.innerCircle.fillStyle(0xe2a840,0.3);this.innerCircle.fillCircle(0,0,26);this.innerCircle.fillStyle(0xe2a840,0.7);this.innerCircle.fillCircle(0,0,18);});
-    this.hitZone.on('pointerout',()=>{if(this.used)return;this.scene.tweens.add({targets:this.container,scaleX:1,scaleY:1,duration:180});this.innerCircle.clear();this.innerCircle.fillStyle(0xe2a840,0.15);this.innerCircle.fillCircle(0,0,26);this.innerCircle.fillStyle(0xe2a840,0.4);this.innerCircle.fillCircle(0,0,18);});
+    this.hitZone.on('pointerover',()=>{if(this.used)return;this.scene.tweens.add({targets:this.container,scaleX:1.1,scaleY:1.1,duration:180});this.innerCircle.clear();this.innerCircle.fillStyle(0xe2a840,0.3);this.innerCircle.fillCircle(0,0,34);this.innerCircle.fillStyle(0xe2a840,0.7);this.innerCircle.fillCircle(0,0,24);});
+    this.hitZone.on('pointerout',()=>{if(this.used)return;this.scene.tweens.add({targets:this.container,scaleX:1,scaleY:1,duration:180});this.innerCircle.clear();this.innerCircle.fillStyle(0xe2a840,0.15);this.innerCircle.fillCircle(0,0,34);this.innerCircle.fillStyle(0xe2a840,0.4);this.innerCircle.fillCircle(0,0,24);});
     this.hitZone.on('pointerdown',()=>{
       // Guard against a second pointerdown (double-tap, or a click landing
       // mid hover-tween) firing the disappear/callback sequence twice —
@@ -47,7 +49,7 @@ class WorldButton {
     });
   }
   _appear(){
-    for(let i=0;i<8;i++){const angle=(i/8)*Math.PI*2;const p=this.scene.add.graphics().setDepth(71);p.fillStyle(0xe2a840,0.8);p.fillCircle(0,0,2.5);p.setPosition(this.x,this.y);this.scene.tweens.add({targets:p,x:this.x+Math.cos(angle)*55,y:this.y+Math.sin(angle)*55,alpha:0,duration:500,onComplete:()=>p.destroy()});}
+    for(let i=0;i<8;i++){const angle=(i/8)*Math.PI*2;const p=this.scene.add.graphics().setDepth(71);p.fillStyle(0xe2a840,0.8);p.fillCircle(0,0,2.5);p.setPosition(this.x,this.y);this.scene.tweens.add({targets:p,x:this.x+Math.cos(angle)*70,y:this.y+Math.sin(angle)*70,alpha:0,duration:500,onComplete:()=>p.destroy()});}
     this.container.setScale(0.3);
     this.scene.tweens.add({targets:this.container,alpha:1,scaleX:1,scaleY:1,duration:500,ease:'Back.easeOut'});
     this.scene.tweens.add({targets:this.outerRing,scaleX:{from:0.85,to:1.4},scaleY:{from:0.85,to:1.4},alpha:{from:0.5,to:0},duration:1400,repeat:-1});
