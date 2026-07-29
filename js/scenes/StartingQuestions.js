@@ -17,12 +17,9 @@ class StartingQuestions extends Phaser.Scene {
       {text:'One project suddenly loses value.\nWhat would you instinctively do?',options:[{label:'🛑 Stop immediately',value:'stop'},{label:'👁 Wait and observe',value:'wait'},{label:'🔍 Gather more information first',value:'research'}]}
     ];
     this._drawBackground();
-    // The multi-page briefing now lives in Tutorial.js (shared with the
+    // The multi-page briefing lives in Tutorial.js (shared with the
     // per-level guides) — that copy is deliberately careful not to reveal
-    // that decisions are being scored. This scene used to have its own,
-    // older welcome card with a line that leaked exactly that ("how you
-    // behave when you take your time matters too"); routing through
-    // Tutorial.showBriefing() instead removes that inconsistency.
+    // that decisions are being scored.
     this.tutorial.showBriefing(()=>this._nameCity());
     this._fadeIn();
   }
@@ -37,28 +34,69 @@ class StartingQuestions extends Phaser.Scene {
 
   // Ask the player to name their city before anything else happens. All
   // four districts will later be shown enclosed inside one boundary
-  // labelled with this name, making clear they all belong to one city
-  // the player is responsible for.
+  // labelled with this name.
   //
-  // NOTE for future maintenance: this uses window.prompt() rather than an
-  // in-canvas text field. Phaser has no built-in text input, and this repo
-  // doesn't currently wire up Phaser's DOM Element support (which would be
-  // the "native-feeling" way to do it). prompt() is the reliable option
-  // that works everywhere without adding that DOM layer — but it does look
-  // like a plain browser dialog rather than part of the game's visual
-  // style. Replacing it with a proper in-canvas input is a reasonable
-  // follow-up if the mismatch bothers you.
+  // This used to call window.prompt(), a synchronous native browser
+  // dialog. That was very likely the cause of a real bug: a blocking
+  // dialog like prompt()/alert() can desync Phaser's pointer input
+  // tracking across the interruption, leaving buttons visually present
+  // but unresponsive afterward — matching a report of the game "getting
+  // stuck" a few steps later. Replaced with a proper in-canvas text input
+  // via Phaser's DOM Element support (enabled in main.js), so there's no
+  // blocking native dialog in the flow at all.
   _nameCity() {
     const lang=typeof currentLang!=='undefined'?currentLang:'en';
-    let name = null;
-    try {
-      name = window.prompt(lang==='de'
-        ? 'Wie soll deine Stadt heißen?'
-        : 'What would you like to name your city?', '');
-    } catch(e) { name = null; }
-    name = (name||'').trim().slice(0,28);
-    window.cityName = name || (lang==='de' ? 'Meine Stadt' : 'My City');
-    this._renderQuestion();
+    const cx=this.W/2, cy=this.H/2;
+    const els=[];
+
+    const ov=this.add.graphics().setDepth(150); ov.fillStyle(0x000000,0.55); ov.fillRect(0,0,this.W,this.H); els.push(ov);
+    const bw=Math.min(520,this.W-64), bh=210, bx=cx-bw/2, by=cy-bh/2;
+    const box=this.add.graphics().setDepth(151);
+    box.fillStyle(0x0a1626,0.98); box.fillRoundedRect(bx,by,bw,bh,14);
+    box.lineStyle(1,0xe2a840,0.55); box.strokeRoundedRect(bx,by,bw,bh,14);
+    els.push(box);
+
+    const t=this.add.text(cx,by+40, lang==='de'?'Wie soll deine Stadt heißen?':'What would you like to name your city?', {
+      fontFamily:'Playfair Display, Georgia, serif',fontSize:19,color:'#e2a840',align:'center',wordWrap:{width:bw-60}
+    }).setOrigin(0.5).setDepth(152);
+    els.push(t);
+
+    const inputW = bw-80;
+    const inputEl = this.add.dom(cx, by+bh/2-4, 'input',
+      `width:${inputW}px; padding:11px 14px; font-size:16px; font-family:Georgia,serif; ` +
+      `background:#0d1a2a; color:#e8f0ff; border:1px solid #2c4767; border-radius:8px; ` +
+      `outline:none; text-align:center;`
+    ).setDepth(152);
+    inputEl.node.setAttribute('type','text');
+    inputEl.node.setAttribute('maxlength','28');
+    inputEl.node.setAttribute('placeholder', lang==='de'?'Meine Stadt':'My City');
+    els.push(inputEl);
+    this.time.delayedCall(80, ()=>{ try{ inputEl.node.focus(); }catch(e){} });
+
+    const btnW=180, btnH=44, btnY=by+bh-64, btnX=cx-btnW/2;
+    const btnBg=this.add.graphics().setDepth(152);
+    const drawBtn=(hv)=>{ btnBg.clear(); btnBg.fillStyle(0xe2a840,hv?1:0.9); btnBg.fillRoundedRect(btnX,btnY,btnW,btnH,10); };
+    drawBtn(false);
+    const btnTxt=this.add.text(cx,btnY+btnH/2, lang==='de'?'Weiter →':'Continue →', {
+      fontFamily:'Playfair Display, Georgia, serif',fontSize:16,color:'#0b1725',fontStyle:'bold'
+    }).setOrigin(0.5).setDepth(153);
+    const hit=this.add.rectangle(cx,btnY+btnH/2,btnW,btnH,0xffffff,0).setDepth(154).setInteractive({useHandCursor:true});
+    els.push(btnBg,btnTxt,hit);
+
+    const submit=()=>{
+      let name=(inputEl.node.value||'').trim().slice(0,28);
+      window.cityName = name || (lang==='de' ? 'Meine Stadt' : 'My City');
+      this.cameras.main.shake(60,0.002);
+      els.forEach(e=>{try{e.destroy();}catch(err){}});
+      this._renderQuestion();
+    };
+    hit.on('pointerover',()=>drawBtn(true));
+    hit.on('pointerout',()=>drawBtn(false));
+    hit.on('pointerdown',submit);
+
+    // Enter key submits too
+    inputEl.addListener('keydown');
+    inputEl.on('keydown',(event)=>{ if(event.key==='Enter') submit(); });
   }
 
   _renderQuestion() {
