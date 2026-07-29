@@ -77,25 +77,63 @@ class GameScene extends Phaser.Scene {
   }
 
   // One boundary drawn around all four districts, labelled with the
-  // player's city name, so it reads as "these four districts are all part
-  // of one city you're responsible for" rather than four unrelated plots.
+  // player's city name. Drawn as an irregular "coastline" polygon rather
+  // than a plain rounded rectangle so it reads more like a hand-drawn map
+  // region than a UI box.
   _drawCityBoundary() {
-    const marginX = this.s(80), topPad = this.s(96), botPad = this.s(56);
+    const marginX = this.s(90), topPad = this.s(100), botPad = this.s(64);
     const xs = this.districts.map(d=>d.cx), ys = this.districts.map(d=>d.cy);
     const minX = Math.min(...xs) - marginX, maxX = Math.max(...xs) + marginX;
     const minY = Math.min(...ys) - topPad, maxY = Math.max(...ys) + botPad;
+    const cx=(minX+maxX)/2, cy=(minY+maxY)/2, rx=(maxX-minX)/2, ry=(maxY-minY)/2;
+
+    // A closed ring of points around an ellipse, wobbled with a few
+    // overlaid sine waves so each edge bulges/recedes irregularly —
+    // repeatable (not re-randomised on redraw) and always fully encloses
+    // the districts since the wobble only ever pushes outward from 1.0.
+    const N = 18;
+    const pts = [];
+    for (let i=0;i<N;i++){
+      const a = (i/N)*Math.PI*2;
+      const wob = 1 + 0.10*Math.sin(a*3+1.3) + 0.07*Math.sin(a*5+0.6) + 0.045*Math.sin(a*7+2.4);
+      pts.push({ x: cx+Math.cos(a)*rx*wob, y: cy+Math.sin(a)*ry*wob });
+    }
 
     const g = this.add.graphics().setDepth(-3);
     g.fillStyle(0xe2a840, 0.035);
-    g.fillRoundedRect(minX, minY, maxX-minX, maxY-minY, this.s(46));
-    g.lineStyle(this.s(2), 0xe2a840, 0.4);
-    g.strokeRoundedRect(minX, minY, maxX-minX, maxY-minY, this.s(46));
+    g.lineStyle(this.s(2.4), 0xe2a840, 0.42);
+    const drawRing = (mode) => {
+      const first = { x:(pts[0].x+pts[N-1].x)/2, y:(pts[0].y+pts[N-1].y)/2 };
+      g.beginPath();
+      g.moveTo(first.x, first.y);
+      for (let i=0;i<N;i++){
+        const p1=pts[i], p2=pts[(i+1)%N];
+        const mid = { x:(p1.x+p2.x)/2, y:(p1.y+p2.y)/2 };
+        g.quadraticCurveTo(p1.x, p1.y, mid.x, mid.y);
+      }
+      g.closePath();
+      if (mode==='fill') g.fillPath(); else g.strokePath();
+    };
+    drawRing('fill');
+    drawRing('stroke');
+
+    // A faint second, smaller ring just inside the border — reads like a
+    // coastline/contour line rather than a single flat outline.
+    g.lineStyle(1, 0xe2a840, 0.18);
+    g.beginPath();
+    for (let i=0;i<N;i++){
+      const a=(i/N)*Math.PI*2;
+      const wob = 1 + 0.10*Math.sin(a*3+1.3) + 0.07*Math.sin(a*5+0.6) + 0.045*Math.sin(a*7+2.4);
+      const ix = cx+Math.cos(a)*rx*wob*0.94, iy = cy+Math.sin(a)*ry*wob*0.94;
+      if (i===0) g.moveTo(ix,iy); else g.lineTo(ix,iy);
+    }
+    g.closePath(); g.strokePath();
 
     const de=(typeof currentLang!=='undefined'&&currentLang==='de');
     const label = de ? `Stadt ${this.cityName}` : `City of ${this.cityName}`;
     const lw = Math.min(this.s(320), maxX-minX-this.s(40));
+    const lx = cx, ly = minY + this.s(6);
     const lbg = this.add.graphics().setDepth(-2);
-    const lx = (minX+maxX)/2, ly = minY;
     lbg.fillStyle(0x0b1725,0.92); lbg.fillRoundedRect(lx-lw/2, ly-this.s(15), lw, this.s(30), this.s(15));
     lbg.lineStyle(1,0xe2a840,0.55); lbg.strokeRoundedRect(lx-lw/2, ly-this.s(15), lw, this.s(30), this.s(15));
     this.add.text(lx, ly, label, {
@@ -612,13 +650,12 @@ class GameScene extends Phaser.Scene {
     const cx=this._cx();
     const pw=Math.min(this.s(720),this._availW()), ph=this.s(104), px=cx-pw/2, py=this.H-this.s(186);
 
-    // The game area (right of the side panel) dims behind the consequence
-    // box and Continue button, so the end of a step reads as a clear,
-    // separate beat instead of the outcome text competing with the scene
-    // still going on behind it.
+    // The whole screen goes almost completely dark behind the consequence
+    // box and Continue button — a clean, unambiguous "this step is over"
+    // beat rather than a partial dim with the scene still visibly going.
     const dim=this.add.graphics();
-    dim.fillStyle(0x040a10, 0.5);
-    dim.fillRect(this.PANEL, 0, this.W-this.PANEL, this.H);
+    dim.fillStyle(0x02060c, 0.9);
+    dim.fillRect(0, 0, this.W, this.H);
 
     const bg=this.add.graphics();
     bg.fillStyle(0x040a14,0.95); bg.fillRoundedRect(px,py,pw,ph,this.s(12));
