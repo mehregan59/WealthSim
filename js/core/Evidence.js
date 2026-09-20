@@ -1,0 +1,238 @@
+/* WealthSim — evidence layer.
+ *
+ * Pure functions. No Phaser, no DOM. Takes an immutable list of decision
+ * events and returns observations plus coverage labels.
+ *
+ * Three rules this module exists to enforce:
+ *   1. An action that is offered must be explicitly declared here. Unknown
+ *      actions become UNSUPPORTED evidence, never a neutral score.
+ *   2. Absent data is 'insufficient', never a fabricated average.
+ *   3. Accessing information is recorded separately from the decision that
+ *      followed it. Opening a report is not itself learning.
+ */
+(function (root) {
+  'use strict';
+
+  // Descriptive dimension names. No 'greed', no 'resilience' — those assert
+  // motives the game does not measure.
+  const DIM = {
+    RISK:         'risk_choices',
+    SETBACK:      'response_to_setbacks',
+    CONCENTRATION:'allocation_concentration',
+    TIMING:       'timing_choices',
+    MOMENTUM:     'response_to_rising_prices',
+    EVIDENCE:     'evidence_use',
+    SOCIAL:       'response_to_social_cues',
+    DOWNTURN:     'response_during_downturns'
+  };
+
+  // Every offered action in the game must appear here.
+  const ACTIONS = {
+    'ch1:contract': {
+      safe:        { dim:DIM.RISK, level:'lower_variance',  note:'chose the lower-variance contract' },
+      balanced:    { dim:DIM.RISK, level:'middle_variance', note:'chose the middle-variance contract' },
+      aggressive:  { dim:DIM.RISK, level:'higher_variance', note:'chose the higher-variance contract' }
+    },
+    'ch2:setback': {
+      cancel:      { dim:DIM.SETBACK, level:'exited',      note:'ended the project after the fall' },
+      continue:    { dim:DIM.SETBACK, level:'held',        note:'continued the project unchanged' },
+      invest_more: { dim:DIM.SETBACK, level:'added',       note:'committed further resources after the fall' },
+      wait:        { dim:DIM.SETBACK, level:'paused',      note:'paused work and deferred the decision' }
+    },
+    'ch3:allocate': {
+      allocate:    { dim:DIM.CONCENTRATION, level:'placed', note:'placed a unit of funding' }
+    },
+    'ch4:timing': {
+      festival:    { dim:DIM.TIMING, level:'near_term', note:'took the near-term benefit' },
+      university:  { dim:DIM.TIMING, level:'deferred',  note:'took the deferred benefit' },
+      repair:      { dim:DIM.TIMING, level:'obligation',note:'funded a due obligation',
+                     excludeFromPattern:true,
+                     why:'Meeting a required repair is a constraint, not a timing preference.' }
+    },
+    'ch5:boom': {
+      all_in:      { dim:DIM.MOMENTUM, level:'increased_max', note:'moved all holdings into the rising district' },
+      increase:    { dim:DIM.MOMENTUM, level:'increased',     note:'increased exposure to the rising district' },
+      hold:        { dim:DIM.MOMENTUM, level:'unchanged',     note:'left the allocation unchanged' },
+      reduce:      { dim:DIM.MOMENTUM, level:'decreased',     note:'reduced exposure to the rising district' }
+    },
+    'ch6:delegation': {
+      accept:      { dim:DIM.EVIDENCE, level:'accepted_offer', note:'accepted the shared arrangement' },
+      independent: { dim:DIM.EVIDENCE, level:'built_own',      note:'built independently at higher cost' },
+      decline:     { dim:DIM.EVIDENCE, level:'declined_both',  note:'declined both options' }
+    },
+    'ch7:news': {
+      sell:        { dim:DIM.SOCIAL, level:'exited',    note:'sold after the headline' },
+      reduce:      { dim:DIM.SOCIAL, level:'reduced',   note:'reduced exposure after the headline' },
+      hold:        { dim:DIM.SOCIAL, level:'unchanged', note:'left the position unchanged after the headline' },
+      invest_more: { dim:DIM.SOCIAL, level:'increased', note:'increased exposure against the headline' }
+    },
+    'ch8:storm': {
+      sell_all:      { dim:DIM.DOWNTURN, level:'liquidated', note:'liquidated holdings during the downturn' },
+      hold:          { dim:DIM.DOWNTURN, level:'unchanged',  note:'held the plan through the downturn' },
+      rebalance:     { dim:DIM.DOWNTURN, level:'rebalanced', note:'rebalanced during the downturn' },
+      opportunistic: { dim:DIM.DOWNTURN, level:'added',      note:'added holdings during the downturn' },
+      meet_reserve:  { dim:DIM.DOWNTURN, level:'obligation', note:'sold to meet a stated reserve requirement',
+                       excludeFromPattern:true,
+                       why:'Selling to meet a stated obligation is a constraint, not a downturn reaction.' }
+    },
+    'ch9:review': {
+      sell_winner: { dim:DIM.EVIDENCE, level:'sold_gain', note:'sold a holding standing at a gain' },
+      sell_loser:  { dim:DIM.EVIDENCE, level:'sold_loss', note:'sold a holding standing at a loss' },
+      hold_both:   { dim:DIM.EVIDENCE, level:'held_both', note:'held both holdings' }
+    }
+  };
+
+  const META_ACTIONS = ['research', 'forecast', 'rationale', 'comprehension'];
+
+  function lookup(scenarioId, action) {
+    const table = ACTIONS[scenarioId];
+    if (!table) return null;
+    return table[action] || null;
+  }
+
+  function observations(events) {
+    const seen = new Set();
+    const out = [];
+    const unsupported = [];
+    events.forEach(function (e) {
+      if (META_ACTIONS.indexOf(e.action) !== -1) return;
+      const key = e.scenarioId + '|' + e.trialId;
+      if (seen.has(key)) return;
+      seen.add(key);
+      const spec = lookup(e.scenarioId, e.action);
+      if (!spec) {
+        unsupported.push({ scenarioId:e.scenarioId, trialId:e.trialId, action:e.action });
+        return;
+      }
+      out.push({
+        eventId: e.eventId, scenarioId: e.scenarioId, trialId: e.trialId,
+        phase: e.phase || 'baseline',
+        dim: spec.dim, level: spec.level, note: spec.note,
+        excluded: !!spec.excludeFromPattern, why: spec.why || null,
+        afterEvidence: !!e.afterEvidence, districtId: e.districtId || null
+      });
+    });
+    return { observations: out, unsupported: unsupported };
+  }
+
+  // An evidence-coverage label, explicitly NOT a statistical confidence
+  // level. Three eligible observations is a product rule, not a validated
+  // reliability threshold.
+  const MIN_PATTERN = 3;
+
+  function coverage(obs, dim) {
+    const eligible = obs.filter(function (o) {
+      return o.dim === dim && !o.excluded && o.phase === 'baseline';
+    });
+    if (eligible.length === 0) return { label:'insufficient', n:0, levels:[] };
+    const levels = eligible.map(function (o) { return o.level; });
+    const distinct = levels.filter(function (v,i){ return levels.indexOf(v)===i; });
+    if (eligible.length === 1) return { label:'single', n:1, levels:distinct };
+    if (distinct.length > 1)   return { label:'mixed',  n:eligible.length, levels:distinct };
+    if (eligible.length >= MIN_PATTERN)
+      return { label:'repeated', n:eligible.length, levels:distinct };
+    return { label:'limited', n:eligible.length, levels:distinct };
+  }
+
+  // Reports actual shares and HHI, normalised against what is FEASIBLE with
+  // the given number of indivisible units — not against an unreachable ideal.
+  function concentration(events, unitCount, districtCount) {
+    const placed = events.filter(function (e) {
+      return e.scenarioId === 'ch3:allocate' && e.districtId;
+    });
+    if (!placed.length) return { available:false };
+    const counts = {};
+    placed.forEach(function (e) { counts[e.districtId] = (counts[e.districtId]||0) + 1; });
+    const vals = Object.keys(counts).map(function (k){ return counts[k]; });
+    const total = vals.reduce(function (a,b){ return a+b; }, 0);
+    const shares = {};
+    Object.keys(counts).forEach(function (k){ shares[k] = counts[k]/total; });
+    const hhi = vals.reduce(function (s,v){ return s + Math.pow(v/total,2); }, 0);
+    const n = unitCount || total;
+    const d = districtCount || 4;
+    const base = Math.floor(n/d), rem = n % d;
+    const evenest = [];
+    for (var i=0;i<d;i++) evenest.push(base + (i<rem ? 1 : 0));
+    const bestHHI  = evenest.reduce(function (s,v){ return s + Math.pow(v/n,2); }, 0);
+    const spread = (1 === bestHHI) ? 0 : (1 - hhi) / (1 - bestHHI) * 100;
+    const largest = Math.max.apply(null, vals);
+    return {
+      available: true, counts: counts, shares: shares,
+      districtsUsed: vals.length, districtCount: d, hhi: hhi,
+      evenestFeasible: evenest, bestAchievableHHI: bestHHI,
+      spreadVsFeasible: Math.round(spread*100)/100,
+      largestShare: largest/total,
+      note: 'placed ' + total + ' units across ' + vals.length + ' of ' + d +
+            ' districts; largest single share ' + Math.round(largest/total*100) + '%'
+    };
+  }
+
+  // Report access, comprehension and belief revision tracked separately.
+  // Opening a report never by itself counts as learning.
+  function evidenceUse(events) {
+    const opens = events.filter(function (e){ return e.action === 'research'; });
+    const trials = {};
+    opens.forEach(function (e){ trials[e.scenarioId+'|'+e.trialId] = true; });
+    const distinctTrials = Object.keys(trials).length;
+    const checks = events.filter(function (e){ return e.action === 'comprehension'; });
+    const passed = checks.filter(function (e){ return e.correct === true; }).length;
+    const revisions = events.filter(function (e) {
+      return e.action === 'forecast' && e.revisedAfterEvidence === true;
+    });
+    const informative   = revisions.filter(function (e){ return e.evidenceInformative === true; }).length;
+    const uninformative = revisions.filter(function (e){ return e.evidenceInformative === false; }).length;
+    return {
+      reportsOpened: distinctTrials, rawOpens: opens.length,
+      comprehensionChecked: checks.length, comprehensionPassed: passed,
+      revisedAfterInformative: informative, revisedAfterUninformative: uninformative,
+      note: distinctTrials === 0
+        ? 'no optional reports were opened'
+        : 'opened optional reports in ' + distinctTrials + ' scenario' + (distinctTrials===1?'':'s')
+    };
+  }
+
+  // Forecast accuracy on resolved binary events. Explicitly not calibration.
+  function brier(events) {
+    const f = events.filter(function (e) {
+      return e.action === 'forecast' && typeof e.p === 'number' &&
+             (e.outcome === 0 || e.outcome === 1);
+    });
+    if (!f.length) return { available:false, n:0 };
+    const score = f.reduce(function (s,e){ return s + Math.pow(e.p - e.outcome, 2); }, 0) / f.length;
+    return {
+      available: true, n: f.length,
+      brier: Math.round(score*10000)/10000,
+      label: 'forecast accuracy',
+      caveat: f.length < 10
+        ? 'Too few forecasts to describe a stable tendency.'
+        : 'Descriptive for this session only.'
+    };
+  }
+
+  // Shown side by side. Disagreement is reported as a difference in context,
+  // never as dishonesty and never blended into one number.
+  function statedVsObserved(stated, obs) {
+    const pairs = [];
+    function add(label, statedVal, dim, map) {
+      const eligible = obs.filter(function (o){ return o.dim===dim && !o.excluded && o.phase==='baseline'; });
+      if (!statedVal || !eligible.length) return;
+      pairs.push({
+        label: label, stated: statedVal,
+        observed: eligible.map(function (o){ return o.level; }),
+        agrees: eligible.every(function (o){ return map[statedVal] === o.level; })
+      });
+    }
+    add('Opening preference on protecting funds', stated.q0, DIM.RISK,
+        { safe:'lower_variance', balanced:'middle_variance', aggressive:'higher_variance' });
+    add('Opening preference on waiting', stated.q1, DIM.TIMING,
+        { impatient:'near_term', moderate:'near_term', patient:'deferred' });
+    return pairs;
+  }
+
+  root.Evidence = {
+    DIM: DIM, ACTIONS: ACTIONS, MIN_PATTERN: MIN_PATTERN,
+    lookup: lookup, observations: observations, coverage: coverage,
+    concentration: concentration, evidenceUse: evidenceUse,
+    brier: brier, statedVsObserved: statedVsObserved
+  };
+})(typeof module !== 'undefined' && module.exports ? module.exports : (window.WS = window.WS || {}));
