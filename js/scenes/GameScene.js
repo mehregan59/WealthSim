@@ -10,7 +10,7 @@ class GameScene extends Phaser.Scene {
       ((typeof currentLang!=='undefined'&&currentLang==='de') ? 'Meine Stadt' : 'My City');
 
     const groundY = this.s(352);
-    this.groundY = groundY; // used to clamp the city boundary so it never rises into the sky
+    this.groundY = groundY;
     const ground = this.add.graphics().setDepth(-5);
     ground.fillStyle(0x18351c,1); ground.fillRect(0,groundY,this.W,this.H-groundY);
     ground.fillStyle(0x122a15,1); ground.fillRect(0,groundY+this.s(10),this.W,this.s(14));
@@ -27,7 +27,7 @@ class GameScene extends Phaser.Scene {
     this.consequencePanel = null; this.persistentMsg = null;
     this.hasUniversity = false; this.siteMarkers = [];
     this.tickerActive = false;
-    this.snapshots = {};          // for undo
+    this.snapshots = {};
     this._panelIntroShown = false;
     this._level3IdleTimer = null;
 
@@ -40,6 +40,7 @@ class GameScene extends Phaser.Scene {
     this.statsPanel.recordSnapshot(this.cityStats.happiness,this.cityStats.development,this.cityStats.resources,0);
 
     this.input.keyboard.on('keydown-P', () => this._toProfile());
+    this.events.off('resourceDropped');
     this.events.on('resourceDropped', ({district,value}) => this._onResourceDropped(district,value));
     this._introSequence();
   }
@@ -49,9 +50,6 @@ class GameScene extends Phaser.Scene {
   _availW(){ return this.W - this.PANEL - this.s(60); }
 
   _buildDistricts() {
-    // Extra margin off both the panel and the right edge of the screen,
-    // and Housing/Energy pulled ~20% closer to their inner neighbours
-    // (Transport/Technology) instead of sitting right at the outer bounds.
     const L = this.PANEL + this.s(96);
     const R = this.W - this.s(96);
     const span = R - L;
@@ -77,16 +75,6 @@ class GameScene extends Phaser.Scene {
     ];
   }
 
-  // One boundary drawn around all four districts. The name lives in the
-  // HUD next to the year instead of on the ground.
-  //
-  // Containment is verified explicitly (point-in-polygon against each
-  // district's approximate footprint, growing the shape until it passes)
-  // rather than trusted from ellipse geometry — see history in git log for
-  // why. That growth loop can push the shape's top edge above the
-  // sky/ground horizon, so every rendered point is clamped to never rise
-  // above groundY: the line stays entirely on the land, never arcing into
-  // the sky, even if that flattens part of the top edge onto the horizon.
   _drawCityBoundary() {
     const cx = this.districts.reduce((s,d)=>s+d.cx,0) / this.districts.length;
     const cy = this.districts.reduce((s,d)=>s+d.cy,0) / this.districts.length - this.s(50);
@@ -132,9 +120,6 @@ class GameScene extends Phaser.Scene {
       guard++;
     }
 
-    // Clamp every rendered point (outer and inner ring) so nothing crosses
-    // above the horizon into the sky — flattens the top edge onto the
-    // ground line instead of letting it arc upward.
     const clampGround = pts => pts.map(p => ({ x:p.x, y: Math.max(p.y, groundY) }));
     ring = clampGround(ring);
     const inner = clampGround(buildRing(rx, ry, 0.94));
@@ -148,8 +133,6 @@ class GameScene extends Phaser.Scene {
     g.lineStyle(this.s(2.4), 0xe2a840, 0.42);
     g.strokePath();
 
-    // A faint second, smaller ring just inside the border — reads like a
-    // coastline/contour line rather than a single flat outline.
     g.lineStyle(1, 0xe2a840, 0.18);
     g.beginPath();
     g.moveTo(inner[0].x, inner[0].y);
@@ -168,7 +151,6 @@ class GameScene extends Phaser.Scene {
     this.tweens.add({targets:txt,alpha:1,duration:900,delay:700,hold:1600,yoyo:true,onComplete:()=>txt.destroy()});
   }
 
-  // Save state so a level can be replayed from scratch
   _saveSnapshot(n) {
     this.snapshots[n] = {
       stats: Object.assign({}, this.cityStats),
@@ -206,14 +188,10 @@ class GameScene extends Phaser.Scene {
     this.hud.setLevel(n,this._levelName(n));
     const run = () => this.time.delayedCall(400, fn.bind(this));
     const proceed = () => {
-      // The very first time Level 1 starts, point the player at the side
-      // panel and explain what it tracks before anything is asked of them.
       if (n===1 && !this._panelIntroShown) {
         this._panelIntroShown = true;
         this.statsPanel.introHighlight(run);
-      } else {
-        run();
-      }
+      } else { run(); }
     };
     if (skipTutorial) proceed();
     else this.time.delayedCall(700, ()=> this.tutorial.show(n, proceed));
@@ -239,6 +217,14 @@ class GameScene extends Phaser.Scene {
 
   _toProfile(){ this.tweens.killAll(); this.scene.start('ProfileScene',{stats:this.cityStats}); }
 
+  // Research button, shared by every level that offers one
+  _researchOption(){
+    const de=(typeof currentLang!=='undefined'&&currentLang==='de');
+    return {icon:'🔍', label:de?'Nachforschen':'Research first',
+            desc:de?'Kostenlos — erst\nprüfen, dann wählen.':'Free — check first,\nthen still decide.',
+            value:'research', color:0x5c8ab0};
+  }
+
   // ══ LEVEL 1 ══
   _level1() {
     const ch=[
@@ -250,7 +236,6 @@ class GameScene extends Phaser.Scene {
     this.siteMarkers=[];
     ch.forEach((o,i)=>{
       this.time.delayedCall(i*260,()=>{
-        // Positioned from the district's own label so they can never collide
         this.siteMarkers.push(this._choiceLabel(o.d.cx, o.d.subLabelY(), o.l, o.c));
         o.d.setSelectable(true, ()=>this._onLevel1Choice(o.d,o.v));
       });
@@ -286,28 +271,42 @@ class GameScene extends Phaser.Scene {
     this._showConsequence(m[v]||m.balanced, ()=>this._nextLevel());
   }
 
-  // ══ LEVEL 2 ══
+  // ══ LEVEL 2 — now offers research, then still asks for a decision ══
   _level2() {
     this._workersLeave(); this.districts[2].takeDamage(28); this._updateStats(-5,-8,0);
-    this.time.delayedCall(1900,()=>{
-      this._showPersistentMessage('The technology district has lost value.\nWhat does the city do?');
-      this._showDecisionPanel([
-        {icon:'🛡',label:'Cancel project',desc:'Stop work now,\nkeep the resources',value:'cancel',color:0x3a5f8a},
-        {icon:'🏗',label:'Push through',desc:'Finish as planned,\naccept the dip',value:'continue',color:0x4aaa5c},
-        {icon:'💰',label:'Invest more',desc:'Double down\non the district',value:'invest_more',color:0xddaa00},
-        {icon:'⏳',label:'Pause & reassess',desc:'Halt work now,\ndecide again later',value:'wait',color:0x6b7a8d}
-      ],(c)=>{
-        ScoringEngine.recordDecision(2,c); this._clearPersistentMessage();
-        const e={cancel:{d:[5,-10,10],m:'Resources secured.\nThe project rests. The city will not benefit if it recovers.'},
-                 continue:{d:[0,5,-5],m:'The plan continues.\nThe city accepts short-term uncertainty.'},
-                 invest_more:{d:[-5,12,-15],m:'The city doubles down.\nHigh stakes.'},
-                 wait:{d:[-5,-5,0],m:'Construction stalls.\nResources are safe but idle. The cost of doing nothing.'}}[c]
-                 ||{d:[0,5,-5],m:'The plan continues.'};
-        this._updateStats(e.d[0],e.d[1],e.d[2]);
-        if(c==='invest_more'){this.districts[2].receiveResource(1);this.cameras.main.shake(190,0.003);}
-        else if(c==='cancel') this.districts[2].takeDamage(8);
-        this._showConsequence(e.m,()=>this._nextLevel());
-      });
+    this.time.delayedCall(1900,()=>this._level2Decide(false));
+  }
+
+  _level2Decide(hasRead) {
+    this._showPersistentMessage(hasRead
+      ? 'You have inspected the district. Now decide how the city reacts.'
+      : 'The technology district has lost value.\nCheck DISTRICT PERFORMANCE on the left, then decide.');
+    const opts=[
+      {icon:'🛡',label:'Cancel project',desc:'Stop work now,\nkeep the resources',value:'cancel',color:0x3a5f8a},
+      {icon:'🏗',label:'Push through',desc:'Finish as planned,\naccept the dip',value:'continue',color:0x4aaa5c},
+      {icon:'💰',label:'Invest more',desc:'Double down\non the district',value:'invest_more',color:0xddaa00},
+      {icon:'⏳',label:'Pause & reassess',desc:'Halt work now,\ndecide again later',value:'wait',color:0x6b7a8d}
+    ];
+    if(!hasRead) opts.push(this._researchOption());
+    this._showDecisionPanel(opts,(c)=>{
+      this._clearPersistentMessage();
+      if(c==='research'){
+        ScoringEngine.recordDecision(2,'research');
+        const r=Reports.level('setback');
+        this._reportModal(r.title, r.body,
+          ()=>{ this._updateStats(2,0,0); this.time.delayedCall(300,()=>this._level2Decide(true)); });
+        return;
+      }
+      ScoringEngine.recordDecision(2,c,{afterResearch:hasRead});
+      const e={cancel:{d:[5,-10,10],m:'Resources secured.\nThe project rests. The city will not benefit if it recovers.'},
+               continue:{d:[0,5,-5],m:'The plan continues.\nThe city accepts short-term uncertainty.'},
+               invest_more:{d:[-5,12,-15],m:'The city doubles down.\nHigh stakes.'},
+               wait:{d:[-5,-5,0],m:'Construction stalls.\nResources are safe but idle. The cost of doing nothing.'}}[c]
+               ||{d:[0,5,-5],m:'The plan continues.'};
+      this._updateStats(e.d[0],e.d[1],e.d[2]);
+      if(c==='invest_more'){this.districts[2].receiveResource(1);this.cameras.main.shake(190,0.003);}
+      else if(c==='cancel') this.districts[2].takeDamage(8);
+      this._showConsequence(e.m,()=>this._nextLevel());
     });
   }
 
@@ -336,10 +335,6 @@ class GameScene extends Phaser.Scene {
     for(let i=0;i<n;i++) this.time.delayedCall(i*250,()=>this.cubes.push(new ResourceCube(this,sx+i*gap,this.H-this.s(70),1)));
   }
 
-  // Nudges the player if they pause partway through placing cubes. This is
-  // the "warning" — it is purely informational text, never a countdown and
-  // never anything that forces a decision. The Continue button still only
-  // appears after every cube is placed, regardless of how long that takes.
   _armLevel3Idle() {
     this._clearLevel3Idle();
     if (this.currentLevel!==3 || this.cubeDropped>=this.cubeTotal) return;
@@ -369,10 +364,17 @@ class GameScene extends Phaser.Scene {
     }
   }
 
+  // Neutral reporting — names the strongest and weakest district from the
+  // player's own allocation instead of blaming a randomly chosen one.
   _level3Outcome() {
-    const loser=this.districts[Phaser.Math.Between(0,3)];
-    loser.takeDamage(28); this.cameras.main.shake(330,0.004); this._updateStats(-5,-5,0);
-    this._showConsequence('The '+loser.name+' district underperformed.\nHow much it hurt depended entirely\non how you spread your resources.',()=>this._nextLevel());
+    const sorted=this.districts.slice().sort((a,b)=>a.health-b.health);
+    const low=sorted[0], high=sorted[sorted.length-1];
+    this._updateStats(0,2,0);
+    this._showConsequence(
+      'The year closes. '+high.name+' is your strongest district at '+Math.round(high.health)+
+      ',\n'+low.name+' your weakest at '+Math.round(low.health)+'.\n'+
+      'Both update live on the left — how you spread from here is your call.',
+      ()=>this._nextLevel());
   }
 
   // ══ LEVEL 4 ══
@@ -393,7 +395,7 @@ class GameScene extends Phaser.Scene {
     });
   }
 
-  // ══ LEVEL 5 ══
+  // ══ LEVEL 5 — now offers research, then still asks for a decision ══
   _level5() {
     const tech=this.districts[2];
     tech.receiveResource(4); this.time.delayedCall(500,()=>tech.receiveResource(3));
@@ -401,27 +403,42 @@ class GameScene extends Phaser.Scene {
     this._newsTicker(['📰 Technology District doubles in value!','📰 Experts: growth will continue — neighbouring cities moving in...']);
     this.time.delayedCall(1500,()=>{
       this.districts.forEach((d,i)=>{if(i!==2)this.tweens.add({targets:[d.gfx,d.animGfx],alpha:0.4,duration:900});});
-      this.time.delayedCall(2100,()=>{
-        this._showPersistentMessage('Technology is booming. Other districts suddenly look boring.\nWhat does the city do?');
-        this._showDecisionPanel([
-          {icon:'🚀',label:'All in',desc:'Move everything\nto technology',value:'all_in',color:0x9966cc},
-          {icon:'➕',label:'Invest more',desc:'Increase exposure\nkeep some balance',value:'increase',color:0x4ecdc4},
-          {icon:'⚖',label:'Stay diversified',desc:'Resist momentum\nhold the balance',value:'hold',color:0x4aaa5c},
-          {icon:'📉',label:'Take profits',desc:'Reduce tech\nsecure gains',value:'reduce',color:0xe2a840}
-        ],(c)=>{
-          ScoringEngine.recordDecision(5,c); this._clearPersistentMessage();
-          this.districts.forEach(d=>this.tweens.add({targets:[d.gfx,d.animGfx],alpha:1,duration:600}));
-          const m={all_in:'Everything committed to technology.\nThe city feels unstoppable. For now.',
-                   increase:'More technology in the mix.\nMomentum builds.',
-                   hold:'The city watches from a balanced position.\nSome feel it is missing out.',
-                   reduce:'Profits secured.\nThe city steps back from the excitement.'};
-          if(c==='all_in'){tech.receiveResource(3);this._updateStats(5,15,-12);}
-          else if(c==='increase'){tech.receiveResource(1);this._updateStats(3,8,-5);}
-          else if(c==='hold') this._updateStats(2,4,0);
-          else this._updateStats(0,-3,8);
-          this._showConsequence(m[c]||m.hold,()=>this._nextLevel());
-        });
-      });
+      this.time.delayedCall(2100,()=>this._level5Decide(false));
+    });
+  }
+
+  _level5Decide(hasRead) {
+    this._showPersistentMessage(hasRead
+      ? 'You have read the analysis. Now decide.'
+      : 'Technology is booming. Other districts suddenly look boring.\nWhat does the city do?');
+    const opts=[
+      {icon:'🚀',label:'All in',desc:'Move everything\nto technology',value:'all_in',color:0x9966cc},
+      {icon:'➕',label:'Invest more',desc:'Increase exposure\nkeep some balance',value:'increase',color:0x4ecdc4},
+      {icon:'⚖',label:'Stay diversified',desc:'Resist momentum\nhold the balance',value:'hold',color:0x4aaa5c},
+      {icon:'📉',label:'Take profits',desc:'Reduce tech\nsecure gains',value:'reduce',color:0xe2a840}
+    ];
+    if(!hasRead) opts.push(this._researchOption());
+    this._showDecisionPanel(opts,(c)=>{
+      this._clearPersistentMessage();
+      const tech=this.districts[2];
+      if(c==='research'){
+        ScoringEngine.recordDecision(5,'research');
+        const r=Reports.level('boom');
+        this._reportModal(r.title, r.body,
+          ()=>{ this._updateStats(2,0,0); this.time.delayedCall(300,()=>this._level5Decide(true)); });
+        return;
+      }
+      ScoringEngine.recordDecision(5,c,{afterResearch:hasRead});
+      this.districts.forEach(d=>this.tweens.add({targets:[d.gfx,d.animGfx],alpha:1,duration:600}));
+      const m={all_in:'Everything committed to technology.\nThe city feels unstoppable. For now.',
+               increase:'More technology in the mix.\nMomentum builds.',
+               hold:'The city watches from a balanced position.\nSome feel it is missing out.',
+               reduce:'Profits secured.\nThe city steps back from the excitement.'};
+      if(c==='all_in'){tech.receiveResource(3);this._updateStats(5,15,-12);}
+      else if(c==='increase'){tech.receiveResource(1);this._updateStats(3,8,-5);}
+      else if(c==='hold') this._updateStats(2,4,0);
+      else this._updateStats(0,-3,8);
+      this._showConsequence(m[c]||m.hold,()=>this._nextLevel());
     });
   }
 
@@ -436,8 +453,6 @@ class GameScene extends Phaser.Scene {
     }
   }
 
-  // City-wide celebration burst — every district gets fireworks plus one big banner.
-  // Used when a big shared "yes" moment happens (e.g. accepting the Level 6 delegation).
   _celebrateCity(bannerText){
     this.districts.forEach((d,i)=>{
       for(let i2=0;i2<10;i2++) this.time.delayedCall(i*90+i2*90,()=>this._firework(d.cx+Phaser.Math.Between(-70,70),d.cy+Phaser.Math.Between(-70,0)));
@@ -450,12 +465,10 @@ class GameScene extends Phaser.Scene {
     this.tweens.add({targets:banner,alpha:1,scaleX:1,scaleY:1,duration:500,ease:'Back.easeOut',hold:1600,yoyo:true,onComplete:()=>banner.destroy()});
   }
 
-  // ══ LEVEL 6 — a delegation drives in from the neighbouring city ══
+  // ══ LEVEL 6 ══
   _level6() {
     this._showPersistentMessage('A delegation is arriving from the neighbouring city...');
-    this.roads.sendVisitor(()=>{
-      this._level6Decide(false);
-    });
+    this.roads.sendVisitor(()=>{ this._level6Decide(false); });
   }
 
   _level6Decide(hasRead) {
@@ -467,13 +480,13 @@ class GameScene extends Phaser.Scene {
       {icon:'🏗',label:'Build own',desc:'400 resources.\nFull control.',value:'independent',color:0x4aaa5c},
       {icon:'❌',label:'Decline both',desc:'Keep resources\nfor other priorities.',value:'decline',color:0x6b7a8d}
     ];
-    if (!hasRead) opts.push({icon:'🔍',label:'Research first',desc:'Gather more info\nbefore deciding.',value:'research',color:0xe2a840});
+    if (!hasRead) opts.push(this._researchOption());
     this._showDecisionPanel(opts,(c)=>{
       this._clearPersistentMessage();
       if(c==='research'){
         ScoringEngine.recordDecision(6,'research');
-        this._reportModal('Delegation Report',
-          'Their infrastructure is well maintained but ties your city to their maintenance schedule. Building independently costs more but removes any dependency. Declining keeps every option open for later.',
+        const r=Reports.level('delegation');
+        this._reportModal(r.title, r.body,
           ()=>{ this._updateStats(3,0,0); this.time.delayedCall(300,()=>this._level6Decide(true)); });
         return;
       }
@@ -508,13 +521,13 @@ class GameScene extends Phaser.Scene {
       {icon:'🔒',label:'Hold steady',desc:'Ignore headlines.',value:'hold',color:0x4aaa5c},
       {icon:'📈',label:'Invest more',desc:'Buy into the dip.',value:'invest_more',color:0x9966cc}
     ];
-    if (!hasRead) opts.push({icon:'📋',label:'Read report',desc:'Free — gather facts\nthen still decide.',value:'research',color:0x5c8ab0});
+    if (!hasRead) opts.push(this._researchOption());
     this._showDecisionPanel(opts,(c)=>{
       this._clearPersistentMessage();
       if(c==='research'){
         ScoringEngine.recordDecision(7,'research');
-        this._reportModal('Full Situation Report',
-          'Experts are divided. The warning relates to short-term uncertainty. Long-term demand projections remain unclear. The available evidence comes from cities with significantly different circumstances.',
+        const r=Reports.level('headlines');
+        this._reportModal(r.title, r.body,
           ()=>{ this._updateStats(3,0,0); this.time.delayedCall(300,()=>this._level7Decide(true)); });
         return;
       }
@@ -536,10 +549,6 @@ class GameScene extends Phaser.Scene {
     this.weather.startStorm(()=>{
       this.districts.forEach(d=>{d.setStorm(true);d.takeDamage(26);});
       this._updateStats(-15,-20,-10); this.cameras.main.shake(900,0.012);
-      // The university reveal (when it exists) now gets its own slow,
-      // separate fade — it used to overlap with the decision panel
-      // appearing right on top of it. It now fully fades out before
-      // anything else shows.
       const UNI_START=2000, UNI_FADE=1500, UNI_HOLD=6000;
       const UNI_END = UNI_START + UNI_FADE + UNI_HOLD + UNI_FADE;
       if(this.hasUniversity){
@@ -568,9 +577,6 @@ class GameScene extends Phaser.Scene {
                      opportunistic:'The city invests carefully during the downturn.\nIf recovery comes, these decisions will matter.'};
             const dl={sell_all:[-5,-15,15],hold:[5,0,-5],rebalance:[5,8,-5],opportunistic:[3,12,-10]}[c]||[0,0,0];
             this._updateStats(dl[0],dl[1],dl[2]);
-            // Final level: same clickable Continue flow as every other level —
-            // the player decides when to move on to their result, rather than
-            // it advancing automatically.
             this._showConsequence(m[c]||m.hold,()=>this._finish());
           });
         });
@@ -609,21 +615,25 @@ class GameScene extends Phaser.Scene {
 
   _reportModal(title,text,cb){
     const W=this.W,H=this.H;
-    const ov=this.add.graphics().setDepth(90); ov.fillStyle(0x000000,0.7); ov.fillRect(0,0,W,H);
-    const bw=Math.min(this.s(560),W-this.s(80)), bh=this.s(250), bx=(W-bw)/2, by=(H-bh)/2;
+    const ov=this.add.graphics().setDepth(90); ov.fillStyle(0x000000,0.78); ov.fillRect(0,0,W,H);
+    const bw=Math.min(this.s(600),W-this.s(80));
+    const body=this.add.text(0,0,text,{
+      fontFamily:'Inter, Arial, sans-serif',fontSize:this.s(15),color:'#c4d8ea',
+      wordWrap:{width:bw-this.s(70)},align:'left',lineSpacing:this.s(7)}).setDepth(92);
+    const bh=Math.max(this.s(240), body.height + this.s(140));
+    const bx=(W-bw)/2, by=(H-bh)/2;
     const box=this.add.graphics().setDepth(91);
     box.fillStyle(0x08121f,0.99); box.fillRoundedRect(bx,by,bw,bh,this.s(14));
     box.lineStyle(1,0xe2a840,0.55); box.strokeRoundedRect(bx,by,bw,bh,this.s(14));
-    const t=this.add.text(W/2,by+this.s(34),title,{
-      fontFamily:'Playfair Display, Georgia, serif',fontSize:this.s(19),color:'#e2a840'}).setOrigin(0.5).setDepth(92);
-    const b=this.add.text(W/2,by+this.s(90),text,{
-      fontFamily:'Inter, Arial, sans-serif',fontSize:this.s(15),color:'#b8cde0',
-      wordWrap:{width:bw-this.s(70)},align:'center',lineSpacing:this.s(6)}).setOrigin(0.5).setDepth(92);
-    const btn=this.add.text(W/2,by+bh-this.s(36),'Continue →',{
+    box.fillStyle(0x5c8ab0,0.9); box.fillRect(bx,by,bw,this.s(3));
+    const t=this.add.text(W/2,by+this.s(32),title,{
+      fontFamily:'Playfair Display, Georgia, serif',fontSize:this.s(20),color:'#e2a840'}).setOrigin(0.5).setDepth(92);
+    body.setPosition(bx+this.s(35), by+this.s(64));
+    const btn=this.add.text(W/2,by+bh-this.s(34),'Continue →',{
       fontFamily:'Playfair Display, Georgia, serif',fontSize:this.s(17),color:'#f0c060'})
       .setOrigin(0.5).setDepth(92).setInteractive({useHandCursor:true});
     btn.on('pointerover',()=>btn.setColor('#ffe090')); btn.on('pointerout',()=>btn.setColor('#f0c060'));
-    btn.on('pointerdown',()=>{ov.destroy();box.destroy();t.destroy();b.destroy();btn.destroy();if(cb)cb();});
+    btn.on('pointerdown',()=>{ov.destroy();box.destroy();t.destroy();body.destroy();btn.destroy();if(cb)cb();});
   }
 
   _msgY(){ return this.tickerActive ? this.s(116) : this.s(72); }
@@ -640,9 +650,6 @@ class GameScene extends Phaser.Scene {
   }
   _clearPersistentMessage(){ if(this.persistentMsg){this.tweens.killTweensOf(this.persistentMsg);this.persistentMsg.destroy();this.persistentMsg=null;} }
 
-  // fadeDur lets specific callers (e.g. the Level 8 university reveal) use a
-  // slower, gentler fade than the default so it doesn't visually collide
-  // with whatever appears right after it.
   _tempMessage(text,dur,fadeDur){
     fadeDur = fadeDur || 1000;
     const m=this.add.text(this._cx(),this.H-this.s(120),text,{
@@ -652,23 +659,13 @@ class GameScene extends Phaser.Scene {
     this.tweens.add({targets:m,alpha:1,y:this.H-this.s(128),duration:fadeDur,hold:dur||5000,yoyo:true,onComplete:()=>m.destroy()});
   }
 
-  // opts.auto: skip the clickable World Button entirely and auto-advance
-  // after opts.autoDelay ms. Currently unused (Level 8 was reverted back to
-  // the standard clickable flow), but left in place in case a future level
-  // wants a no-click ending.
   _showConsequence(text,onContinue,opts){
     opts = opts || {};
-    // Clearing any existing world button/timer here (not just on level
-    // transitions) is what stops Continue buttons from stacking if this
-    // method is ever called again before a previous button's callback fired.
     this._clearWorldBtn();
     this._clearConsequence(); this._clearDecisionPanel();
     const cx=this._cx();
     const pw=Math.min(this.s(720),this._availW()), ph=this.s(104), px=cx-pw/2, py=this.H-this.s(186);
 
-    // The whole screen goes almost completely dark behind the consequence
-    // box and Continue button — a clean, unambiguous "this step is over"
-    // beat rather than a partial dim with the scene still visibly going.
     const dim=this.add.graphics();
     dim.fillStyle(0x02060c, 0.9);
     dim.fillRect(0, 0, this.W, this.H);
@@ -713,9 +710,6 @@ class GameScene extends Phaser.Scene {
       return;
     }
 
-    // The button itself is created after a short delay so it doesn't appear
-    // instantly on top of the consequence text. That delay is tracked so it
-    // can be cancelled if the level changes before it fires.
     this.worldBtnTimer = this.time.delayedCall(1100,()=>{
       this.worldBtnTimer=null;
       const lbl=(typeof currentLang!=='undefined'&&currentLang==='de')?'Weiter →':'Continue →';
