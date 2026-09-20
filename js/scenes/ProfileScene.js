@@ -103,7 +103,6 @@ class ProfileScene extends Phaser.Scene {
       wordWrap:{width:cardW-this.s(110)},lineSpacing:this.s(5)}).setDepth(100).setAlpha(0);
     this.tweens.add({targets:[pIcon,pName,pDesc],alpha:1,duration:900,delay:500});
 
-    // Trait rows with hover explanations
     const T = this._traitInfo(de);
     const keys=['riskPreference','lossAversion','patience','diversification','greedFomo','reactionToNoise','learning','resilience'];
     const colW=Math.min(this.s(340),(W-this.s(150))/2);
@@ -140,14 +139,12 @@ class ProfileScene extends Phaser.Scene {
           fl.fillRoundedRect(bx,by+this.s(22),Math.max(this.s(8),colW*(o.v/100)),this.s(8),this.s(4));
         }});
 
-      // Hover zone across the whole row
       const hit=this.add.rectangle(bx+colW/2,by+this.s(14),colW,this.s(38),0xffffff,0)
         .setInteractive({useHandCursor:true}).setDepth(102);
       hit.on('pointerover',()=>{ q.setColor('#e2a840'); this._showTip(info.label, info.text, bx+colW/2, by); });
       hit.on('pointerout', ()=>{ q.setColor('#3f6288'); this._hideTip(); });
     });
 
-    // Retirement note
     const noteY=startY+4*rowH+this.s(18);
     const nW=Math.min(this.s(760),W-this.s(110));
     const nBg=this.add.graphics().setDepth(99).setAlpha(0);
@@ -176,11 +173,8 @@ class ProfileScene extends Phaser.Scene {
     this.tweens.add({targets:[btnBg,btnTx],alpha:1,duration:800,delay:2300});
     const hit=this.add.rectangle(cx,bY+bH/2,bW,bH,0xffffff,0).setDepth(101).setInteractive({useHandCursor:true});
     hit.on('pointerdown',()=>{ if(typeof ScoringEngine!=='undefined') ScoringEngine.reset(); this.scene.start('PlayerSetup'); });
-
-    console.log('[WealthSim] Scores:',this.scores,'Persona:',this.persona.key);
   }
 
-  // ── Hover explanation popup ───────────────────────────────────────
   _showTip(title, body, x, y) {
     this._hideTip();
     const tw=Math.min(this.s(340),this.W-this.s(60));
@@ -218,7 +212,7 @@ class ProfileScene extends Phaser.Scene {
       diversification:{label:'Diversifikation',text:'Wie breit du Ressourcen verteilst. Streuung senkt die Wirkung eines einzelnen schlechten Ergebnisses.'},
       greedFomo:{label:'FOMO-Reaktion',text:'FOMO = "Fear Of Missing Out", die Angst etwas zu verpassen. Misst, wie stark steigende Kurse dich zum Nachkaufen verleiten.'},
       reactionToNoise:{label:'Reaktion auf Nachrichten',text:'Wie stark Schlagzeilen deine Entscheidungen verändern. Niedrige Werte bedeuten, du hältst an deinem Plan fest.'},
-      learning:{label:'Lernfähigkeit',text:'Ob du dein Verhalten anpasst, nachdem du Ergebnisse gesehen hast — ohne zu über- oder unterreagieren.'},
+      learning:{label:'Lernfähigkeit',text:'Ob du dein Verhalten anpasst, nachdem du Ergebnisse gesehen hast — und ob du dir Informationen holst, bevor du dich festlegst.'},
       resilience:{label:'Resilienz',text:'Wie ruhig du in einem Abschwung bleibst und ob du deine Struktur intakt hältst, bis sich die Lage erholt.'}
     };
     return {
@@ -228,7 +222,7 @@ class ProfileScene extends Phaser.Scene {
       diversification:{label:'Diversification',text:'How widely you spread resources. Spreading reduces the impact of any single bad outcome on the whole.'},
       greedFomo:{label:'FOMO response',text:'FOMO means "Fear Of Missing Out". This measures how strongly rising prices tempt you to pile in after the gains have already happened.'},
       reactionToNoise:{label:'Reaction to news',text:'How much headlines change your decisions. Low scores mean you stick to your plan when the news gets loud.'},
-      learning:{label:'Adaptability',text:'Whether you adjust your approach after seeing results — without overreacting to a single setback or success.'},
+      learning:{label:'Adaptability',text:'Whether you adjust after seeing results — and whether you gather information before committing to a decision.'},
       resilience:{label:'Resilience',text:'How steadily you behave during a downturn, and whether you keep your structure intact until conditions recover.'}
     };
   }
@@ -239,38 +233,88 @@ class ProfileScene extends Phaser.Scene {
     return v>=80?'Very high':v>=64?'High':v>=42?'Moderate':v>=26?'Low':'Very low';
   }
 
+  // ── Decision wiring ───────────────────────────────────────────────
+  // A level can record more than one entry (a 'research' action, then the
+  // real choice; Level 3 records one 'allocate' per cube). These helpers
+  // guarantee the COMMITTED decision is what reaches the score, and that
+  // information-seeking is credited rather than silently replacing it.
+  _at(D,n){ return D.filter(d => d.level === n); }
+  _researched(D,n){ return this._at(D,n).some(d => d.value === 'research'); }
+  _final(D,n){
+    const acts = this._at(D,n).filter(d => d.value !== 'research' && d.value !== 'allocate');
+    return acts.length ? acts[acts.length-1].value : undefined;
+  }
+
   _computeScores() {
-    const D=(typeof ScoringEngine!=='undefined'&&ScoringEngine.decisions)?ScoringEngine.decisions:[];
-    const A=(typeof ScoringEngine!=='undefined'&&ScoringEngine.startingAnswers)?ScoringEngine.startingAnswers:[];
-    const get=n=>(D.find(d=>d.level===n)||{}).value;
-    const m=(map,k,def)=>(map[k]!==undefined?map[k]:def);
+    const D = (typeof ScoringEngine!=='undefined' && ScoringEngine.decisions) ? ScoringEngine.decisions : [];
+    const A = (typeof ScoringEngine!=='undefined' && ScoringEngine.startingAnswers) ? ScoringEngine.startingAnswers : [];
+    const m = (map,k,def) => (k!==undefined && map[k]!==undefined) ? map[k] : def;
+    const clamp = v => Math.max(0, Math.min(100, Math.round(v)));
 
-    const risk =Math.round(m({safe:20,balanced:52,aggressive:88},get(1),50)*0.8+m({safe:20,balanced:52,aggressive:88},A[0],50)*0.2);
-    const loss =Math.round(m({cancel:90,wait:70,continue:30,invest_more:12},get(2),50)*0.8+m({stop:90,wait:60,research:28},A[2],50)*0.2);
-    const pat  =Math.round(m({festival:20,university:88},get(4),50)*0.8+m({impatient:20,moderate:55,patient:88},A[1],50)*0.2);
-    const greed=m({all_in:95,increase:66,hold:26,reduce:12},get(5),50);
-    const learn=m({research:88,accept:66,independent:56,decline:38},get(6),50);
-    // Level 7: reading the report then acting shows information-seeking
-    const l7 = D.filter(d=>d.level===7);
-    const readFirst = l7.some(d=>d.value==='research');
-    const finalAct = (l7.filter(d=>d.value!=='research').pop()||{}).value;
-    let noise = m({sell:90,reduce:56,hold:26},finalAct,50);
-    if (readFirst) noise = Math.max(6, noise - 26);
-    const resil=m({hold:90,rebalance:86,opportunistic:76,safe_haven:44,sell_all:14},get(8),50);
+    const f1=this._final(D,1), f2=this._final(D,2), f4=this._final(D,4),
+          f5=this._final(D,5), f6=this._final(D,6), f7=this._final(D,7), f8=this._final(D,8);
 
-    let divers=50;
-    const l3=D.filter(d=>d.level===3);
+    // Every selectable value in the game is mapped here. Nothing falls through.
+    const RISK  = { safe:20, balanced:52, aggressive:88 };
+    const RISKQ = { safe:20, balanced:52, aggressive:88 };
+    const LOSS  = { cancel:90, wait:70, continue:30, invest_more:12 };
+    const LOSSQ = { stop:90, wait:60, research:28 };
+    const PAT   = { festival:20, university:88 };
+    const PATQ  = { impatient:20, moderate:55, patient:88 };
+    const GREED = { all_in:95, increase:66, hold:26, reduce:12 };
+    const LEARN = { accept:66, independent:56, decline:38 };
+    // 'invest_more' = buying while the headlines scream sell. That is the
+    // opposite of headline-following, so it scores as a LOW noise reaction.
+    const NOISE = { sell:90, reduce:56, hold:26, invest_more:14 };
+    const RESIL = { hold:90, rebalance:86, opportunistic:76, safe_haven:44, sell_all:14 };
+
+    const risk = clamp(m(RISK,f1,50)*0.8 + m(RISKQ,A[0],50)*0.2);
+    const pat  = clamp(m(PAT, f4,50)*0.8 + m(PATQ, A[1],50)*0.2);
+
+    let loss = m(LOSS,f2,50)*0.8 + m(LOSSQ,A[2],50)*0.2;
+    if (this._researched(D,2)) loss -= 12;      // looking closer is the opposite of panic
+    loss = clamp(loss);
+
+    let greed = m(GREED,f5,50);
+    if (this._researched(D,5)) greed -= 12;     // checking data tempers FOMO
+    greed = clamp(greed);
+
+    let noise = m(NOISE,f7,50);
+    if (this._researched(D,7)) noise -= 26;     // reading before acting is core anti-noise
+    noise = clamp(noise);
+
+    const resil = clamp(m(RESIL,f8,50));
+
+    // Adaptability = the Level 6 commitment plus credit for every level
+    // where information was gathered before committing.
+    const infoCount = [2,5,6,7].filter(n=>this._researched(D,n)).length;
+    const learning  = clamp(m(LEARN,f6,50) + infoCount*9);
+
+    let divers = 50;
+    const l3 = D.filter(d=>d.level===3 && d.districtId);
     if (l3.length) {
-      const counts={};
-      l3.forEach(d=>{const k=d.districtId||d.value;counts[k]=(counts[k]||0)+1;});
-      const vals=Object.values(counts), total=vals.reduce((a,b)=>a+b,0);
-      if(total>0){
-        const hhi=vals.reduce((s,v)=>s+Math.pow(v/total,2),0);
-        divers=Math.round(Math.max(0,Math.min(100,(1-hhi)/0.75*100)));
+      const counts = {};
+      l3.forEach(d=>{ counts[d.districtId]=(counts[d.districtId]||0)+1; });
+      const vals = Object.values(counts), total = vals.reduce((a,b)=>a+b,0);
+      if (total>0) {
+        const hhi = vals.reduce((s,v)=>s+Math.pow(v/total,2),0);
+        divers = clamp((1-hhi)/0.75*100);
       }
     }
-    return {riskPreference:risk,lossAversion:loss,patience:pat,diversification:divers,
-            greedFomo:greed,reactionToNoise:noise,learning:readFirst?Math.min(100,learn+10):learn,resilience:resil};
+
+    const scores = { riskPreference:risk, lossAversion:loss, patience:pat,
+                     diversification:divers, greedFomo:greed,
+                     reactionToNoise:noise, learning:learning, resilience:resil };
+
+    // Wiring audit — warns if any level's committed choice never reached a
+    // score, so an orphaned option can never ship silently again.
+    const wired = {1:f1,2:f2,4:f4,5:f5,6:f6,7:f7,8:f8};
+    const missing = Object.keys(wired).filter(k=>wired[k]===undefined);
+    if (missing.length) console.warn('[WealthSim] Levels with no committed decision:', missing);
+    console.log('[WealthSim] Wiring →', wired,
+                '| researched:', [2,5,6,7].filter(n=>this._researched(D,n)),
+                '| cubes:', l3.length, '| scores:', scores);
+    return scores;
   }
 
   _assignPersona(s) {
@@ -294,15 +338,7 @@ class ProfileScene extends Phaser.Scene {
   }
 
   _contextNote(ctx,de) {
-    // saule is now a multi-select array (a person can have GRV + bAV + Pillar 3
-    // at once). For this single note, pick the most information-rich pillar
-    // present rather than failing to match on an array key.
-    const arr = Array.isArray(ctx.saule) ? ctx.saule : (ctx.saule ? [ctx.saule] : []);
-    let s = 'unsure';
-    if (arr.includes('s3')) s='s3';
-    else if (arr.includes('bav')) s='bav';
-    else if (arr.includes('grv')) s='grv';
-    const y=ctx.years||'30plus';
+    const s=ctx.saule||'unsure', y=ctx.years||'30plus';
     const EN={
       grv:{under15:'Your retirement rests mainly on the state pension with limited time remaining. Your instinct to protect makes sense here — the question is whether current reserves are enough.',
            '15-30':'You rely mainly on the state pension with a moderate horizon. Your profile can guide how much growth to pursue in the years ahead.',
