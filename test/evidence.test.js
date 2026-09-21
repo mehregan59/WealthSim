@@ -165,6 +165,7 @@ t('all-in + no research cannot yield diversified or information-seeking', ()=>{
   eq(c.districtsUsed,1);
   const u=E.evidenceUse(evs);
   eq(u.reportsOpened,0,'no research occurred');
+  // Each dimension has exactly one observation -> none may be called a pattern
   const r=E.observations(evs);
   [E.DIM.TIMING,E.DIM.MOMENTUM,E.DIM.SOCIAL,E.DIM.DOWNTURN].forEach(d=>{
     eq(E.coverage(r.observations,d).label,'single',d+' must be single');
@@ -181,6 +182,30 @@ t('disagreement is reported, not blended into one number', ()=>{
   eq(p[0].observed,['higher_variance']);
   eq(p[0].agrees,false);
   ok(typeof p[0] === 'object' && p[0].blended === undefined,'no blended score');
+});
+
+t('a non-directional stated answer is shown but never counted as disagreement', ()=>{
+  const r=E.observations([ev({scenarioId:'ch4:timing',trialId:'t',action:'university'})]);
+  const p=E.statedVsObserved({q1:'moderate'}, r.observations);
+  eq(p.length,1); eq(p[0].agrees,null);
+});
+
+t('choosing an option is never counted as evidence use', ()=>{
+  const r=E.observations([ev({scenarioId:'ch6:delegation',trialId:'d',action:'accept'})]);
+  eq(r.observations[0].dim, E.DIM.OFFER);
+  eq(E.coverage(r.observations,E.DIM.EVIDENCE).label,'insufficient');
+  Object.keys(E.ACTIONS).forEach(sc=>Object.keys(E.ACTIONS[sc]).forEach(a=>{
+    if(E.ACTIONS[sc][a].dim===E.DIM.EVIDENCE) throw new Error(sc+':'+a+' mapped to evidence use');
+  }));
+});
+t('reports offered vs opened is a factual count', ()=>{
+  const u=E.evidenceUse([
+    ev({scenarioId:'ch2:setback',trialId:'L2',action:'continue'}),
+    ev({scenarioId:'ch6:delegation',trialId:'L6',action:'research'}),
+    ev({scenarioId:'ch6:delegation',trialId:'L6',action:'accept'}),
+    ev({scenarioId:'ch7:news',trialId:'L7',action:'hold'})
+  ]);
+  eq(u.reportsOffered,3); eq(u.reportsOpened,1);
 });
 
 console.log('\n' + (fail===0?'ALL PASS':'FAILURES') + '  —  ' + pass + ' passed, ' + fail + ' failed\n');
