@@ -5,17 +5,25 @@ Passing one says nothing about the others.
 
 ## 1. Software correctness — *does the code do what it says?*
 
-Covered now by 97 automated tests (`node test/*.test.js`): unknown actions
+Covered now by 149 automated tests (`node test/*.test.js`): unknown actions
 never become neutral scores, absent data is `insufficient`, research never
 replaces the final choice, duplicate clicks are not extra evidence, money is
 conserved, shocks follow exposure only, seeded runs are reproducible,
 practice never enters the profile, and English and German carry the same
 facts, numbers and coverage labels.
 
-**Not yet covered:** browser play-throughs of the three paths the brief
-requires (concentrated/risk-seeking, cautious with genuine liquidity needs,
-evidence-responsive). These need the new chapter screens wired into the game
-first. Until then, correctness of the UI is unverified.
+**Play-throughs.** `test/gamescene.harness.test.js` runs the real
+`GameScene` through all eight levels for the three paths the brief requires
+(concentrated/risk-seeking, cautious, evidence-responsive), with a stand-in
+Phaser. It checks each path finishes, that final money equals the pure
+economy model for the same seed and choices, and that Retry reproduces the
+same market. Mutation checks confirmed it fails when the wiring is broken.
+
+**Not yet covered:** actual rendering in a browser — layout, overlap,
+readability and touch input. The harness replaces all drawing with no-ops, so
+it proves the logic runs, not that the screens look right. The cautious path
+also still lacks a genuine liquidity need (the Chapter 4 repair variant is
+not built yet).
 
 ## 2. Educational effectiveness — *does playing help people decide better?*
 

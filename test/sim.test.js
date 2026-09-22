@@ -124,5 +124,64 @@ t('a losing year is possible for the high-variance district', ()=>{
   ok(losses>20,'expected meaningful downside frequency, saw '+losses);
 });
 
+console.log('\n── Level operations ──');
+t('keyed year gives the same returns regardless of earlier randomness', ()=>{
+  const a=Sim.createSession('k'); a.advanceYear(); a.advanceYear(); const ra=a.advanceYear('L3');
+  const b=Sim.createSession('k'); const rb=b.advanceYear('L3');
+  eq(ra, rb);
+});
+t('keyed year gives the same returns whichever option the player chose', ()=>{
+  const a=Sim.createSession('k2'); a.invest('technology',600);
+  const b=Sim.createSession('k2'); b.invest('housing',300); b.divest('housing',100);
+  eq(a.advanceYear('L5'), b.advanceYear('L5'));
+});
+t('different keys give different markets', ()=>{
+  const s=Sim.createSession('k3');
+  ok(JSON.stringify(s.advanceYear('L2'))!==JSON.stringify(s.advanceYear('L3')));
+});
+t('deposit adds exactly the amount and records its cause', ()=>{
+  const s=Sim.createSession('d'); const b=s.total();
+  s.deposit(600,'new credits'); near(s.total(),b+600);
+  eq(s.state.ledger.slice(-1)[0].detail.cause,'new credits');
+});
+t('spend cannot exceed cash and reduces wealth by what was spent', ()=>{
+  const s=Sim.createSession('sp'); s.invest('housing',500);
+  const b=s.total(); const spent=s.spend(300,'square');
+  eq(spent,100); near(s.total(),b-100);
+});
+t('district event changes only that district, in proportion to holdings', ()=>{
+  const s=Sim.createSession('e'); s.invest('technology',200); s.invest('housing',200);
+  const ch=s.districtEvent('technology',0.4,'boom');
+  near(ch,80); near(s.state.holdings.technology,280); near(s.state.holdings.housing,200);
+});
+t('a district event on an empty district changes nothing', ()=>{
+  const s=Sim.createSession('e2'); s.invest('housing',600);
+  const b=s.total(); s.districtEvent('technology',-0.3,'drop'); near(s.total(),b);
+});
+t('district event never reads decisions', ()=>{
+  const src=require('fs').readFileSync(__dirname+'/../js/core/Sim.js','utf8');
+  const fn=src.slice(src.indexOf('function districtEvent'), src.indexOf('function rebalanceEven'));
+  ok(!/decision|choice|action|player/i.test(fn.replace(/\/\/.*$/gm,'')),'districtEvent must not inspect decisions');
+});
+t('rebalance conserves value and spreads it evenly', ()=>{
+  const s=Sim.createSession('r'); s.invest('technology',450);
+  const b=s.total(); s.rebalanceEven();
+  near(s.total(),b); eq(s.state.cash,0);
+  s.districtIds.forEach(id=>near(s.state.holdings[id],b/4));
+});
+t('restore returns balances and trims the ledger', ()=>{
+  const s=Sim.createSession('rs'); s.invest('energy',300);
+  const snap=s.snapshot(); s.invest('housing',200); s.applyShock(1);
+  s.restore(snap);
+  eq(s.snapshot(), snap); eq(s.state.ledger.length, snap.ledgerLength);
+});
+t('retrying a level reproduces the exact same outcome', ()=>{
+  const s=Sim.createSession('retry'); s.deposit(600,'x'); s.invest('technology',400);
+  const snap=s.snapshot();
+  s.advanceYear('L3'); const first=s.total();
+  s.restore(snap); s.advanceYear('L3');
+  near(s.total(), first);
+});
+
 console.log('\n' + (fail===0?'ALL PASS':'FAILURES') + '  —  ' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail===0?0:1);
