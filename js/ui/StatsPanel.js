@@ -320,13 +320,23 @@ class StatsPanel {
 
   _redrawAll(){ Object.keys(this.bars).forEach(id=>this._redrawBar(id)); }
 
+  // Funds label shows real credits from the simulation; the bar length is
+  // the 0–100 index of the same number.
+  setFundsCredits(n){
+    this.fundsCredits = n;
+    if (this.bars && this.bars.resources) this._redrawBar('resources');
+  }
+
   _redrawBar(id) {
     const b=this.bars[id], pct=b.disp/100, r=b.h/2;
     b.fill.clear();
     b.fill.fillStyle(b.color,0.14); b.fill.fillRoundedRect(b.x,b.y,b.maxW,b.h,r);
     b.fill.fillStyle(b.color,0.95); b.fill.fillRoundedRect(b.x,b.y,Math.max(b.h,b.maxW*pct),b.h,r);
     if (b.text) {
-      b.text.setText(Math.round(b.disp));
+      const credits = (id === 'resources' && typeof this.fundsCredits === 'number');
+      b.text.setText(credits
+        ? Math.round(this.fundsCredits).toLocaleString((typeof currentLang!=='undefined'&&currentLang==='de')?'de-DE':'en-GB')
+        : Math.round(b.disp));
       b.text.setColor(pct<0.3?'#e74c3c':pct>0.7?'#4ecdc4':'#e8f2ff');
     }
   }
