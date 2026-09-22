@@ -1,13 +1,36 @@
+/* Session summary screen.
+ *
+ * Renders WS.Summary output and nothing else. It never computes a score of
+ * its own, so what is shown can always be traced to recorded events.
+ * Nothing is hover-only: every explanation is printed inline, so it works on
+ * touch and keyboard. Colours are neutral — no dimension is shown as
+ * "good" or "bad".
+ */
 class ProfileScene extends Phaser.Scene {
   constructor(){ super({ key:'ProfileScene' }); }
 
   create(data) {
     this.W = this.scale.width; this.H = this.scale.height;
     this.S = Math.max(0.9, Math.min(1.9, this.H / 720));
-    this.stats = (data && data.stats) || { happiness:50, development:50, resources:50 };
-    this.scores  = this._computeScores();
-    this.persona = this._assignPersona(this.scores);
-    this.tip = null;
+    this.de = (typeof currentLang!=='undefined' && currentLang==='de');
+    this.stats = (data && data.stats) || null;
+
+    const WS = window.WS || {};
+    const decisions = (typeof ScoringEngine!=='undefined') ? ScoringEngine.decisions : [];
+    const answers   = (typeof ScoringEngine!=='undefined') ? ScoringEngine.startingAnswers : [];
+
+    if (!WS.Summary || !WS.Adapter) {
+      this.summary = null;
+      console.error('[WealthSim] core modules not loaded — summary unavailable');
+    } else {
+      this.events  = WS.Adapter.toEvents(decisions);
+      this.summary = WS.Summary.build(this.events, WS.Adapter.toStated(answers), { units:6, districts:4, lang:this.de?'de':'en' });
+      this.label   = WS.Summary.optionalLabel(this.summary);
+      if (this.summary.unsupported.length)
+        console.warn('[WealthSim] Unsupported actions (not scored):', this.summary.unsupported);
+      console.log('[WealthSim] Session summary:', JSON.stringify(this.summary, null, 2));
+    }
+
     this._bg();
     this._curtainDrop();
   }
@@ -16,32 +39,23 @@ class ProfileScene extends Phaser.Scene {
   _bg() {
     const g = this.add.graphics().setDepth(-5);
     g.fillStyle(0x061019,1); g.fillRect(0,0,this.W,this.H);
-    const sil = this.add.graphics().setDepth(-4);
-    sil.fillStyle(0x0b1725,1);
-    for (let x=0; x<this.W; x+=Phaser.Math.Between(70,120)) {
-      const h = Phaser.Math.Between(40,130);
-      sil.fillRect(x, this.H-h, Phaser.Math.Between(55,100), h);
-    }
-    this.starGfx = this.add.graphics().setDepth(-4);
-    this.stars = [];
-    for (let i=0;i<50;i++) this.stars.push({x:Phaser.Math.Between(0,this.W),y:Phaser.Math.Between(0,this.H-240),r:Math.random()+0.4,p:Math.random()*Math.PI*2});
   }
 
+  // ── Curtain drop (Natural Instincts copy) ────────────────────────
   _curtainDrop() {
-    const W=this.W, H=this.H, de=(typeof currentLang!=='undefined'&&currentLang==='de');
+    const W=this.W, H=this.H, de=this.de;
     const lines = de ? [
       'Sieh dir die Stadt an, die du gebaut hast.',
       'Du hast den Boom navigiert, den Sturm überstanden und Entscheidungen\ngetroffen, die deine Bürger vorangebracht haben.',
-      'Jede Entscheidung hat deine natürlichen Instinkte\nfür Planung und Anpassung offenbart.'
+      'Jede Entscheidung hat gezeigt, wie du in diesen Situationen\ngeplant und reagiert hast.'
     ] : [
       'Take a look at the city you\u2019ve built.',
       'You navigated the boom, weathered the storm, and made choices\nto keep your citizens moving forward.',
-      'Every decision you made revealed your natural instincts\nfor planning and adapting.'
+      'Every decision showed how you planned and responded\nin these particular situations.'
     ];
-
     const objs=[];
     lines.forEach((txt,i)=>{
-      const t=this.add.text(W/2, H/2 - this.s(76) + i*this.s(70), txt, {
+      const t=this.add.text(W/2, H/2-this.s(76)+i*this.s(70), txt, {
         fontFamily:'Playfair Display, Georgia, serif',
         fontSize: i===0 ? this.s(30) : this.s(20),
         color: i===0 ? '#e2a840' : '#dbe8f4',
@@ -51,333 +65,267 @@ class ProfileScene extends Phaser.Scene {
       this.tweens.add({targets:t,alpha:1,y:t.y-this.s(9),duration:1400,delay:600+i*2600,ease:'Sine.easeOut'});
     });
     const totalIn = 600 + (lines.length-1)*2600 + 1400;
-
     const trans=this.add.text(W/2, H/2+this.s(150), de
-      ? 'So wie beim Bauen einer Stadt geht es bei der Planung deiner Zukunft darum,\ndie richtige Balance für dich zu finden.'
-      : 'Just like building a city, planning for your future is about\nfinding the right balance for you.', {
-      fontFamily:'Inter, Arial, sans-serif', fontSize:this.s(16), color:'#96b0c8',
-      align:'center', lineSpacing:this.s(7), fontStyle:'italic'
+      ? 'Hier ist, was in dieser Sitzung tatsächlich passiert ist.'
+      : 'Here is what actually happened in this session.', {
+      fontFamily:'Inter, Arial, sans-serif', fontSize:this.s(16), color:'#96b0c8', fontStyle:'italic'
     }).setOrigin(0.5).setDepth(100).setAlpha(0);
     this.tweens.add({targets:trans,alpha:1,duration:1300,delay:totalIn+700});
 
-    this.time.delayedCall(totalIn+4200,()=>{
-      this.tweens.add({targets:objs.concat([trans]),alpha:0,duration:1500,
-        onComplete:()=>{objs.forEach(o=>o.destroy());trans.destroy();this._dashboard();}});
+    const go=()=>{ objs.forEach(o=>{try{o.destroy();}catch(e){}}); try{trans.destroy();}catch(e){}
+                   try{skip.destroy();}catch(e){} this._dashboard(); };
+    this.curtainTimer=this.time.delayedCall(totalIn+3800,()=>{
+      this.tweens.add({targets:objs.concat([trans]),alpha:0,duration:1200,onComplete:go});
     });
-
     const skip=this.add.text(W-this.s(30),H-this.s(26),de?'Überspringen \u203A':'Skip \u203A',{
-      fontFamily:'Inter, Arial, sans-serif',fontSize:this.s(13),color:'#456a8c'
+      fontFamily:'Inter, Arial, sans-serif',fontSize:this.s(14),color:'#6b8fb0'
     }).setOrigin(1,0.5).setDepth(120).setInteractive({useHandCursor:true});
-    skip.on('pointerover',()=>skip.setColor('#a8c0d8'));
-    skip.on('pointerout',()=>skip.setColor('#456a8c'));
-    skip.on('pointerdown',()=>{
-      this.tweens.killAll();
-      objs.forEach(o=>{try{o.destroy();}catch(e){}});
-      try{trans.destroy();}catch(e){} skip.destroy();
-      this._dashboard();
-    });
+    skip.on('pointerdown',()=>{ this.tweens.killAll(); if(this.curtainTimer)this.curtainTimer.remove(); go(); });
+    this.input.keyboard.once('keydown-SPACE',()=>{ this.tweens.killAll(); if(this.curtainTimer)this.curtainTimer.remove(); go(); });
   }
 
+  // ── Scrollable dashboard ─────────────────────────────────────────
   _dashboard() {
-    const W=this.W,H=this.H,cx=W/2;
-    const de=(typeof currentLang!=='undefined'&&currentLang==='de');
+    const W=this.W, H=this.H, de=this.de;
+    this.colW = Math.min(this.s(780), W-this.s(80));
+    this.left = (W-this.colW)/2;
 
-    const head=this.add.text(cx,this.s(46),de?'Dein Entscheidungsstil':'Your Decision Style',{
-      fontFamily:'Playfair Display, Georgia, serif',fontSize:this.s(30),color:'#e2a840'
-    }).setOrigin(0.5).setDepth(100).setAlpha(0);
-    this.tweens.add({targets:head,alpha:1,duration:900});
+    const headH=this.s(64);
+    const hb=this.add.graphics().setDepth(50);
+    hb.fillStyle(0x061019,1); hb.fillRect(0,0,W,headH);
+    hb.lineStyle(1,0x1e3350,1); hb.lineBetween(0,headH,W,headH);
+    this.add.text(W/2,headH/2, de?'Deine Sitzung im Überblick':'Your session summary',{
+      fontFamily:'Playfair Display, Georgia, serif',fontSize:this.s(26),color:'#e2a840'
+    }).setOrigin(0.5).setDepth(51);
+    this.add.text(W-this.s(20),headH/2, de?'Scrollen ↕':'Scroll ↕',{
+      fontFamily:'Inter, Arial, sans-serif',fontSize:this.s(11),color:'#456a8c'
+    }).setOrigin(1,0.5).setDepth(51);
 
-    const cardW=Math.min(this.s(620),W-this.s(90)), cardX=cx-cardW/2;
-    const cardY=this.s(80), cardH=this.s(116);
-    const card=this.add.graphics().setDepth(99).setAlpha(0);
-    card.fillStyle(0x0b1725,0.96); card.fillRoundedRect(cardX,cardY,cardW,cardH,this.s(14));
-    card.lineStyle(1,0x2c4767,1); card.strokeRoundedRect(cardX,cardY,cardW,cardH,this.s(14));
-    card.fillStyle(0xe2a840,0.9); card.fillRect(cardX,cardY,cardW,this.s(4));
-    this.tweens.add({targets:card,alpha:1,duration:900,delay:250});
+    this.content=this.add.container(0,0).setDepth(10);
+    this.y = headH + this.s(26);
 
-    const pIcon=this.add.text(cardX+this.s(42),cardY+this.s(58),this.persona.icon,{fontSize:this.s(36)}).setOrigin(0.5).setDepth(100).setAlpha(0);
-    const pName=this.add.text(cardX+this.s(78),cardY+this.s(34),this.persona.name,{
-      fontFamily:'Playfair Display, Georgia, serif',fontSize:this.s(23),color:'#f0c060'}).setDepth(100).setAlpha(0);
-    const pDesc=this.add.text(cardX+this.s(78),cardY+this.s(64),this.persona.desc,{
-      fontFamily:'Inter, Arial, sans-serif',fontSize:this.s(14),color:'#b0c6da',
-      wordWrap:{width:cardW-this.s(110)},lineSpacing:this.s(5)}).setDepth(100).setAlpha(0);
-    this.tweens.add({targets:[pIcon,pName,pDesc],alpha:1,duration:900,delay:500});
+    if (!this.summary) {
+      this._p(de?'Die Auswertung konnte nicht geladen werden.':'The session summary could not be loaded.');
+      this._finishScroll(headH); return;
+    }
+    const sm=this.summary;
 
-    const T = this._traitInfo(de);
-    const keys=['riskPreference','lossAversion','patience','diversification','greedFomo','reactionToNoise','learning','resilience'];
-    const colW=Math.min(this.s(340),(W-this.s(150))/2);
-    const startX=cx-colW-this.s(14);
-    const startY=cardY+cardH+this.s(34);
-    const rowH=this.s(44);
+    // 1. City outcome — city indicators, not an investor score
+    this._h(de?'Deine Stadt am Ende':'Your city at the end');
+    if (this.stats) {
+      this._p((de?'Zufriedenheit ':'Happiness ')+Math.round(this.stats.happiness)+
+              '   ·   '+(de?'Entwicklung ':'Development ')+Math.round(this.stats.development)+
+              '   ·   '+(de?'Mittel ':'Funds ')+Math.round(this.stats.resources));
+    }
+    this._note(de?'Das sind Stadtindikatoren aus dieser Sitzung, keine Bewertung deiner Entscheidungen.'
+                 :'These are city indicators from this session, not a grade of your decisions.');
 
-    keys.forEach((key,i)=>{
-      const col=i%2, row=Math.floor(i/2);
-      const bx=startX+col*(colW+this.s(28)), by=startY+row*rowH;
-      const val=this.scores[key];
-      const info=T[key];
-
-      const lb=this.add.text(bx,by,info.label,{
-        fontFamily:'Inter, Arial, sans-serif',fontSize:this.s(14),color:'#a8c0d8'
-      }).setDepth(100).setAlpha(0);
-      const q=this.add.text(bx+lb.width+this.s(7),by+this.s(1),'\u24D8',{
-        fontFamily:'Arial, sans-serif',fontSize:this.s(13),color:'#3f6288'
-      }).setDepth(100).setAlpha(0);
-      const vt=this.add.text(bx+colW,by,this._label(val),{
-        fontFamily:'Inter, Arial, sans-serif',fontSize:this.s(13),color:'#e2a840',fontStyle:'700'
-      }).setOrigin(1,0).setDepth(100).setAlpha(0);
-      const bg=this.add.graphics().setDepth(99).setAlpha(0);
-      bg.fillStyle(0x152744,1); bg.fillRoundedRect(bx,by+this.s(22),colW,this.s(8),this.s(4));
-      const fl=this.add.graphics().setDepth(100).setAlpha(0);
-
-      this.tweens.add({targets:[lb,q,vt,bg,fl],alpha:1,duration:550,delay:800+i*95});
-      const o={v:0};
-      this.tweens.add({targets:o,v:val,duration:950,delay:900+i*95,ease:'Power2.easeOut',
-        onUpdate:()=>{
-          fl.clear();
-          const c=val>66?0x4ecdc4:val>33?0xe2a840:0xe74c7c;
-          fl.fillStyle(c,0.95);
-          fl.fillRoundedRect(bx,by+this.s(22),Math.max(this.s(8),colW*(o.v/100)),this.s(8),this.s(4));
-        }});
-
-      const hit=this.add.rectangle(bx+colW/2,by+this.s(14),colW,this.s(38),0xffffff,0)
-        .setInteractive({useHandCursor:true}).setDepth(102);
-      hit.on('pointerover',()=>{ q.setColor('#e2a840'); this._showTip(info.label, info.text, bx+colW/2, by); });
-      hit.on('pointerout', ()=>{ q.setColor('#3f6288'); this._hideTip(); });
+    // 2. What you actually did
+    this._h(de?'Was du tatsächlich getan hast':'What you actually did');
+    sm.did.forEach(d=>{
+      this._bullet(d.text);
+      if (d.constraint) this._note(d.constraint, this.s(22));
     });
 
-    const noteY=startY+4*rowH+this.s(18);
-    const nW=Math.min(this.s(760),W-this.s(110));
-    const nBg=this.add.graphics().setDepth(99).setAlpha(0);
-    nBg.fillStyle(0x0b1725,0.92); nBg.fillRoundedRect(cx-nW/2,noteY,nW,this.s(78),this.s(12));
-    nBg.lineStyle(1,0x2c4767,1); nBg.strokeRoundedRect(cx-nW/2,noteY,nW,this.s(78),this.s(12));
-    nBg.lineStyle(this.s(4),0x4ecdc4,0.75); nBg.lineBetween(cx-nW/2,noteY+this.s(12),cx-nW/2,noteY+this.s(66));
-    const nTx=this.add.text(cx,noteY+this.s(39),this._contextNote(window.retirementContext||{},de),{
-      fontFamily:'Inter, Arial, sans-serif',fontSize:this.s(14),color:'#c0d4e6',
-      align:'center',wordWrap:{width:nW-this.s(54)},lineSpacing:this.s(6)
-    }).setOrigin(0.5).setDepth(100).setAlpha(0);
-    this.tweens.add({targets:[nBg,nTx],alpha:1,duration:900,delay:1700});
+    // 3. Patterns with coverage
+    this._h(de?'Muster in dieser Sitzung':'Patterns in this session');
+    this._note(de?'Die Kennzeichnung zeigt, wie viele Beobachtungen vorliegen — nicht, wie sicher eine Aussage ist.'
+                 :'The tag shows how many observations exist — it is not a confidence level.');
+    const EXPLAIN = this._explain(de);
+    sm.patterns.forEach(p=>{
+      this._patternRow(p.label, this._chipText(p.coverage,p.n,de), p.text, EXPLAIN[p.dimension]);
+    });
 
-    const disc=this.add.text(cx,noteY+this.s(98),de
-      ? 'Dieses Profil spiegelt nur diese Sitzung wider. Es ist keine Finanzberatung.'
-      : 'This profile reflects this session only. It is not financial advice.',{
-      fontFamily:'Inter, Arial, sans-serif',fontSize:this.s(12),color:'#456a8c',align:'center'
-    }).setOrigin(0.5).setDepth(100).setAlpha(0);
-    this.tweens.add({targets:disc,alpha:1,duration:800,delay:2100});
-
-    const bY=noteY+this.s(126), bW=this.s(220), bH=this.s(48);
-    const btnBg=this.add.graphics().setDepth(99).setAlpha(0);
-    btnBg.fillStyle(0xe2a840,1); btnBg.fillRoundedRect(cx-bW/2,bY,bW,bH,this.s(11));
-    const btnTx=this.add.text(cx,bY+bH/2,de?'Nochmal spielen':'Play Again',{
-      fontFamily:'Playfair Display, Georgia, serif',fontSize:this.s(18),color:'#0b1725',fontStyle:'700'
-    }).setOrigin(0.5).setDepth(100).setAlpha(0);
-    this.tweens.add({targets:[btnBg,btnTx],alpha:1,duration:800,delay:2300});
-    const hit=this.add.rectangle(cx,bY+bH/2,bW,bH,0xffffff,0).setDepth(101).setInteractive({useHandCursor:true});
-    hit.on('pointerdown',()=>{ if(typeof ScoringEngine!=='undefined') ScoringEngine.reset(); this.scene.start('PlayerSetup'); });
-  }
-
-  _showTip(title, body, x, y) {
-    this._hideTip();
-    const tw=Math.min(this.s(340),this.W-this.s(60));
-    const pad=this.s(14);
-    const tTitle=this.add.text(0,0,title,{
-      fontFamily:'Inter, Arial, sans-serif',fontSize:this.s(14),color:'#f0c060',fontStyle:'700'});
-    const tBody=this.add.text(0,0,body,{
-      fontFamily:'Inter, Arial, sans-serif',fontSize:this.s(13),color:'#b8cde0',
-      wordWrap:{width:tw-pad*2},lineSpacing:this.s(5)});
-    const th = pad*2 + tTitle.height + this.s(6) + tBody.height;
-    let tx = x - tw/2;
-    tx = Math.max(this.s(10), Math.min(tx, this.W - tw - this.s(10)));
-    let ty = y - th - this.s(14);
-    if (ty < this.s(10)) ty = y + this.s(48);
-
-    const bg=this.add.graphics();
-    bg.fillStyle(0x040c16,0.98); bg.fillRoundedRect(tx,ty,tw,th,this.s(10));
-    bg.lineStyle(1,0xe2a840,0.65); bg.strokeRoundedRect(tx,ty,tw,th,this.s(10));
-    bg.lineStyle(this.s(3),0xe2a840,0.7); bg.lineBetween(tx,ty+this.s(10),tx,ty+th-this.s(10));
-    tTitle.setPosition(tx+pad, ty+pad);
-    tBody.setPosition(tx+pad, ty+pad+tTitle.height+this.s(6));
-
-    this.tip=this.add.container(0,0).setDepth(160);
-    this.tip.add([bg,tTitle,tBody]);
-    this.tip.setAlpha(0);
-    this.tweens.add({targets:this.tip,alpha:1,duration:160});
-  }
-  _hideTip(){ if(this.tip){this.tweens.killTweensOf(this.tip);this.tip.destroy();this.tip=null;} }
-
-  _traitInfo(de) {
-    if (de) return {
-      riskPreference:{label:'Risikobereitschaft',text:'Wie viel Unsicherheit du für höhere mögliche Erträge akzeptierst. Hoch heißt nicht besser — es geht um deine Zeit und deinen Komfort.'},
-      lossAversion:{label:'Verlustaversion',text:'Wie stark Verluste sich für dich schlimmer anfühlen als gleich große Gewinne. Hohe Werte führen oft zu Verkäufen im ungünstigsten Moment.'},
-      patience:{label:'Geduld',text:'Deine Bereitschaft, auf spätere, größere Ergebnisse zu warten statt sofortige Belohnung zu nehmen — die Basis des Zinseszinses.'},
-      diversification:{label:'Diversifikation',text:'Wie breit du Ressourcen verteilst. Streuung senkt die Wirkung eines einzelnen schlechten Ergebnisses.'},
-      greedFomo:{label:'FOMO-Reaktion',text:'FOMO = "Fear Of Missing Out", die Angst etwas zu verpassen. Misst, wie stark steigende Kurse dich zum Nachkaufen verleiten.'},
-      reactionToNoise:{label:'Reaktion auf Nachrichten',text:'Wie stark Schlagzeilen deine Entscheidungen verändern. Niedrige Werte bedeuten, du hältst an deinem Plan fest.'},
-      learning:{label:'Lernfähigkeit',text:'Ob du dein Verhalten anpasst, nachdem du Ergebnisse gesehen hast — und ob du dir Informationen holst, bevor du dich festlegst.'},
-      resilience:{label:'Resilienz',text:'Wie ruhig du in einem Abschwung bleibst und ob du deine Struktur intakt hältst, bis sich die Lage erholt.'}
-    };
-    return {
-      riskPreference:{label:'Risk preference',text:'How much uncertainty you accept in exchange for higher possible returns. Higher is not better — it depends on your time horizon and comfort.'},
-      lossAversion:{label:'Loss aversion',text:'How much worse a loss feels than an equal gain feels good. High loss aversion often leads to selling at the worst moment.'},
-      patience:{label:'Patience',text:'Your willingness to wait for larger later results instead of taking an immediate reward. This is the foundation of compound growth.'},
-      diversification:{label:'Diversification',text:'How widely you spread resources. Spreading reduces the impact of any single bad outcome on the whole.'},
-      greedFomo:{label:'FOMO response',text:'FOMO means "Fear Of Missing Out". This measures how strongly rising prices tempt you to pile in after the gains have already happened.'},
-      reactionToNoise:{label:'Reaction to news',text:'How much headlines change your decisions. Low scores mean you stick to your plan when the news gets loud.'},
-      learning:{label:'Adaptability',text:'Whether you adjust after seeing results — and whether you gather information before committing to a decision.'},
-      resilience:{label:'Resilience',text:'How steadily you behave during a downturn, and whether you keep your structure intact until conditions recover.'}
-    };
-  }
-
-  _label(v) {
-    const de=(typeof currentLang!=='undefined'&&currentLang==='de');
-    if (de) return v>=80?'Sehr hoch':v>=64?'Hoch':v>=42?'Moderat':v>=26?'Niedrig':'Sehr niedrig';
-    return v>=80?'Very high':v>=64?'High':v>=42?'Moderate':v>=26?'Low':'Very low';
-  }
-
-  // ── Decision wiring ───────────────────────────────────────────────
-  // A level can record more than one entry (a 'research' action, then the
-  // real choice; Level 3 records one 'allocate' per cube). These helpers
-  // guarantee the COMMITTED decision is what reaches the score, and that
-  // information-seeking is credited rather than silently replacing it.
-  _at(D,n){ return D.filter(d => d.level === n); }
-  _researched(D,n){ return this._at(D,n).some(d => d.value === 'research'); }
-  _final(D,n){
-    const acts = this._at(D,n).filter(d => d.value !== 'research' && d.value !== 'allocate');
-    return acts.length ? acts[acts.length-1].value : undefined;
-  }
-
-  _computeScores() {
-    const D = (typeof ScoringEngine!=='undefined' && ScoringEngine.decisions) ? ScoringEngine.decisions : [];
-    const A = (typeof ScoringEngine!=='undefined' && ScoringEngine.startingAnswers) ? ScoringEngine.startingAnswers : [];
-    const m = (map,k,def) => (k!==undefined && map[k]!==undefined) ? map[k] : def;
-    const clamp = v => Math.max(0, Math.min(100, Math.round(v)));
-
-    const f1=this._final(D,1), f2=this._final(D,2), f4=this._final(D,4),
-          f5=this._final(D,5), f6=this._final(D,6), f7=this._final(D,7), f8=this._final(D,8);
-
-    // Every selectable value in the game is mapped here. Nothing falls through.
-    const RISK  = { safe:20, balanced:52, aggressive:88 };
-    const RISKQ = { safe:20, balanced:52, aggressive:88 };
-    const LOSS  = { cancel:90, wait:70, continue:30, invest_more:12 };
-    const LOSSQ = { stop:90, wait:60, research:28 };
-    const PAT   = { festival:20, university:88 };
-    const PATQ  = { impatient:20, moderate:55, patient:88 };
-    const GREED = { all_in:95, increase:66, hold:26, reduce:12 };
-    const LEARN = { accept:66, independent:56, decline:38 };
-    // 'invest_more' = buying while the headlines scream sell. That is the
-    // opposite of headline-following, so it scores as a LOW noise reaction.
-    const NOISE = { sell:90, reduce:56, hold:26, invest_more:14 };
-    const RESIL = { hold:90, rebalance:86, opportunistic:76, safe_haven:44, sell_all:14 };
-
-    const risk = clamp(m(RISK,f1,50)*0.8 + m(RISKQ,A[0],50)*0.2);
-    const pat  = clamp(m(PAT, f4,50)*0.8 + m(PATQ, A[1],50)*0.2);
-
-    let loss = m(LOSS,f2,50)*0.8 + m(LOSSQ,A[2],50)*0.2;
-    if (this._researched(D,2)) loss -= 12;      // looking closer is the opposite of panic
-    loss = clamp(loss);
-
-    let greed = m(GREED,f5,50);
-    if (this._researched(D,5)) greed -= 12;     // checking data tempers FOMO
-    greed = clamp(greed);
-
-    let noise = m(NOISE,f7,50);
-    if (this._researched(D,7)) noise -= 26;     // reading before acting is core anti-noise
-    noise = clamp(noise);
-
-    const resil = clamp(m(RESIL,f8,50));
-
-    // Adaptability = the Level 6 commitment plus credit for every level
-    // where information was gathered before committing.
-    const infoCount = [2,5,6,7].filter(n=>this._researched(D,n)).length;
-    const learning  = clamp(m(LEARN,f6,50) + infoCount*9);
-
-    let divers = 50;
-    const l3 = D.filter(d=>d.level===3 && d.districtId);
-    if (l3.length) {
-      const counts = {};
-      l3.forEach(d=>{ counts[d.districtId]=(counts[d.districtId]||0)+1; });
-      const vals = Object.values(counts), total = vals.reduce((a,b)=>a+b,0);
-      if (total>0) {
-        const hhi = vals.reduce((s,v)=>s+Math.pow(v/total,2),0);
-        divers = clamp((1-hhi)/0.75*100);
-      }
+    // 4. Interpretation — only beyond single observations, always with an alternative
+    const deeper = sm.readings.filter(r=>r.kind!=='single');
+    if (deeper.length) {
+      this._h(de?'Was das bedeuten könnte':'What this may mean');
+      deeper.forEach(r=>{
+        this._bullet(r.claim);
+        this._note((de?'Andere Erklärung: ':'Another explanation: ')+r.alternative, this.s(22));
+      });
     }
 
-    const scores = { riskPreference:risk, lossAversion:loss, patience:pat,
-                     diversification:divers, greedFomo:greed,
-                     reactionToNoise:noise, learning:learning, resilience:resil };
+    // 5. Stated vs observed — side by side, never blended
+    if (sm.comparison.length) {
+      this._h(de?'Was du gesagt hast und was du getan hast':'What you said and what you did');
+      sm.comparison.forEach(c=>{
+        this._bullet(c.label+':  '+(de?'gesagt ':'said ')+'"'+c.stated+'"  ·  '+
+                     (de?'beobachtet ':'observed ')+c.observed.join(', ').replace(/_/g,' '));
+        this._note(c.note, this.s(22));
+      });
+    }
 
-    // Wiring audit — warns if any level's committed choice never reached a
-    // score, so an orphaned option can never ship silently again.
-    const wired = {1:f1,2:f2,4:f4,5:f5,6:f6,7:f7,8:f8};
-    const missing = Object.keys(wired).filter(k=>wired[k]===undefined);
-    if (missing.length) console.warn('[WealthSim] Levels with no committed decision:', missing);
-    console.log('[WealthSim] Wiring →', wired,
-                '| researched:', [2,5,6,7].filter(n=>this._researched(D,n)),
-                '| cubes:', l3.length, '| scores:', scores);
-    return scores;
+    // 6. Concentration, shown as shares
+    if (sm.concentration.available) {
+      this._h(de?'Deine Aufteilung':'Your allocation');
+      const sh=sm.concentration.shares;
+      this._p(Object.keys(sh).map(k=>k.charAt(0).toUpperCase()+k.slice(1)+' '+Math.round(sh[k]*100)+'%').join('   ·   '));
+      this._note((de?'Gleichmäßigste mögliche Aufteilung von 6 Einheiten: ':'Evenest possible split of 6 units: ')+
+                 sm.concentration.evenestFeasible.join(' / ')+'.  '+
+                 (de?'Konzentration ist kein Fehler an sich; sie verändert, wie stark ein einzelner Schock wirkt.'
+                    :'Concentration is not an error in itself; it changes how much a single shock affects you.'));
+    }
+
+    // 7. Next steps — each tied to existing evidence; omitted if none
+    if (sm.nextSteps.length) {
+      this._h(de?'Einen Versuch wert':'Worth trying next');
+      sm.nextSteps.forEach(n=>this._bullet(n));
+    }
+
+    // 8. Optional overall style — usually unavailable, and that is correct
+    this._h(de?'Gesamtstil':'Overall style');
+    if (this.label && this.label.available) {
+      this._p(this.label.traits.join('  ·  '));
+      this._note(this.label.note);
+    } else {
+      this._p(this.label ? this.label.reason : '—');
+      this._note(de?'Die meisten einzelnen Sitzungen reichen für keinen Gesamtstil. Das ist beabsichtigt.'
+                   :'Most single sessions are not enough for an overall style. That is intentional.');
+    }
+
+    // 9. Pension context — general information only, no adequacy inference
+    this._h(de?'Zum deutschen Rentensystem':'About the German pension system');
+    this._p(this._pensionNote(de));
+
+    // 10. Limits
+    this._h(de?'Über diese Auswertung':'About this summary');
+    this._p(sm.disclaimer);
+    this._note(de ? 'Die Szenarien sind von Forschung zu Risikoentscheidungen, Zeitpräferenz, Verlustrealisierung und Prognosegenauigkeit inspiriert. Keine dieser Studien validiert die Werte dieses Spiels.'
+                  : 'The scenarios are inspired by research on risk choices, time preference, realising losses, and forecast accuracy. None of those studies validates this game\u2019s results.');
+
+    this._playAgain();
+    this._finishScroll(headH);
   }
 
-  _assignPersona(s) {
-    const de=(typeof currentLang!=='undefined'&&currentLang==='de');
-    const P={
-      strategist:{icon:'\u265F',name:de?'Der Stratege':'The Strategist',desc:de?'Geduldig, diversifiziert und informationssuchend. Du passt dich an, ohne auf Gewinne oder Verluste überzureagieren.':'Patient, diversified and information-seeking. You adapt without overreacting to gains or losses.'},
-      guardian:{icon:'\uD83D\uDEE1',name:de?'Der Hüter':'The Guardian',desc:de?'Du schützt sorgfältig, was du aufgebaut hast. Vorsichtig und geduldig — achte darauf, produktives Risiko nicht zu vermeiden.':'You carefully protect what you have built. Cautious and patient — watch that you do not avoid productive risk.'},
-      challenger:{icon:'\uD83D\uDE80',name:de?'Der Herausforderer':'The Challenger',desc:de?'Selbstbewusst und wachstumsorientiert. Komfortabel mit Unsicherheit — achte auf Überkonzentration.':'Confident and growth-oriented. Comfortable with uncertainty — watch for overconcentration.'},
-      explorer:{icon:'\uD83D\uDD2D',name:de?'Der Entdecker':'The Explorer',desc:de?'Neugierig und ausgewogen. Du suchst Informationen, bevor du handelst, und lernst aus Ergebnissen.':'Curious and balanced. You seek information before acting and learn from outcomes.'},
-      sprinter:{icon:'\u26A1',name:de?'Der Sprinter':'The Sprinter',desc:de?'Du reagierst stark auf sofortige Chancen. Ein längerer Zeithorizont wäre dein wertvollster nächster Schritt.':'You respond strongly to immediate opportunities. A longer time horizon would be your most valuable next step.'},
-      reactor:{icon:'\uD83C\uDF0A',name:de?'Der Reaktor':'The Reactor',desc:de?'Deine Entscheidungen verschieben sich mit den Ereignissen. Ein schriftlicher Plan würde dir in Druckmomenten sehr helfen.':'Your decisions shift with events. A written plan would help you greatly in moments of pressure.'}
+  // ── Layout helpers ───────────────────────────────────────────────
+  _add(o){ this.content.add(o); return o; }
+  _h(text){
+    this.y += this.s(18);
+    const t=this._add(this.add.text(this.left,this.y,text,{
+      fontFamily:'Playfair Display, Georgia, serif',fontSize:this.s(20),color:'#e2a840'}));
+    this.y += t.height + this.s(4);
+    const l=this._add(this.add.graphics());
+    l.lineStyle(1,0x1e3350,1); l.lineBetween(this.left,this.y,this.left+this.colW,this.y);
+    this.y += this.s(10);
+  }
+  _p(text){
+    const t=this._add(this.add.text(this.left,this.y,text,{
+      fontFamily:'Inter, Arial, sans-serif',fontSize:this.s(15),color:'#d4e2f0',
+      wordWrap:{width:this.colW},lineSpacing:this.s(5)}));
+    this.y += t.height + this.s(8);
+  }
+  _note(text, indent){
+    indent=indent||0;
+    const t=this._add(this.add.text(this.left+indent,this.y,text,{
+      fontFamily:'Inter, Arial, sans-serif',fontSize:this.s(13),color:'#7d97b3',fontStyle:'italic',
+      wordWrap:{width:this.colW-indent},lineSpacing:this.s(4)}));
+    this.y += t.height + this.s(8);
+  }
+  _bullet(text){
+    const d=this._add(this.add.text(this.left,this.y,'•',{
+      fontFamily:'Inter, Arial, sans-serif',fontSize:this.s(15),color:'#5c8ab0'}));
+    const t=this._add(this.add.text(this.left+this.s(18),this.y,text,{
+      fontFamily:'Inter, Arial, sans-serif',fontSize:this.s(15),color:'#d4e2f0',
+      wordWrap:{width:this.colW-this.s(18)},lineSpacing:this.s(5)}));
+    this.y += t.height + this.s(6);
+  }
+  _patternRow(label, chip, text, explain){
+    const lab=this._add(this.add.text(this.left,this.y,label,{
+      fontFamily:'Inter, Arial, sans-serif',fontSize:this.s(15),color:'#e8f2ff',fontStyle:'600'}));
+    // Neutral chip — same colour for every coverage level
+    const ct=this.add.text(0,0,chip,{fontFamily:'Inter, Arial, sans-serif',fontSize:this.s(11),color:'#b8cde0'});
+    const cw=ct.width+this.s(16), ch=ct.height+this.s(6);
+    const cx=this.left+this.colW-cw, cy=this.y;
+    const cg=this._add(this.add.graphics());
+    cg.fillStyle(0x152744,1); cg.fillRoundedRect(cx,cy,cw,ch,ch/2);
+    cg.lineStyle(1,0x33557a,1); cg.strokeRoundedRect(cx,cy,cw,ch,ch/2);
+    ct.setPosition(cx+this.s(8),cy+this.s(3)); this._add(ct);
+    this.y += Math.max(lab.height,ch) + this.s(4);
+    if (explain) this._note(explain);
+    const t=this._add(this.add.text(this.left,this.y,text,{
+      fontFamily:'Inter, Arial, sans-serif',fontSize:this.s(14),color:'#a8c0d8',
+      wordWrap:{width:this.colW}}));
+    this.y += t.height + this.s(14);
+  }
+  _chipText(cov,n,de){
+    const EN={insufficient:'Not enough evidence',single:'1 decision',limited:'2 decisions',repeated:n+' decisions — repeated',mixed:n+' decisions — mixed'};
+    const DE={insufficient:'Zu wenig Daten',single:'1 Entscheidung',limited:'2 Entscheidungen',repeated:n+' Entscheidungen — wiederholt',mixed:n+' Entscheidungen — gemischt'};
+    return (de?DE:EN)[cov]||cov;
+  }
+  _explain(de){
+    return de ? {
+      risk_choices:'Ob du Optionen mit breiterer oder engerer Spanne möglicher Ergebnisse gewählt hast.',
+      response_to_setbacks:'Was du getan hast, nachdem ein Projekt an Wert verloren hatte.',
+      allocation_concentration:'Wie gleichmäßig du neue Mittel auf die Stadtteile verteilt hast.',
+      timing_choices:'Ob du einen Nutzen jetzt oder einen größeren später gewählt hast.',
+      response_to_rising_prices:'Was du getan hast, während ein Stadtteil schnell stieg.',
+      response_to_social_cues:'Was du nach lauten Schlagzeilen getan hast.',
+      response_during_downturns:'Was du während eines allgemeinen Abschwungs getan hast.',
+      response_to_outside_offers:'Wie du auf ein Angebot einer Nachbarstadt reagiert hast.',
+      response_to_past_gains_and_losses:'Ob frühere Gewinne oder Verluste deine Verkaufsentscheidung beeinflusst haben.',
+      use_of_forward_prospects:'Welche Position du verkauft hast, als sich die Zukunftsaussichten tatsächlich unterschieden.'
+    } : {
+      risk_choices:'Whether you picked options with a wider or narrower range of possible outcomes.',
+      response_to_setbacks:'What you did after a project lost value.',
+      allocation_concentration:'How evenly you spread new funding across districts.',
+      timing_choices:'Whether you took a benefit now or a larger one later.',
+      response_to_rising_prices:'What you did while one district was rising quickly.',
+      response_to_social_cues:'What you did after loud headlines.',
+      response_during_downturns:'What you did during a city-wide downturn.',
+      response_to_outside_offers:'How you responded to an offer from a neighbouring city.',
+      response_to_past_gains_and_losses:'Whether past gains or losses shaped which holding you sold.',
+      use_of_forward_prospects:'Which holding you sold when future prospects genuinely differed.'
     };
-    let key;
-    if (s.reactionToNoise>70 && s.greedFomo>60) key='reactor';
-    else if (s.patience<36 && s.greedFomo>62) key='sprinter';
-    else if (s.riskPreference<36 && s.lossAversion>64) key='guardian';
-    else if (s.riskPreference>68 && s.greedFomo>58) key='challenger';
-    else if (s.patience>62 && s.reactionToNoise<42 && s.resilience>62) key='strategist';
-    else key='explorer';
-    return Object.assign({key:key},P[key]);
   }
 
-  _contextNote(ctx,de) {
-    const s=ctx.saule||'unsure', y=ctx.years||'30plus';
-    const EN={
-      grv:{under15:'Your retirement rests mainly on the state pension with limited time remaining. Your instinct to protect makes sense here — the question is whether current reserves are enough.',
-           '15-30':'You rely mainly on the state pension with a moderate horizon. Your profile can guide how much growth to pursue in the years ahead.',
-           '30plus':'With the state pension and a long horizon, there is time for growth-oriented decisions to recover from setbacks.'},
-      bav:{under15:'Employer programs give you a base of stability with limited time left. Consider whether private reserves should supplement them.',
-           '15-30':'Employer programs plus a moderate horizon give you flexibility. Your profile shows how to use it well.',
-           '30plus':'Employer support and a long horizon position you well. Your natural style has room to work.'},
-      s3:{under15:'Private reserves give you flexibility many lack. With limited time, protecting what is built matters most.',
-          '15-30':'Private reserves and a moderate horizon. Your profile shows how you respond under pressure — use that insight.',
-          '30plus':'Private reserves and a long horizon. Your behavioural profile is especially useful — you have time to adjust.'},
-      unsure:{under15:'Your pension structure is still unclear. With limited time, understanding what you already have is the important next step.',
-              '15-30':'Understanding your pension structure will help you use the remaining years well.',
-              '30plus':'With many years ahead, there is time to understand and strengthen your pension structure.'}
-    };
-    const DE={
-      grv:{under15:'Deine Rente stützt sich hauptsächlich auf die GRV bei begrenzter Zeit. Dein Schutzinstinkt ist verständlich — die Frage ist, ob die Reserven reichen.',
-           '15-30':'Du stützt dich auf die GRV mit einem moderaten Horizont. Dein Profil kann leiten, wie viel Wachstum du anstrebst.',
-           '30plus':'Mit GRV und langem Horizont ist Zeit, dass wachstumsorientierte Entscheidungen sich erholen.'},
-      bav:{under15:'Arbeitgeberprogramme geben Stabilität bei begrenzter Zeit. Überlege, ob private Reserven ergänzen sollten.',
-           '15-30':'Arbeitgeberprogramme plus moderater Horizont geben Flexibilität. Dein Profil zeigt, wie du sie nutzt.',
-           '30plus':'Arbeitgeberunterstützung und langer Horizont positionieren dich gut.'},
-      s3:{under15:'Private Reserven geben dir Flexibilität. Bei begrenzter Zeit zählt der Schutz des Aufgebauten.',
-          '15-30':'Private Reserven und moderater Horizont. Dein Profil zeigt, wie du unter Druck reagierst.',
-          '30plus':'Private Reserven und langer Horizont. Dein Profil ist besonders wertvoll — du hast Zeit anzupassen.'},
-      unsure:{under15:'Deine Rentenstruktur ist unklar. Bei begrenzter Zeit ist Verstehen der wichtigste nächste Schritt.',
-              '15-30':'Deine Rentenstruktur zu verstehen hilft, die verbleibenden Jahre gut zu nutzen.',
-              '30plus':'Mit vielen Jahren voraus ist Zeit, deine Rentenstruktur zu verstehen und zu stärken.'}
-    };
-    const T=de?DE:EN;
-    return (T[s]&&T[s][y])||T.unsure['30plus'];
+  // General information only. Never infers adequacy, protectiveness or
+  // which pillar "dominates" from the player's answers.
+  _pensionNote(de){
+    return de
+      ? 'In Deutschland beruht die Altersvorsorge meist auf drei Säulen: der gesetzlichen Rentenversicherung (GRV), der betrieblichen Altersvorsorge (bAV) und privater Vorsorge. Wie gut diese im Einzelfall zusammenpassen, lässt sich aus einem Spiel nicht ableiten — dafür sind die eigene Renteninformation und gegebenenfalls eine unabhängige Beratung die richtigen Quellen.'
+      : 'Retirement provision in Germany usually rests on three pillars: the statutory pension (GRV), workplace pensions (bAV), and private provision. How well these fit together for any one person cannot be worked out from a game — your own annual pension statement and, where useful, independent advice are the right sources for that.';
   }
 
-  update() {
-    if(!this.stars||!this.starGfx) return;
-    this.starGfx.clear();
-    this.stars.forEach(s=>{
-      s.p+=0.02;
-      this.starGfx.fillStyle(0xffffff,0.12+0.22*Math.sin(s.p));
-      this.starGfx.fillCircle(s.x,s.y,s.r);
+  _playAgain(){
+    this.y += this.s(20);
+    const bW=this.s(220), bH=this.s(48), bx=this.W/2-bW/2, by=this.y;
+    const g=this._add(this.add.graphics());
+    g.fillStyle(0xe2a840,1); g.fillRoundedRect(bx,by,bW,bH,this.s(11));
+    this._add(this.add.text(this.W/2,by+bH/2,this.de?'Nochmal spielen':'Play again',{
+      fontFamily:'Playfair Display, Georgia, serif',fontSize:this.s(18),color:'#0b1725',fontStyle:'700'
+    }).setOrigin(0.5));
+    const hit=this._add(this.add.rectangle(this.W/2,by+bH/2,bW,bH,0xffffff,0).setInteractive({useHandCursor:true}));
+    hit.on('pointerup',()=>{ if(this._dragged) return;
+      if(typeof ScoringEngine!=='undefined') ScoringEngine.reset();
+      this.scene.start('PlayerSetup'); });
+    this.y += bH + this.s(40);
+  }
+
+  // Mouse wheel, drag/touch and keyboard scrolling
+  _finishScroll(top){
+    const viewH=this.H-top;
+    const maskG=this.make.graphics({x:0,y:0,add:false});
+    maskG.fillStyle(0xffffff); maskG.fillRect(0,top,this.W,viewH);
+    this.content.setMask(maskG.createGeometryMask());
+    const minY=Math.min(0, this.H - this.y);
+    const clamp=v=>Math.max(minY, Math.min(0,v));
+    const by=d=>{ this.content.y=clamp(this.content.y-d); };
+
+    this.input.on('wheel',(p,o,dx,dy)=>by(dy));
+    let startY=null, startC=0;
+    this._dragged=false;
+    this.input.on('pointerdown',p=>{ startY=p.y; startC=this.content.y; this._dragged=false; });
+    this.input.on('pointermove',p=>{
+      if(startY===null||!p.isDown) return;
+      const d=p.y-startY;
+      if(Math.abs(d)>6) this._dragged=true;
+      this.content.y=clamp(startC+d);
     });
+    this.input.on('pointerup',()=>{ startY=null; });
+    const k=this.input.keyboard;
+    k.on('keydown-DOWN',()=>by(this.s(60)));  k.on('keydown-UP',()=>by(-this.s(60)));
+    k.on('keydown-PAGE_DOWN',()=>by(viewH*0.85)); k.on('keydown-PAGE_UP',()=>by(-viewH*0.85));
+    k.on('keydown-HOME',()=>{this.content.y=0;}); k.on('keydown-END',()=>{this.content.y=minY;});
   }
 }
