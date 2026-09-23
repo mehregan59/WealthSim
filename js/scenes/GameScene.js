@@ -21,6 +21,15 @@ class GameScene extends Phaser.Scene {
     this.tutorial = new Tutorial(this);
 
     this.cityStats = { happiness:60, development:40, resources:80 };
+    // Money comes from a seeded simulation, never from scripted numbers.
+    // Happiness and development stay civic indicators outside it.
+    this.seed = (window.WS_SEED && String(window.WS_SEED)) ||
+                ('s' + Date.now().toString(36) + Math.random().toString(36).slice(2,6));
+    this.sim = (window.WS && WS.Sim && WS.Economy)
+      ? WS.Sim.createSession(this.seed, { startingCash: WS.Economy.RULES.startCash }) : null;
+    if (this.sim) this.cityStats.resources = WS.Economy.fundsIndex(this.sim.total());
+    if (typeof ScoringEngine !== 'undefined') ScoringEngine.session = { seed:this.seed, sim:this.sim };
+    if (!this.sim) console.error('[WealthSim] simulation not loaded — funds fall back to scripted values');
     this.currentLevel = 0;
     this.cubes = []; this.cubeTotal = 0; this.cubeDropped = 0;
     this.decisionPanel = null; this.worldBtn = null; this.worldBtnTimer = null;
@@ -36,6 +45,7 @@ class GameScene extends Phaser.Scene {
     this.roads = new RoadNetwork(this, this.districts);
     this.hud = new HUD(this);
     this.statsPanel = new StatsPanel(this);
+    if (this.sim && this.statsPanel.setFundsCredits) this.statsPanel.setFundsCredits(this.sim.total());
     this.statsPanel.updateStats(this.cityStats.happiness,this.cityStats.development,this.cityStats.resources);
     this.statsPanel.recordSnapshot(this.cityStats.happiness,this.cityStats.development,this.cityStats.resources,0);
 
@@ -157,7 +167,8 @@ class GameScene extends Phaser.Scene {
       health: this.districts.map(d=>d.health),
       hasUniversity: this.hasUniversity,
       year: this.hud.year,
-      decisions: ScoringEngine.decisions.length
+      decisions: ScoringEngine.decisions.length,
+      sim: this.sim ? this.sim.snapshot() : null
     };
   }
 
@@ -170,7 +181,8 @@ class GameScene extends Phaser.Scene {
     this.hud.year = s.year;
     this.hud.yearText.setText('Year ' + s.year);
     ScoringEngine.decisions.length = s.decisions;
-    this.statsPanel.updateStats(this.cityStats.happiness,this.cityStats.development,this.cityStats.resources);
+    if (this.sim && s.sim) this.sim.restore(s.sim);
+    this._updateStats(0,0,0);
     return true;
   }
 
@@ -264,16 +276,16 @@ class GameScene extends Phaser.Scene {
     this._clearSiteMarkers(); this._clearPersistentMessage();
     this.districts.forEach(x=>x.setSelectable(false));
     ScoringEngine.recordDecision(1,v,{districtId:d.id});
-    d.receiveResource(2); this.cameras.main.shake(240,0.004); this._updateStats(5,10,-5);
-    const m={safe:'Construction begins carefully.\nThe city grows slowly but steadily.',
-             balanced:'A balanced approach takes shape.\nThe city moves forward with measured confidence.',
-             aggressive:'Cranes rise. Citizens are excited.\nResults will take time to appear.'};
-    this._showConsequence(m[v]||m.balanced, ()=>this._nextLevel());
+    const ec=this._econ('level1', d.id);
+    d.receiveResource(2); this.cameras.main.shake(240,0.004); this._updateStats(5,10,0);
+    this._showConsequence('Construction begins in '+d.name+'.' + this._investLine(ec, d.name), ()=>this._nextLevel());
   }
 
   // ══ LEVEL 2 — now offers research, then still asks for a decision ══
   _level2() {
-    this._workersLeave(); this.districts[2].takeDamage(28); this._updateStats(-5,-8,0);
+    this._workersLeave(); this.districts[2].takeDamage(28);
+    this._l2event = this._econ('level2Start');   // identical for every player
+    this._updateStats(-5,-8,0);
     this.time.delayedCall(1900,()=>this._level2Decide(false));
   }
 
@@ -282,10 +294,10 @@ class GameScene extends Phaser.Scene {
       ? 'You have inspected the district. Now decide how the city reacts.'
       : 'The technology district has lost value.\nCheck DISTRICT PERFORMANCE on the left, then decide.');
     const opts=[
-      {icon:'🛡',label:'Cancel project',desc:'Stop work now,\nkeep the resources',value:'cancel',color:0x3a5f8a},
-      {icon:'🏗',label:'Push through',desc:'Finish as planned,\naccept the dip',value:'continue',color:0x4aaa5c},
-      {icon:'💰',label:'Invest more',desc:'Double down\non the district',value:'invest_more',color:0xddaa00},
-      {icon:'⏳',label:'Pause & reassess',desc:'Halt work now,\ndecide again later',value:'wait',color:0x6b7a8d}
+      {icon:'🛡',label:'Sell the holding',desc:'Move all Technology\nfunds to cash',value:'cancel',color:0x3a5f8a},
+      {icon:'🏗',label:'Keep as is',desc:'Leave Technology\nfunds invested',value:'continue',color:0x4aaa5c},
+      {icon:'💰',label:'Add 100',desc:'Put 100 more\ninto Technology',value:'invest_more',color:0xddaa00},
+      {icon:'⏳',label:'Pause work',desc:'Leave funds invested,\nstop construction',value:'wait',color:0x6b7a8d}
     ];
     if(!hasRead) opts.push(this._researchOption());
     this._showDecisionPanel(opts,(c)=>{
@@ -298,15 +310,16 @@ class GameScene extends Phaser.Scene {
         return;
       }
       ScoringEngine.recordDecision(2,c,{afterResearch:hasRead});
-      const e={cancel:{d:[5,-10,10],m:'Resources secured.\nThe project rests. The city will not benefit if it recovers.'},
-               continue:{d:[0,5,-5],m:'The plan continues.\nThe city accepts short-term uncertainty.'},
-               invest_more:{d:[-5,12,-15],m:'The city doubles down.\nHigh stakes.'},
-               wait:{d:[-5,-5,0],m:'Construction stalls.\nResources are safe but idle. The cost of doing nothing.'}}[c]
-               ||{d:[0,5,-5],m:'The plan continues.'};
+      const ec=this._econ('level2', c);
+      const e={cancel:{d:[5,-10,0],m:'Technology holdings were sold and moved to cash.'},
+               continue:{d:[0,5,0],m:'Technology holdings stayed invested.'},
+               invest_more:{d:[-5,12,0],m:'100 more went into Technology.'},
+               wait:{d:[-5,-5,0],m:'Construction paused. Funds stayed invested.'}}[c]
+               ||{d:[0,5,0],m:'Technology holdings stayed invested.'};
       this._updateStats(e.d[0],e.d[1],e.d[2]);
       if(c==='invest_more'){this.districts[2].receiveResource(1);this.cameras.main.shake(190,0.003);}
       else if(c==='cancel') this.districts[2].takeDamage(8);
-      this._showConsequence(e.m,()=>this._nextLevel());
+      this._showConsequence(e.m + this._yearLine(ec), ()=>this._nextLevel());
     });
   }
 
@@ -324,6 +337,7 @@ class GameScene extends Phaser.Scene {
 
   // ══ LEVEL 3 ══
   _level3() {
+    this._econ('level3Deposit');
     this._spawnResourceCubes(6);
     this._showPersistentMessage('The city receives 600 new credits.\nPlace all six cubes — 0 of 6 placed.');
     this._armLevel3Idle();
@@ -351,8 +365,11 @@ class GameScene extends Phaser.Scene {
 
   _onResourceDropped(district) {
     this.cubeDropped=(this.cubeDropped||0)+1;
-    if(this.currentLevel===3) ScoringEngine.recordDecision(3,'allocate',{districtId:district.id});
-    this._updateStats(2,4,-3);
+    if(this.currentLevel===3){
+      ScoringEngine.recordDecision(3,'allocate',{districtId:district.id});
+      this._econ('level3Cube', district.id);
+    }
+    this._updateStats(2,4,0);
     if(this.currentLevel!==3) return;
     if(this.cubeDropped < this.cubeTotal){
       this._showPersistentMessage('The city receives 600 new credits.\nPlace all six cubes — '+this.cubeDropped+' of '+this.cubeTotal+' placed.');
@@ -364,33 +381,34 @@ class GameScene extends Phaser.Scene {
     }
   }
 
-  // Neutral reporting — names the strongest and weakest district from the
-  // player's own allocation instead of blaming a randomly chosen one.
+  // Reports what the year actually did to each district, and to this
+  // player's money — which depends only on where their funds sit.
   _level3Outcome() {
-    const sorted=this.districts.slice().sort((a,b)=>a.health-b.health);
-    const low=sorted[0], high=sorted[sorted.length-1];
+    const ec=this._econ('level3End');
     this._updateStats(0,2,0);
-    this._showConsequence(
-      'The year closes. '+high.name+' is your strongest district at '+Math.round(high.health)+
-      ',\n'+low.name+' your weakest at '+Math.round(low.health)+'.\n'+
-      'Both update live on the left — how you spread from here is your call.',
-      ()=>this._nextLevel());
+    let text='The year closes.';
+    if (ec && ec.returns) {
+      const parts=this.districts.map(d=>d.name+' '+this._pct(ec.returns[d.id]));
+      text='The year closes. District values changed:\n'+parts.join('  ·  ');
+    }
+    this._showConsequence(text + this._yearLine(ec), ()=>this._nextLevel());
   }
 
   // ══ LEVEL 4 ══
   _level4() {
     this._showPersistentMessage('The city can build one of two facilities.\nThis decision will echo through the rest of the game.');
     this._showDecisionPanel([
-      {icon:'🎪',label:'Festival Square',desc:'Happy citizens now.\nLittle long-term value.',value:'festival',color:0xe2a840},
-      {icon:'🎓',label:'Research University',desc:'No reward for several levels.\nPowerful later.',value:'university',color:0x4ecdc4}
+      {icon:'🎪',label:'Festival Square',desc:'Costs 100 now.\nCitizens enjoy it now.',value:'festival',color:0xe2a840},
+      {icon:'🎓',label:'Research University',desc:'Costs 150 now.\nPays 300 in the last level.',value:'university',color:0x4ecdc4}
     ],(c)=>{
       ScoringEngine.recordDecision(4,c); this._clearPersistentMessage();
+      const ec=this._econ('level4', c);
       if(c==='university'){
-        this.hasUniversity=true; this._updateStats(0,0,-8);
-        this._showConsequence('Construction begins quietly.\nNo result yet. The city waits.\nSomething is being built that may matter greatly later.',()=>this._nextLevel());
+        this.hasUniversity=true; this._updateStats(0,0,0);
+        this._showConsequence('The university is under construction. It pays out in the last level.'+this._yearLine(ec),()=>this._nextLevel());
       } else {
         this._updateStats(18,0,0); this.districts[0].receiveResource(1);
-        this._showConsequence('The square is built. Citizens celebrate today.\nThe city is happy — but only for now.',()=>this._nextLevel());
+        this._showConsequence('The square is built. Citizens enjoy it now.'+this._yearLine(ec),()=>this._nextLevel());
       }
     });
   }
@@ -398,9 +416,10 @@ class GameScene extends Phaser.Scene {
   // ══ LEVEL 5 — now offers research, then still asks for a decision ══
   _level5() {
     const tech=this.districts[2];
+    this._l5event = this._econ('level5Start');   // identical for every player
     tech.receiveResource(4); this.time.delayedCall(500,()=>tech.receiveResource(3));
     for(let i=0;i<16;i++) this.time.delayedCall(i*170,()=>this._firework(tech.cx+Phaser.Math.Between(-95,95),tech.cy+Phaser.Math.Between(-95,10)));
-    this._newsTicker(['📰 Technology District doubles in value!','📰 Experts: growth will continue — neighbouring cities moving in...']);
+    this._newsTicker(['📰 Technology District up 40% in a single round!','📰 Commentators: growth will continue — neighbouring cities moving in...']);
     this.time.delayedCall(1500,()=>{
       this.districts.forEach((d,i)=>{if(i!==2)this.tweens.add({targets:[d.gfx,d.animGfx],alpha:0.4,duration:900});});
       this.time.delayedCall(2100,()=>this._level5Decide(false));
@@ -410,12 +429,12 @@ class GameScene extends Phaser.Scene {
   _level5Decide(hasRead) {
     this._showPersistentMessage(hasRead
       ? 'You have read the analysis. Now decide.'
-      : 'Technology is booming. Other districts suddenly look boring.\nWhat does the city do?');
+      : 'Technology rose 40% this round. What does the city do?');
     const opts=[
-      {icon:'🚀',label:'All in',desc:'Move everything\nto technology',value:'all_in',color:0x9966cc},
-      {icon:'➕',label:'Invest more',desc:'Increase exposure\nkeep some balance',value:'increase',color:0x4ecdc4},
-      {icon:'⚖',label:'Stay diversified',desc:'Resist momentum\nhold the balance',value:'hold',color:0x4aaa5c},
-      {icon:'📉',label:'Take profits',desc:'Reduce tech\nsecure gains',value:'reduce',color:0xe2a840}
+      {icon:'🚀',label:'Move everything',desc:'All funds into\nTechnology',value:'all_in',color:0x9966cc},
+      {icon:'➕',label:'Add 150',desc:'Move 150 more\ninto Technology',value:'increase',color:0x4ecdc4},
+      {icon:'⚖',label:'Keep as is',desc:'Leave the allocation\nunchanged',value:'hold',color:0x4aaa5c},
+      {icon:'📉',label:'Sell half',desc:'Move half of\nTechnology to cash',value:'reduce',color:0xe2a840}
     ];
     if(!hasRead) opts.push(this._researchOption());
     this._showDecisionPanel(opts,(c)=>{
@@ -429,16 +448,17 @@ class GameScene extends Phaser.Scene {
         return;
       }
       ScoringEngine.recordDecision(5,c,{afterResearch:hasRead});
+      const ec=this._econ('level5', c);
       this.districts.forEach(d=>this.tweens.add({targets:[d.gfx,d.animGfx],alpha:1,duration:600}));
-      const m={all_in:'Everything committed to technology.\nThe city feels unstoppable. For now.',
-               increase:'More technology in the mix.\nMomentum builds.',
-               hold:'The city watches from a balanced position.\nSome feel it is missing out.',
-               reduce:'Profits secured.\nThe city steps back from the excitement.'};
-      if(c==='all_in'){tech.receiveResource(3);this._updateStats(5,15,-12);}
-      else if(c==='increase'){tech.receiveResource(1);this._updateStats(3,8,-5);}
+      const m={all_in:'All funds were moved into Technology.',
+               increase:'150 more was moved into Technology.',
+               hold:'The allocation was left unchanged.',
+               reduce:'Half of the Technology holding was moved to cash.'};
+      if(c==='all_in'){tech.receiveResource(3);this._updateStats(5,15,0);}
+      else if(c==='increase'){tech.receiveResource(1);this._updateStats(3,8,0);}
       else if(c==='hold') this._updateStats(2,4,0);
-      else this._updateStats(0,-3,8);
-      this._showConsequence(m[c]||m.hold,()=>this._nextLevel());
+      else this._updateStats(0,-3,0);
+      this._showConsequence((m[c]||m.hold) + this._yearLine(ec),()=>this._nextLevel());
     });
   }
 
@@ -476,9 +496,9 @@ class GameScene extends Phaser.Scene {
       ? 'You have the full picture. What does the city do?'
       : 'They offer to share their water infrastructure.\nWhat does the city do?');
     const opts=[
-      {icon:'🤝',label:'Accept offer',desc:'200 resources now.\nSome dependency risk.',value:'accept',color:0x4ecdc4},
-      {icon:'🏗',label:'Build own',desc:'400 resources.\nFull control.',value:'independent',color:0x4aaa5c},
-      {icon:'❌',label:'Decline both',desc:'Keep resources\nfor other priorities.',value:'decline',color:0x6b7a8d}
+      {icon:'🤝',label:'Accept offer',desc:'Costs 200.\nShared with neighbour.',value:'accept',color:0x4ecdc4},
+      {icon:'🏗',label:'Build own',desc:'Costs 400.\nCity controls it.',value:'independent',color:0x4aaa5c},
+      {icon:'❌',label:'Decline both',desc:'Costs nothing.\nNo new water supply.',value:'decline',color:0x6b7a8d}
     ];
     if (!hasRead) opts.push(this._researchOption());
     this._showDecisionPanel(opts,(c)=>{
@@ -491,17 +511,18 @@ class GameScene extends Phaser.Scene {
         return;
       }
       ScoringEngine.recordDecision(6,c,{afterResearch:hasRead});
-      const m={accept:'The delegation drives into the city.\nShared infrastructure is established — and celebrated.',
-               independent:'The delegation turns around and leaves.\nThe city builds its own — more expensive, fully controlled.',
-               decline:'The delegation turns around and leaves.\nResources are preserved for other priorities.'};
-      const dl={accept:[-8,5,-8],independent:[-5,8,-15],decline:[0,0,5]}[c]||[0,0,0];
+      const ec=this._econ('level6', c);
+      const m={accept:'The delegation drives into the city. Water is now shared with the neighbour.',
+               independent:'The delegation leaves. The city builds and runs its own water supply.',
+               decline:'The delegation leaves. No new water supply is built.'};
+      const dl={accept:[-8,5,0],independent:[-5,8,0],decline:[0,0,0]}[c]||[0,0,0];
       this._updateStats(dl[0],dl[1],dl[2]);
       if(c==='accept'){
         this.roads.visitorAccept(this.districts[0], ()=>{ this.districts[0].receiveResource(1); this._celebrateCity('🎉 Partnership Celebrated!'); });
       } else {
         this.roads.visitorDecline(); if(c==='independent') this.districts[0].receiveResource(1);
       }
-      this._showConsequence(m[c]||m.decline,()=>this._nextLevel());
+      this._showConsequence((m[c]||m.decline) + this._yearLine(ec),()=>this._nextLevel());
     });
   }
 
@@ -516,10 +537,10 @@ class GameScene extends Phaser.Scene {
       ? 'You have the full picture. Now decide what the city does.'
       : 'News arrives from across the region.\nTake your time. The decision sits open.');
     const opts=[
-      {icon:'📤',label:'Sell tech',desc:'Act immediately.',value:'sell',color:0xe74c3c},
-      {icon:'⬇',label:'Reduce',desc:'Cautious middle path.',value:'reduce',color:0xe2a840},
-      {icon:'🔒',label:'Hold steady',desc:'Ignore headlines.',value:'hold',color:0x4aaa5c},
-      {icon:'📈',label:'Invest more',desc:'Buy into the dip.',value:'invest_more',color:0x9966cc}
+      {icon:'📤',label:'Sell Technology',desc:'Move all of it\nto cash',value:'sell',color:0xe74c3c},
+      {icon:'⬇',label:'Sell half',desc:'Move half of it\nto cash',value:'reduce',color:0xe2a840},
+      {icon:'🔒',label:'Keep as is',desc:'Leave the allocation\nunchanged',value:'hold',color:0x4aaa5c},
+      {icon:'📈',label:'Add 100',desc:'Move 100 more\ninto Technology',value:'invest_more',color:0x9966cc}
     ];
     if (!hasRead) opts.push(this._researchOption());
     this._showDecisionPanel(opts,(c)=>{
@@ -532,15 +553,16 @@ class GameScene extends Phaser.Scene {
         return;
       }
       ScoringEngine.recordDecision(7,c,{afterResearch:hasRead});
-      const m={sell:'The technology district is sold.\nResources protected from further decline.',
-               reduce:'Exposure reduced.\nThe city retains some technology interest.',
-               hold:'The city holds its position.\nTime will tell whether the headlines were right.',
-               invest_more:'The city buys into the dip.\nA confident bet against the headlines.'};
-      const dl={sell:[-5,-12,12],reduce:[-2,-5,5],hold:[2,0,0],invest_more:[-3,10,-15]}[c]||[0,0,0];
+      const ec=this._econ('level7', c);
+      const m={sell:'All Technology holdings were moved to cash.',
+               reduce:'Half of the Technology holding was moved to cash.',
+               hold:'The allocation was left unchanged.',
+               invest_more:'100 more was moved into Technology.'};
+      const dl={sell:[-5,-12,0],reduce:[-2,-5,0],hold:[2,0,0],invest_more:[-3,10,0]}[c]||[0,0,0];
       this._updateStats(dl[0],dl[1],dl[2]);
       if(c==='sell') this.districts[2].takeDamage(15);
       if(c==='invest_more') this.districts[2].receiveResource(2);
-      this._showConsequence(m[c]||m.hold,()=>this._nextLevel());
+      this._showConsequence((m[c]||m.hold) + this._yearLine(ec),()=>this._nextLevel());
     });
   }
 
@@ -548,36 +570,39 @@ class GameScene extends Phaser.Scene {
   _level8() {
     this.weather.startStorm(()=>{
       this.districts.forEach(d=>{d.setStorm(true);d.takeDamage(26);});
-      this._updateStats(-15,-20,-10); this.cameras.main.shake(900,0.012);
+      this._storm = this._econ('level8Storm');   // loss follows holdings only
+      this._updateStats(-15,-20,0); this.cameras.main.shake(900,0.012);
       const UNI_START=2000, UNI_FADE=1500, UNI_HOLD=6000;
       const UNI_END = UNI_START + UNI_FADE + UNI_HOLD + UNI_FADE;
       if(this.hasUniversity){
         this.time.delayedCall(UNI_START,()=>{
-          this._tempMessage('The Research University opens its doors.\nGraduates create companies. Income rises. Your patience pays off.',UNI_HOLD,UNI_FADE);
+          this._tempMessage('The Research University opens.\nIt pays the city '+this._fmt(WS.Economy&&WS.Economy.RULES?WS.Economy.RULES.L4.universityPayout:300)+' credits.',UNI_HOLD,UNI_FADE);
           this.districts[0].receiveResource(2); this.districts[1].receiveResource(1);
+          this._econ('level8University');
           this._updateStats(10,15,0);
         });
       }
       this.time.delayedCall(this.hasUniversity?(UNI_END+600):3900,()=>{
-        this._showPersistentMessage('An economic storm hits every city.\nYou cannot prevent it. What do you protect?');
+        this._showPersistentMessage('An economic storm hits every city.' + this._stormLine() + '\nWhat does the city do now?');
         this._showDecisionPanel([
-          {icon:'🏃',label:'Sell all',desc:'Protect remaining\nresources.',value:'sell_all',color:0xe74c3c},
-          {icon:'🏛',label:'Protect essentials',desc:'Shield critical services.\nHold the plan.',value:'hold',color:0x4aaa5c},
-          {icon:'⚖',label:'Rebalance',desc:'Restructure\nthoughtfully.',value:'rebalance',color:0x4ecdc4},
-          {icon:'📈',label:'Buy the dip',desc:'Invest selectively\nwhile low.',value:'opportunistic',color:0xe2a840}
+          {icon:'🏃',label:'Sell everything',desc:'Move all holdings\nto cash',value:'sell_all',color:0xe74c3c},
+          {icon:'🏛',label:'Keep as is',desc:'Leave the allocation\nunchanged',value:'hold',color:0x4aaa5c},
+          {icon:'⚖',label:'Split evenly',desc:'Spread everything\nequally over 4',value:'rebalance',color:0x4ecdc4},
+          {icon:'📈',label:'Invest the cash',desc:'Spread remaining\ncash over 4',value:'opportunistic',color:0xe2a840}
         ],(c)=>{
           ScoringEngine.recordDecision(8,c); this._clearPersistentMessage();
+          const ec=this._econ('level8', c);
           this.weather.stopStorm(1000);
           this.time.delayedCall(1700,()=>{
             this.districts.forEach(d=>d.setStorm(false));
-            this.weather.startRecovery(()=>{ this.districts.forEach(d=>d.receiveResource(1)); this._updateStats(8,12,5); });
-            const m={sell_all:'Resources secured.\nThe city stops building and waits for calmer times.',
-                     hold:'The plan holds.\nThe city weathers the storm with its structure intact.',
-                     rebalance:'A more resilient structure emerges.\nThe city reorganises thoughtfully.',
-                     opportunistic:'The city invests carefully during the downturn.\nIf recovery comes, these decisions will matter.'};
-            const dl={sell_all:[-5,-15,15],hold:[5,0,-5],rebalance:[5,8,-5],opportunistic:[3,12,-10]}[c]||[0,0,0];
+            this.weather.startRecovery(()=>{ this.districts.forEach(d=>d.receiveResource(1)); this._updateStats(8,12,0); });
+            const m={sell_all:'All holdings were moved to cash for the following year.',
+                     hold:'The allocation was left unchanged for the following year.',
+                     rebalance:'Everything was spread equally across the four districts.',
+                     opportunistic:'Remaining cash was spread across the four districts.'};
+            const dl={sell_all:[-5,-15,0],hold:[5,0,0],rebalance:[5,8,0],opportunistic:[3,12,0]}[c]||[0,0,0];
             this._updateStats(dl[0],dl[1],dl[2]);
-            this._showConsequence(m[c]||m.hold,()=>this._finish());
+            this._showConsequence((m[c]||m.hold) + '\nThe year after the storm was an ordinary one — it could go either way.' + this._yearLine(ec),()=>this._finish());
           });
         });
       });
@@ -664,7 +689,13 @@ class GameScene extends Phaser.Scene {
     this._clearWorldBtn();
     this._clearConsequence(); this._clearDecisionPanel();
     const cx=this._cx();
-    const pw=Math.min(this.s(720),this._availW()), ph=this.s(104), px=cx-pw/2, py=this.H-this.s(186);
+    const pw=Math.min(this.s(720),this._availW()), px=cx-pw/2;
+    // Measure the text first so the panel always fits it
+    const probe=this.add.text(0,0,text,{fontFamily:'Playfair Display, Georgia, serif',fontSize:this.s(17),
+      wordWrap:{width:pw-this.s(56)},lineSpacing:this.s(6)});
+    const ph=Math.max(this.s(104), probe.height+this.s(40)); probe.destroy();
+    const py=this.H-this.s(82)-ph;
+    this._consequenceTop=py;
 
     const dim=this.add.graphics();
     dim.fillStyle(0x02060c, 0.9);
@@ -713,7 +744,7 @@ class GameScene extends Phaser.Scene {
     this.worldBtnTimer = this.time.delayedCall(1100,()=>{
       this.worldBtnTimer=null;
       const lbl=(typeof currentLang!=='undefined'&&currentLang==='de')?'Weiter →':'Continue →';
-      this.worldBtn=new WorldButton(this,cx,this.H-this.s(262),lbl,()=>{this.worldBtn=null;if(onContinue)onContinue();});
+      this.worldBtn=new WorldButton(this,cx,(this._consequenceTop||this.H-this.s(186))-this.s(76),lbl,()=>{this.worldBtn=null;if(onContinue)onContinue();});
     });
   }
   _clearConsequence(){ if(this.consequencePanel){this.tweens.killTweensOf(this.consequencePanel);this.consequencePanel.destroy();this.consequencePanel=null;} }
@@ -763,12 +794,56 @@ class GameScene extends Phaser.Scene {
   }
   _clearCubes(){ this.cubes.forEach(c=>{try{c.destroy();}catch(e){}}); this.cubes=[]; }
 
+  // Happiness and development are civic indicators nudged by the story.
+  // Funds are never nudged: they are read from the simulation, so the bar
+  // always matches real money. The third argument is ignored when the
+  // simulation is running.
   _updateStats(h,d,r){
     this.cityStats.happiness=Math.max(5,Math.min(100,this.cityStats.happiness+h));
     this.cityStats.development=Math.max(5,Math.min(100,this.cityStats.development+d));
-    this.cityStats.resources=Math.max(5,Math.min(100,this.cityStats.resources+r));
+    if (this.sim) {
+      const tot=this.sim.total();
+      this.cityStats.resources=WS.Economy.fundsIndex(tot);
+      if (this.statsPanel.setFundsCredits) this.statsPanel.setFundsCredits(tot);
+    } else {
+      this.cityStats.resources=Math.max(5,Math.min(100,this.cityStats.resources+r));
+    }
     this.statsPanel.updateStats(this.cityStats.happiness,this.cityStats.development,this.cityStats.resources);
-    this.hud.advanceYear(2);
+    if (this.sim) { this.hud.year=this.sim.state.year; if(this.hud.yearText) this.hud.yearText.setText('Year '+this.hud.year); }
+    else this.hud.advanceYear(2);
+  }
+
+  // ── Simulation plumbing ────────────────────────────────────────
+  _econ(fn, arg){
+    if(!this.sim || !window.WS || !WS.Economy || !WS.Economy[fn]) return null;
+    const r = WS.Economy[fn](this.sim, arg);
+    this._updateStats(0,0,0);
+    return r;
+  }
+  _de(){ return (typeof currentLang!=='undefined' && currentLang==='de'); }
+  _fmt(n){ return Math.round(n).toLocaleString(this._de()?'de-DE':'en-GB'); }
+  _pct(r){ if(typeof r!=='number') return '—'; const v=Math.round(r*100); return (v>0?'+':v<0?'\u2212':'\u00b1')+Math.abs(v)+'%'; }
+  _signed(n){ const v=Math.round(n); return (v>0?'+':v<0?'\u2212':'\u00b1')+this._fmt(Math.abs(v)); }
+  // Real money after a market year: total and change this round
+  _yearLine(ec){
+    if(!ec) return '';
+    return this._de()
+      ? '\nMittel: '+this._fmt(ec.after)+' Credits ('+this._signed(ec.change)+' in dieser Runde).'
+      : '\nFunds: '+this._fmt(ec.after)+' credits ('+this._signed(ec.change)+' this round).';
+  }
+  _investLine(ec, name){
+    if(!ec) return '';
+    return this._de()
+      ? '\n'+this._fmt(WS.Economy.RULES.L1.invest)+' Credits sind jetzt in '+name+' investiert.'
+      : '\n'+this._fmt(WS.Economy.RULES.L1.invest)+' credits are now invested in '+name+'.';
+  }
+  // Storm loss, with the same storm applied to an even split of the same
+  // money. Stated as numbers — an even split is not always the smaller loss.
+  _stormLine(){
+    const st=this._storm; if(!st || !st.invested) return '';
+    return this._de()
+      ? '\nDeine Anlagen verloren '+this._fmt(st.loss)+' von '+this._fmt(st.invested)+' Credits. Gleichmäßig verteilt hätte derselbe Sturm '+this._fmt(st.evenSplitLoss)+' gekostet.'
+      : '\nYour holdings lost '+this._fmt(st.loss)+' of '+this._fmt(st.invested)+' credits. The same storm on an even split would have cost '+this._fmt(st.evenSplitLoss)+'.';
   }
 
   update(time,delta){
