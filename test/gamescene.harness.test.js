@@ -148,9 +148,9 @@ t('retry does not duplicate recorded decisions', ()=>{
 });
 
 console.log('\n── Wording ──');
-t('no leading labels remain on any offered option', ()=>{
+t('no leading or unearned claims remain in the level text', ()=>{
   const src=fs.readFileSync(path.join(__dirname,'..','js','scenes','GameScene.js'),'utf8');
-  ['thoughtfully','boring','A confident bet','Little long-term value','Powerful later','Resources protected','more resilient structure']
+  ['thoughtfully','boring','A confident bet','Little long-term value','Powerful later','Resources protected','more resilient structure','patience pays off','measured confidence','doubles in value']
     .forEach(w=>ok(src.indexOf(w)===-1,'still present: '+w));
 });
 
