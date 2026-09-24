@@ -77,7 +77,7 @@
                ' — 0 is perfect, and always answering 50% would score 0.25. Too few forecasts to describe a stable tendency.';
       },
       gap: function (g) {
-        return 'On average your estimates were ' + Math.round(g*100) + ' percentage points away from the probability implied by the game\u2019s own model.';
+        return 'On average your estimates were ' + Math.round(g*100) + ' percentage points away from the probability implied by the game’s own model.';
       },
       disclaimer: 'This is a summary of one session of play. It is an educational description of decisions made in a fictional scenario, not a validated psychological assessment and not financial advice.'
     },
@@ -124,7 +124,7 @@
       cmpAgree: 'Deine Angabe und deine Entscheidungen wiesen hier in dieselbe Richtung.',
       cmpDiffer: 'Deine Angabe und deine Entscheidungen unterschieden sich hier. Menschen antworten oft über allgemeine Absichten und reagieren dann auf die konkrete Lage. Das ist keine Unehrlichkeit.',
       nextConc: 'Vergleiche, wie ein Schock in einem Stadtteil deine Mittel bei deinen tatsächlichen Anteilen verändern würde, verglichen mit einer gleichmäßigeren Aufteilung. Der Zusammenhang ist proportional zum Anteil.',
-      nextReports: 'Optionale Berichte waren verfügbar und blieben ungeöffnet. Lies beim nächsten Mal einen vor der Entscheidung und achte darauf, ob er deine Sicht verändert.',
+      nextReports: 'Optionale Berichte waren verfügbar und blieben ungeröffnet. Lies beim nächsten Mal einen vor der Entscheidung und achte darauf, ob er deine Sicht verändert.',
       nextRevise: 'Du hast deinen Plan öfter nach schwach belegten Nachrichten geändert als nach substanziellen Neuigkeiten. Beides nebeneinander zu vergleichen ist eine nützliche Gewohnheit.',
       noLabel: 'In dieser Sitzung gibt es nicht genug wiederholte Beobachtungen für einen Gesamtstil.',
       noTrait: 'Keine Beschreibung wurde durch die Daten gestützt.',
@@ -152,6 +152,16 @@
     }
   };
 
+  // Scenario IDs whose decisions are summarised through specialised
+  // chapter-level facts (riskPairs, disposition) rather than in the
+  // per-decision "did" list. Both canonical forms and legacy aliases are
+  // listed so that replayed or migrated sessions still filter correctly.
+  const CH3_AND_CH9 = new Set([
+    'ch3:allocate',
+    'ch9:matched_gain_loss', 'ch9:review',        // disposition
+    'ch9:prospects_differ',  'ch9:prospects'       // prospects trial
+  ]);
+
   function build(events, stated, meta) {
     stated = stated || {}; meta = meta || {};
     const lang = meta.lang === 'de' ? 'de' : 'en';
@@ -159,11 +169,11 @@
     const parsed = E.observations(events);
     const obs = parsed.observations;
 
-    // 1. What you did — cube placements are summarised once, not listed six times
+    // 1. What you did — cube placements and ch9 reviews are summarised once,
+    //    not listed individually.
     const did = obs
       .filter(function (o) {
-        // Cube placements and matched reviews are summarised once below
-        return o.phase === 'baseline' && o.scenarioId !== 'ch3:allocate' && o.scenarioId !== 'ch9:review';
+        return o.phase === 'baseline' && !CH3_AND_CH9.has(o.scenarioId);
       })
       .map(function (o) {
         const note = (lang === 'de' && o.noteDE) ? o.noteDE : o.note;
@@ -185,7 +195,7 @@
     if (rp.available) did.push({ scenario:'ch1:pair', constraint:null,
       text:L.pairs(rp.wideCount, rp.n, rp.switchAt, rp.monotonic) });
     const dp = C.disposition(events);
-    if (dp.available) did.push({ scenario:'ch9:review', constraint:null,
+    if (dp.available) did.push({ scenario:'ch9:matched_gain_loss', constraint:null,
       text:L.disp(dp.n, dp.soldGain, dp.soldLoss) });
     const fc = E.brier(events);
     if (fc.available) did.push({ scenario:'ch10:forecast', constraint:null, text:L.fc(fc.n, fc.brier) });
