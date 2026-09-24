@@ -16,8 +16,20 @@
     let cube = 0;
     return (decisions || []).map(function (d, i) {
       // New chapters record scenario-keyed events directly; pass them through.
+      // Ensure the event always has an explicit `action` field — GameScene
+      // stores the player's choice in `value`; Evidence reads `action`.
       if (d.scenarioId) {
-        return Object.assign({ eventId:'e' + i, phase:'baseline' }, d);
+        const ev = Object.assign({ eventId:'e' + i, phase:'baseline' }, d);
+        // Evidence reads `action`; GameScene stores the choice in `value`.
+        if (!ev.action && ev.value) ev.action = ev.value;
+        // ch3 cube placements: GameScene records the district name in `value`.
+        // Evidence.concentration() needs the district in `districtId`; the
+        // observations() lookup needs action='allocate' (the fixed action name).
+        if (ev.scenarioId === 'ch3:allocate') {
+          if (!ev.districtId && ev.value) ev.districtId = ev.value;
+          ev.action = 'allocate';
+        }
+        return ev;
       }
       const scenarioId = SCENARIO[d.level] || ('unknown:L' + d.level);
       const trialId = d.level === 3 ? ('cube' + (cube++)) : ('L' + d.level);
