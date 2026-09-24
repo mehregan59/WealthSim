@@ -48,10 +48,10 @@ class GameScene extends Phaser.Scene {
 
     this.hud = new HUD(this);
     this.statsPanel = new StatsPanel(this);
-    this.roads = new RoadNetwork(this);
 
     this._buildDistricts();
     this._buildStats();
+    this.roads = new RoadNetwork(this, this.districts);
 
     this.cameras.main.setBackgroundColor('#0d1f12');
 
