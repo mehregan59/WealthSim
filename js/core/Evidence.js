@@ -67,15 +67,27 @@
     },
     'ch5:boom': {
       all_in:      { dim:DIM.MOMENTUM, level:'increased_max', note:'moved all holdings into the rising district', noteDE:'hast alle Mittel in den steigenden Stadtteil verlagert' },
+      invest_more: { dim:DIM.MOMENTUM, level:'increased',     note:'increased exposure to the rising district', noteDE:'hast den Anteil am steigenden Stadtteil erhöht' },
+      // 'increase' kept as alias so older recorded events still resolve
       increase:    { dim:DIM.MOMENTUM, level:'increased',     note:'increased exposure to the rising district', noteDE:'hast den Anteil am steigenden Stadtteil erhöht' },
       hold:        { dim:DIM.MOMENTUM, level:'unchanged',     note:'left the allocation unchanged', noteDE:'hast die Aufteilung unverändert gelassen' },
       reduce:      { dim:DIM.MOMENTUM, level:'decreased',     note:'reduced exposure to the rising district', noteDE:'hast den Anteil am steigenden Stadtteil verringert' }
     },
     'ch6:delegation': {
       accept:      { dim:DIM.OFFER, level:'accepted_offer',  note:'accepted the shared arrangement', noteDE:'hast die gemeinsame Vereinbarung angenommen' },
+      build:       { dim:DIM.OFFER, level:'built_own',       note:'built independently at higher cost', noteDE:'hast zu höheren Kosten selbst gebaut' },
+      // 'independent' kept as alias so older recorded events still resolve
       independent: { dim:DIM.OFFER, level:'built_own',       note:'built independently at higher cost', noteDE:'hast zu höheren Kosten selbst gebaut' },
       decline:     { dim:DIM.OFFER, level:'declined_both',   note:'declined both options', noteDE:'hast beide Optionen abgelehnt' }
     },
+    // scenarioId matches GameScene.js: 'ch7:headlines'
+    'ch7:headlines': {
+      sell:        { dim:DIM.SOCIAL, level:'exited',    note:'sold after the headline', noteDE:'hast nach der Schlagzeile verkauft' },
+      reduce:      { dim:DIM.SOCIAL, level:'reduced',   note:'reduced exposure after the headline', noteDE:'hast den Anteil nach der Schlagzeile verringert' },
+      hold:        { dim:DIM.SOCIAL, level:'unchanged', note:'left the position unchanged after the headline', noteDE:'hast die Position nach der Schlagzeile unverändert gelassen' },
+      invest_more: { dim:DIM.SOCIAL, level:'increased', note:'increased exposure against the headline', noteDE:'hast den Anteil entgegen der Schlagzeile erhöht' }
+    },
+    // Legacy alias — any event recorded before the rename still resolves
     'ch7:news': {
       sell:        { dim:DIM.SOCIAL, level:'exited',    note:'sold after the headline', noteDE:'hast nach der Schlagzeile verkauft' },
       reduce:      { dim:DIM.SOCIAL, level:'reduced',   note:'reduced exposure after the headline', noteDE:'hast den Anteil nach der Schlagzeile verringert' },
@@ -83,23 +95,42 @@
       invest_more: { dim:DIM.SOCIAL, level:'increased', note:'increased exposure against the headline', noteDE:'hast den Anteil entgegen der Schlagzeile erhöht' }
     },
     'ch8:storm': {
-      sell_all:      { dim:DIM.DOWNTURN, level:'liquidated',  note:'liquidated holdings during the downturn', noteDE:'hast im Abschwung alle Anteile verkauft' },
-      hold:          { dim:DIM.DOWNTURN, level:'unchanged',   note:'held the plan through the downturn', noteDE:'hast den Plan im Abschwung beibehalten' },
-      rebalance:     { dim:DIM.DOWNTURN, level:'rebalanced',  note:'rebalanced during the downturn', noteDE:'hast im Abschwung neu gewichtet' },
-      opportunistic: { dim:DIM.DOWNTURN, level:'added',       note:'added holdings during the downturn', noteDE:'hast im Abschwung Anteile hinzugekauft' },
-      meet_reserve:  { dim:DIM.DOWNTURN, level:'obligation',  note:'sold to meet a stated reserve requirement', noteDE:'hast verkauft, um eine festgelegte Reserve zu erfüllen',
-                       excludeFromPattern:true,
-                       why:'Selling to meet a stated obligation is a constraint, not a downturn reaction.', whyDE:'Zu verkaufen, um eine festgelegte Verpflichtung zu erfüllen, ist eine Einschränkung, keine Reaktion auf den Abschwung.' }
+      sell_all:    { dim:DIM.DOWNTURN, level:'liquidated',  note:'liquidated holdings during the downturn', noteDE:'hast im Abschwung alle Anteile verkauft' },
+      hold:        { dim:DIM.DOWNTURN, level:'unchanged',   note:'held the plan through the downturn', noteDE:'hast den Plan im Abschwung beibehalten' },
+      rebalance:   { dim:DIM.DOWNTURN, level:'rebalanced',  note:'rebalanced during the downturn', noteDE:'hast im Abschwung neu gewichtet' },
+      invest_low:  { dim:DIM.DOWNTURN, level:'added',       note:'added holdings during the downturn', noteDE:'hast im Abschwung Anteile hinzugekauft' },
+      protect:     { dim:DIM.DOWNTURN, level:'protected',   note:'moved to protective assets during the downturn', noteDE:'hast im Abschwung in sichere Anlagen gewechselt' },
+      // 'opportunistic' kept as alias so older recorded events still resolve
+      opportunistic: { dim:DIM.DOWNTURN, level:'added',     note:'added holdings during the downturn', noteDE:'hast im Abschwung Anteile hinzugekauft' },
+      meet_reserve:{ dim:DIM.DOWNTURN, level:'obligation',  note:'sold to meet a stated reserve requirement', noteDE:'hast verkauft, um eine festgelegte Reserve zu erfüllen',
+                     excludeFromPattern:true,
+                     why:'Selling to meet a stated obligation is a constraint, not a downturn reaction.', whyDE:'Zu verkaufen, um eine festgelegte Verpflichtung zu erfüllen, ist eine Einschränkung, keine Reaktion auf den Abschwung.' }
     },
-    // Prospects differ here, so this trial is kept out of the gain/loss count.
-    'ch9:prospects': {
-      sell_weaker:   { dim:DIM.PROSPECTS, level:'sold_weaker',   note:'sold the holding with the weaker outlook', noteDE:'hast die Position mit den schwächeren Aussichten verkauft' },
-      sell_stronger: { dim:DIM.PROSPECTS, level:'sold_stronger', note:'sold the holding with the stronger outlook', noteDE:'hast die Position mit den besseren Aussichten verkauft' }
+    // Chapter 9 matched trials — purchase price is the only difference between
+    // the two holdings; forward prospects are identical. scenarioId matches
+    // Chapters.js resolveCh9: 'ch9:matched_gain_loss'.
+    'ch9:matched_gain_loss': {
+      sell_winner: { dim:DIM.REVIEW, level:'sold_gain', note:'sold a holding standing at a gain', noteDE:'hast eine Position im Gewinn verkauft' },
+      sell_loser:  { dim:DIM.REVIEW, level:'sold_loss', note:'sold a holding standing at a loss', noteDE:'hast eine Position im Verlust verkauft' },
+      hold_both:   { dim:DIM.REVIEW, level:'held_both', note:'held both holdings', noteDE:'hast beide Positionen behalten' }
     },
+    // Legacy alias for any events stored before the rename
     'ch9:review': {
       sell_winner: { dim:DIM.REVIEW, level:'sold_gain', note:'sold a holding standing at a gain', noteDE:'hast eine Position im Gewinn verkauft' },
       sell_loser:  { dim:DIM.REVIEW, level:'sold_loss', note:'sold a holding standing at a loss', noteDE:'hast eine Position im Verlust verkauft' },
       hold_both:   { dim:DIM.REVIEW, level:'held_both', note:'held both holdings', noteDE:'hast beide Positionen behalten' }
+    },
+    // Chapter 9 prospects trial — forward prospects differ, so disposition
+    // cannot be inferred; this trial is excluded from the gain/loss count.
+    // scenarioId matches Chapters.js resolveCh9: 'ch9:prospects_differ'.
+    'ch9:prospects_differ': {
+      sell_weaker:   { dim:DIM.PROSPECTS, level:'sold_weaker',   note:'sold the holding with the weaker outlook', noteDE:'hast die Position mit den schwächeren Aussichten verkauft' },
+      sell_stronger: { dim:DIM.PROSPECTS, level:'sold_stronger', note:'sold the holding with the stronger outlook', noteDE:'hast die Position mit den besseren Aussichten verkauft' }
+    },
+    // Legacy alias for any events stored before the rename
+    'ch9:prospects': {
+      sell_weaker:   { dim:DIM.PROSPECTS, level:'sold_weaker',   note:'sold the holding with the weaker outlook', noteDE:'hast die Position mit den schwächeren Aussichten verkauft' },
+      sell_stronger: { dim:DIM.PROSPECTS, level:'sold_stronger', note:'sold the holding with the stronger outlook', noteDE:'hast die Position mit den besseren Aussichten verkauft' }
     }
   };
 
@@ -238,8 +269,9 @@
     const informative   = revisions.filter(function (e){ return e.evidenceInformative === true; }).length;
     const uninformative = revisions.filter(function (e){ return e.evidenceInformative === false; }).length;
 
-    // Scenarios where an optional report was on offer and a decision was made
-    const OFFERED = ['ch2:setback','ch5:boom','ch6:delegation','ch7:news'];
+    // Scenarios where an optional report was on offer and a decision was made.
+    // 'ch7:headlines' is the canonical form; 'ch7:news' is kept for legacy events.
+    const OFFERED = ['ch2:setback','ch5:boom','ch6:delegation','ch7:headlines','ch7:news'];
     const offeredIn = {};
     events.forEach(function (e) {
       if (OFFERED.indexOf(e.scenarioId) !== -1 && META_ACTIONS.indexOf(e.action) === -1)
