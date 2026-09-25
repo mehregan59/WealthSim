@@ -55,8 +55,80 @@ class GameScene extends Phaser.Scene {
 
     this.cameras.main.setBackgroundColor('#0d1f12');
 
-    this.tutorial.show('intro', () => {
-      this._startLevel(1);
+    this._drawCityBoundary();
+
+    // Fade from black then show city name before starting
+    this.cameras.main.fadeIn(800, 0, 0, 0);
+    this.time.delayedCall(900, () => this._introSequence());
+  }
+
+  _drawCityBoundary(){
+    // Compute centroid of all district positions
+    const pts = this.districts.map(d => ({ x: d.x || d.container && d.container.x || 0, y: d.y || d.container && d.container.y || 0 }));
+    // Use fixed district x values from defs since District objects may store differently
+    const dxs = [this.s(260), this.s(510), this.s(780), this.s(1020)];
+    const dys = [this.groundY - this.s(60), this.groundY - this.s(50), this.groundY - this.s(80), this.groundY - this.s(55)];
+    const cx = dxs.reduce((a,v) => a+v, 0) / dxs.length;
+    const cy = dys.reduce((a,v) => a+v, 0) / dys.length;
+    const rx = (dxs[dxs.length-1] - dxs[0]) / 2 + this.s(120);
+    const ry = this.s(145);
+    const N = 32;
+    // Build wobbled ellipse, clamped so top never rises above sky layer
+    const clampTop = this.s(60);
+    const outer = [], inner = [];
+    for (let i = 0; i < N; i++) {
+      const angle = (i / N) * Math.PI * 2;
+      const wobble = 1 + 0.08 * Math.sin(angle * 3 + 0.7) + 0.05 * Math.cos(angle * 5);
+      const ox = cx + Math.cos(angle) * rx * wobble * 1.08;
+      const oy = Math.max(clampTop, cy + Math.sin(angle) * ry * wobble * 1.08);
+      const ix = cx + Math.cos(angle) * rx * wobble * 0.96;
+      const iy = Math.max(clampTop, cy + Math.sin(angle) * ry * wobble * 0.96);
+      outer.push({ x: ox, y: oy });
+      inner.push({ x: ix, y: iy });
+    }
+    const boundary = this.add.graphics().setDepth(-3);
+    // Outer thick ring — gold, semi-transparent
+    boundary.lineStyle(3, 0xe2a840, 0.22);
+    boundary.beginPath();
+    outer.forEach((p, i) => i === 0 ? boundary.moveTo(p.x, p.y) : boundary.lineTo(p.x, p.y));
+    boundary.closePath(); boundary.strokePath();
+    // Inner faint ring — teal
+    boundary.lineStyle(1.2, 0x4adfbb, 0.13);
+    boundary.beginPath();
+    inner.forEach((p, i) => i === 0 ? boundary.moveTo(p.x, p.y) : boundary.lineTo(p.x, p.y));
+    boundary.closePath(); boundary.strokePath();
+  }
+
+  _introSequence(){
+    const de = this.de();
+    const cityLabel = de
+      ? (this.cityName + ' erwartet dich.')
+      : (this.cityName + ' awaits.');
+    const cx = this.PANEL + (this.W - this.PANEL) / 2;
+    const cy = this.H / 2 - this.s(20);
+    // Full-screen dim for the intro moment
+    const dim = this.add.graphics().setDepth(50);
+    dim.fillStyle(0x02060c, 0.75); dim.fillRect(0, 0, this.W, this.H);
+    const title = this.add.text(cx, cy, cityLabel, {
+      fontFamily: 'Playfair Display, Georgia, serif',
+      fontSize: this.s(34) + 'px',
+      color: '#e2a840',
+      alpha: 0,
+    }).setOrigin(0.5).setDepth(51).setAlpha(0);
+    const sub = this.add.text(cx, cy + this.s(44), de ? 'Deine Stadt, deine Entscheidungen.' : 'Your city. Your decisions.', {
+      fontFamily: 'Inter, Arial, sans-serif',
+      fontSize: this.s(15) + 'px',
+      color: '#8aaac4',
+    }).setOrigin(0.5).setDepth(51).setAlpha(0);
+    this.tweens.add({ targets: [dim, title, sub], alpha: { from: 0, to: 1 }, duration: 600 });
+    this.time.delayedCall(2000, () => {
+      this.tweens.add({
+        targets: [dim, title, sub], alpha: 0, duration: 500,
+        onComplete: () => {
+          dim.destroy(); title.destroy(); sub.destroy();
+          this.tutorial.showBriefing(() => this._startLevel(1));
+        }
+      });
     });
   }
 
@@ -803,34 +875,79 @@ class GameScene extends Phaser.Scene {
   // ─── UI helpers ──────────────────────────────────────────────────────────
   _showDecisionPanel(opts, cb){
     this._clearDecisionPanel();
-    const de = this.de();
-    const panelW = this.PANEL;
-    const panelH = opts.length * this.s(70) + this.s(20);
-    const x = this.s(16), y = (this.H - panelH) / 2;
-    const bg = this.add.graphics().setDepth(20);
-    bg.fillStyle(0x1a2e20, 0.97); bg.fillRoundedRect(x, y, panelW, panelH, this.s(10));
-    bg.lineStyle(1.5, 0x4aaa5c, 0.5); bg.strokeRoundedRect(x, y, panelW, panelH, this.s(10));
-    const buttons = opts.map((opt, i) => {
-      const by = y + this.s(10) + i * this.s(70);
-      const btn = this.add.graphics().setDepth(21).setInteractive(
-        new Phaser.Geom.Rectangle(x, by, panelW, this.s(64)), Phaser.Geom.Rectangle.Contains
-      );
-      btn.fillStyle(opt.color || 0x2a6e3c, 0.9); btn.fillRoundedRect(x+2, by+2, panelW-4, this.s(60), this.s(6));
-      this.add.text(x + this.s(8), by + this.s(8), (opt.icon||'') + ' ' + opt.label, {
-        fontSize: this.s(14)+'px', color:'#fff', fontFamily:'Arial', fontStyle:'bold',
-      }).setDepth(22);
-      if (opt.desc) this.add.text(x + this.s(8), by + this.s(28), opt.desc, {
-        fontSize: this.s(11)+'px', color:'#ccc', fontFamily:'Arial', wordWrap:{ width: panelW - this.s(16) },
-      }).setDepth(22);
-      btn.on('pointerup', () => {
+    // Horizontal card row at the bottom of the play area (right of left panel)
+    const n = opts.length;
+    const areaW = this.W - this.PANEL;
+    const gap = this.s(12);
+    const btnW = Math.min(this.s(200), Math.floor((areaW - gap * (n + 1)) / n));
+    const btnH = this.s(110);
+    const rowY = this.H - btnH - this.s(18);
+    const totalW = n * btnW + (n - 1) * gap;
+    const startX = this.PANEL + (areaW - totalW) / 2;
+
+    // Dim strip behind the cards
+    const dimStrip = this.add.graphics().setDepth(19);
+    dimStrip.fillStyle(0x02060c, 0.65);
+    dimStrip.fillRect(this.PANEL, rowY - this.s(12), areaW, btnH + this.s(30));
+
+    const allObjs = [dimStrip];
+
+    opts.forEach((opt, i) => {
+      const bx = startX + i * (btnW + gap);
+      const by = rowY;
+      const baseColor = opt.color || 0x0e2a3a;
+      const hoverColor = 0x1a4a60;
+
+      const card = this.add.graphics().setDepth(20);
+      const drawCard = (hover) => {
+        card.clear();
+        card.fillStyle(hover ? hoverColor : baseColor, 0.97);
+        card.fillRoundedRect(bx, by, btnW, btnH, this.s(10));
+        card.lineStyle(hover ? 2 : 1.5, hover ? 0xe2a840 : 0x2a6a8a, hover ? 0.9 : 0.5);
+        card.strokeRoundedRect(bx, by, btnW, btnH, this.s(10));
+        // Gold top bar
+        card.fillStyle(0xe2a840, hover ? 0.9 : 0.5);
+        card.fillRect(bx + this.s(10), by, btnW - this.s(20), this.s(3));
+      };
+      drawCard(false);
+
+      // Icon
+      if (opt.icon) {
+        const ico = this.add.text(bx + btnW / 2, by + this.s(18), opt.icon, {
+          fontSize: this.s(20) + 'px', color: '#e2c87a',
+        }).setOrigin(0.5, 0).setDepth(21);
+        allObjs.push(ico);
+      }
+      // Label
+      const lbl = this.add.text(bx + btnW / 2, by + (opt.icon ? this.s(44) : this.s(24)), opt.label, {
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontSize: this.s(13) + 'px',
+        color: '#e8f0f8', fontStyle: 'bold',
+        align: 'center', wordWrap: { width: btnW - this.s(16) },
+      }).setOrigin(0.5, 0).setDepth(21);
+      allObjs.push(lbl);
+      // Description
+      if (opt.desc) {
+        const dsc = this.add.text(bx + btnW / 2, by + (opt.icon ? this.s(68) : this.s(50)), opt.desc, {
+          fontFamily: 'Inter, Arial, sans-serif',
+          fontSize: this.s(10) + 'px',
+          color: '#8aaabf', align: 'center', wordWrap: { width: btnW - this.s(16) },
+        }).setOrigin(0.5, 0).setDepth(21);
+        allObjs.push(dsc);
+      }
+
+      const hit = this.add.rectangle(bx + btnW/2, by + btnH/2, btnW, btnH, 0xffffff, 0)
+        .setDepth(22).setInteractive({ useHandCursor: true });
+      hit.on('pointerover', () => drawCard(true));
+      hit.on('pointerout',  () => drawCard(false));
+      hit.on('pointerdown', () => {
         this._clearDecisionPanel();
         cb(opt.value);
       });
-      btn.on('pointerover', () => { btn.clear(); btn.fillStyle(0xffffff,0.15); btn.fillRoundedRect(x+2,by+2,panelW-4,this.s(60),this.s(6)); });
-      btn.on('pointerout',  () => { btn.clear(); btn.fillStyle(opt.color||0x2a6e3c,0.9); btn.fillRoundedRect(x+2,by+2,panelW-4,this.s(60),this.s(6)); });
-      return btn;
+      allObjs.push(card, hit);
     });
-    this.decisionPanel = { bg, buttons, objects: [bg, ...buttons] };
+
+    this.decisionPanel = { objects: allObjs };
     if (!this._panelIntroShown) {
       this._panelIntroShown = true;
       this.statsPanel.introHighlight && this.statsPanel.introHighlight(() => {});
@@ -847,31 +964,61 @@ class GameScene extends Phaser.Scene {
     this._clearConsequence();
     const auto = opts && opts.auto;
     const delay = (opts && opts.autoDelay) || 2000;
-    const panelW = this.W - this.PANEL - this.s(32);
-    const x = this.PANEL + this.s(16);
-    const bg = this.add.graphics().setDepth(15);
-    bg.fillStyle(0x111d14, 0.93); bg.fillRoundedRect(x, this.s(460), panelW, this.s(200), this.s(10));
-    const lines = text.split('\n');
-    const textObjs = lines.map((line, i) =>
-      this.add.text(x + this.s(16), this.s(478) + i * this.s(26), line, {
-        fontSize: this.s(14) + 'px', color: '#d4f0d4', fontFamily: 'Arial',
-        wordWrap: { width: panelW - this.s(32) },
-      }).setDepth(16)
-    );
-    const objects = [bg, ...textObjs];
+    const de = this.de();
+
+    const objects = [];
+
+    // Full-screen dim
+    const dim = this.add.graphics().setDepth(28);
+    dim.fillStyle(0x02060c, 0.88); dim.fillRect(0, 0, this.W, this.H);
+    objects.push(dim);
+
+    // Consequence card — centred in play area
+    const panelW = Math.min(this.s(600), this.W - this.PANEL - this.s(60));
+    const cx = this.PANEL + (this.W - this.PANEL) / 2;
+    const textNode = this.add.text(cx, 0, text, {
+      fontFamily: 'Playfair Display, Georgia, serif',
+      fontSize: this.s(17) + 'px', color: '#c8dcee',
+      align: 'center', lineSpacing: this.s(6),
+      wordWrap: { width: panelW - this.s(60) },
+    }).setOrigin(0.5, 0).setDepth(30);
+
+    const pad = this.s(28);
+    const panelH = pad * 2 + textNode.height + this.s(auto ? 20 : 120);
+    const py = (this.H - panelH) / 2 - this.s(20);
+    const px = cx - panelW / 2;
+
+    const card = this.add.graphics().setDepth(29);
+    card.fillStyle(0x08131f, 0.98); card.fillRoundedRect(px, py, panelW, panelH, this.s(14));
+    card.lineStyle(1.5, 0xe2a840, 0.5); card.strokeRoundedRect(px, py, panelW, panelH, this.s(14));
+    card.fillStyle(0xe2a840, 0.8); card.fillRect(px, py, panelW, this.s(3));
+
+    textNode.setPosition(cx, py + pad);
+    objects.push(card, textNode);
+
     if (!auto) {
-      const btn = this.add.text(x + panelW - this.s(80), this.s(630),
-        this.de() ? '▶ Weiter' : '▶ Next', {
-          fontSize: this.s(14)+'px', color:'#6af0a0', fontFamily:'Arial',
-          backgroundColor: '#1a4e2a', padding:{ x:this.s(8), y:this.s(4) },
-        }).setDepth(17).setInteractive().on('pointerup', () => {
-          this._clearConsequence();
-          if (cont) cont();
-        });
-      objects.push(btn);
+      // WorldButton continue
+      const wbX = cx, wbY = py + panelH - this.s(60);
+      const wb = new WorldButton(this, wbX, wbY, de ? 'Weiter →' : 'Continue →', () => {
+        this._clearConsequence();
+        if (cont) cont();
+      });
+      wb.container.setDepth(35);
+      this._consequenceWorldBtn = wb;
+
+      // Retry level (small, bottom-right of card)
+      const retryTxt = this.add.text(px + panelW - this.s(14), py + panelH - this.s(10),
+        de ? '↩ Nochmal' : '↩ Retry level', {
+          fontFamily: 'Inter, Arial, sans-serif', fontSize: this.s(11) + 'px', color: '#4a6a8c',
+        }).setOrigin(1, 1).setDepth(31).setInteractive({ useHandCursor: true });
+      retryTxt.on('pointerover', () => retryTxt.setColor('#8aaacc'));
+      retryTxt.on('pointerout',  () => retryTxt.setColor('#4a6a8c'));
+      retryTxt.on('pointerdown', () => this._retryLevel());
+      objects.push(retryTxt);
     } else {
       this.time.delayedCall(delay, () => { this._clearConsequence(); if (cont) cont(); });
     }
+
     this.consequencePanel = { objects };
   }
 
@@ -879,6 +1026,7 @@ class GameScene extends Phaser.Scene {
     if (!this.consequencePanel) return;
     this.consequencePanel.objects.forEach(o => o && o.destroy && o.destroy());
     this.consequencePanel = null;
+    if (this._consequenceWorldBtn) { try { this._consequenceWorldBtn.destroy(); } catch(e) {} this._consequenceWorldBtn = null; }
   }
 
   _buildWorldBtn(label, cb){
