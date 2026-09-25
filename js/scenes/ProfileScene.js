@@ -49,7 +49,7 @@ class ProfileScene extends Phaser.Scene {
       'Du hast den Boom navigiert, den Sturm überstanden und Entscheidungen\ngetroffen, die deine Bürger vorangebracht haben.',
       'Jede Entscheidung hat gezeigt, wie du in diesen Situationen\ngeplant und reagiert hast.'
     ] : [
-      'Take a look at the city you\u2019ve built.',
+      'Take a look at the city you’ve built.',
       'You navigated the boom, weathered the storm, and made choices\nto keep your citizens moving forward.',
       'Every decision showed how you planned and responded\nin these particular situations.'
     ];
@@ -62,24 +62,30 @@ class ProfileScene extends Phaser.Scene {
         align:'center', lineSpacing:this.s(9), wordWrap:{width:Math.min(this.s(900),W-this.s(120))}
       }).setOrigin(0.5).setDepth(100).setAlpha(0);
       objs.push(t);
-      this.tweens.add({targets:t,alpha:1,y:t.y-this.s(9),duration:1400,delay:600+i*2600,ease:'Sine.easeOut'});
+      this.tweens.add({targets:t,alpha:1,y:t.y-this.s(9),duration:1200,delay:500+i*1600,ease:'Sine.easeOut'});
     });
-    const totalIn = 600 + (lines.length-1)*2600 + 1400;
+    const totalIn = 500 + (lines.length-1)*1600 + 1200;
     const trans=this.add.text(W/2, H/2+this.s(150), de
       ? 'Hier ist, was in dieser Sitzung tatsächlich passiert ist.'
       : 'Here is what actually happened in this session.', {
       fontFamily:'Inter, Arial, sans-serif', fontSize:this.s(16), color:'#96b0c8', fontStyle:'italic'
     }).setOrigin(0.5).setDepth(100).setAlpha(0);
-    this.tweens.add({targets:trans,alpha:1,duration:1300,delay:totalIn+700});
+    this.tweens.add({targets:trans,alpha:1,duration:1000,delay:totalIn+500});
 
     const go=()=>{ objs.forEach(o=>{try{o.destroy();}catch(e){}}); try{trans.destroy();}catch(e){}
-                   try{skip.destroy();}catch(e){} this._dashboard(); };
-    this.curtainTimer=this.time.delayedCall(totalIn+3800,()=>{
-      this.tweens.add({targets:objs.concat([trans]),alpha:0,duration:1200,onComplete:go});
+                   try{skip.destroy();}catch(e){} try{skipBg.destroy();}catch(e){} this._dashboard(); };
+    this.curtainTimer=this.time.delayedCall(totalIn+2000,()=>{
+      this.tweens.add({targets:objs.concat([trans]),alpha:0,duration:800,onComplete:go});
     });
-    const skip=this.add.text(W-this.s(30),H-this.s(26),de?'Überspringen \u203A':'Skip \u203A',{
-      fontFamily:'Inter, Arial, sans-serif',fontSize:this.s(14),color:'#6b8fb0'
-    }).setOrigin(1,0.5).setDepth(120).setInteractive({useHandCursor:true});
+    const skipBg=this.add.graphics().setDepth(120);
+    const skipW=this.s(180), skipH=this.s(40), skipX=W/2-skipW/2, skipY=H-this.s(62);
+    skipBg.fillStyle(0xe2a840,0.12); skipBg.fillRoundedRect(skipX,skipY,skipW,skipH,this.s(10));
+    skipBg.lineStyle(1,0xe2a840,0.5); skipBg.strokeRoundedRect(skipX,skipY,skipW,skipH,this.s(10));
+    const skip=this.add.text(W/2,skipY+skipH/2,de?'Überspringen →':'Skip to results →',{
+      fontFamily:'Inter, Arial, sans-serif',fontSize:this.s(15),color:'#e2a840',fontStyle:'600'
+    }).setOrigin(0.5).setDepth(121).setInteractive({useHandCursor:true});
+    skip.on('pointerover',()=>{ skip.setColor('#fff6d6'); skipBg.clear(); skipBg.fillStyle(0xe2a840,0.28); skipBg.fillRoundedRect(skipX,skipY,skipW,skipH,this.s(10)); skipBg.lineStyle(1,0xe2a840,0.9); skipBg.strokeRoundedRect(skipX,skipY,skipW,skipH,this.s(10)); });
+    skip.on('pointerout', ()=>{ skip.setColor('#e2a840'); skipBg.clear(); skipBg.fillStyle(0xe2a840,0.12); skipBg.fillRoundedRect(skipX,skipY,skipW,skipH,this.s(10)); skipBg.lineStyle(1,0xe2a840,0.5); skipBg.strokeRoundedRect(skipX,skipY,skipW,skipH,this.s(10)); });
     skip.on('pointerdown',()=>{ this.tweens.killAll(); if(this.curtainTimer)this.curtainTimer.remove(); go(); });
     this.input.keyboard.once('keydown-SPACE',()=>{ this.tweens.killAll(); if(this.curtainTimer)this.curtainTimer.remove(); go(); });
   }
@@ -150,7 +156,7 @@ class ProfileScene extends Phaser.Scene {
     if (sm.comparison.length) {
       this._h(de?'Was du gesagt hast und was du getan hast':'What you said and what you did');
       sm.comparison.forEach(c=>{
-        this._bullet(c.label+':  '+(de?'gesagt ':'said ')+'"'+c.stated+'"  ·  '+
+        this._bullet(c.label+':  '+(de?'gesagt ':'said ')'"'+c.stated+'"  ·  '+
                      (de?'beobachtet ':'observed ')+c.observed.join(', ').replace(/_/g,' '));
         this._note(c.note, this.s(22));
       });
@@ -192,7 +198,7 @@ class ProfileScene extends Phaser.Scene {
     this._h(de?'Über diese Auswertung':'About this summary');
     this._p(sm.disclaimer);
     this._note(de ? 'Die Szenarien sind von Forschung zu Risikoentscheidungen, Zeitpräferenz, Verlustrealisierung und Prognosegenauigkeit inspiriert. Keine dieser Studien validiert die Werte dieses Spiels.'
-                  : 'The scenarios are inspired by research on risk choices, time preference, realising losses, and forecast accuracy. None of those studies validates this game\u2019s results.');
+                  : 'The scenarios are inspired by research on risk choices, time preference, realising losses, and forecast accuracy. None of those studies validates this game’s results.');
 
     this._playAgain();
     this._finishScroll(headH);
@@ -298,6 +304,7 @@ class ProfileScene extends Phaser.Scene {
     const hit=this._add(this.add.rectangle(this.W/2,by+bH/2,bW,bH,0xffffff,0).setInteractive({useHandCursor:true}));
     hit.on('pointerup',()=>{ if(this._dragged) return;
       if(typeof ScoringEngine!=='undefined') ScoringEngine.reset();
+      if(typeof Tutorial!=='undefined') Tutorial.skipAll=false;
       this.scene.start('PlayerSetup'); });
     this.y += bH + this.s(40);
   }

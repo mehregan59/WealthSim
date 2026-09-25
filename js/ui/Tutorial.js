@@ -8,24 +8,28 @@ class Tutorial {
     // where things appear) rather than assuming the player already knows
     // the controls.
     const EN = {
-      1:{t:'How to play',        b:'Four districts sit in front of you \u2014 together they make up your city. Tap directly on the one you want to build first to select it and start construction there.\nThere is no wrong answer \u2014 pick what feels right.'},
+      1:{t:'How to play',        b:'Four districts sit in front of you — together they make up your city. Tap directly on the one you want to build first to select it and start construction there.\nThere is no wrong answer — pick what feels right.'},
       2:{t:'Something changed',  b:'A district lost value. Read what happened, then tap one of the options at the bottom of the screen to decide how the city responds.\nHover any district to see what it represents.'},
-      3:{t:'Spread or focus',    b:'Six glowing cubes of funding will appear near the bottom-left of the screen. Drag each one \u2014 press, hold, and move it \u2014 onto any district to invest there. You must place all six before you can continue.\nWatch the DISTRICT PERFORMANCE list on the left panel \u2014 it shows how each district is doing as you go.'},
+      3:{t:'Spread or focus',    b:'Six glowing cubes of funding will appear near the bottom-left of the screen. Drag each one — press, hold, and move it — onto any district to invest there. You must place all six before you can continue.\nWatch the DISTRICT PERFORMANCE list on the left panel — it shows how each district is doing as you go.'},
       4:{t:'Now or later',       b:'Two buildings are shown at the bottom of the screen. Tap the one you want to build. One choice pays off immediately; the other pays off much later.\nWhichever you pick will matter again before the game ends.'},
       5:{t:'Everyone is excited',b:'One district is booming and headlines are scrolling across the top of the screen.\nTap one of the four responses at the bottom to decide whether to follow the crowd or hold your position.'},
-      6:{t:'A visitor arrives',  b:'A delegation is driving in from a neighbouring city carrying an offer of investment.\nYou can tap Research first to learn more \u2014 that costs nothing, and you still choose afterwards from the same options.'},
+      6:{t:'A visitor arrives',  b:'A delegation is driving in from a neighbouring city carrying an offer of investment.\nYou can tap Research first to learn more — that costs nothing, and you still choose afterwards from the same options.'},
       7:{t:'Loud headlines',     b:'Reports are scrolling across the top of the screen. Tapping Read report is free and costs you nothing.\nAfter reading, you still tap one of the other options to decide what the city actually does.'},
-      8:{t:'The storm',          b:'Every district is hit \u2014 you cannot prevent it. Once it passes, tap one of the response options at the bottom of the screen to decide what mattered most to protect.'}
+      8:{t:'The storm',          b:'Every district is hit — you cannot prevent it. Once it passes, tap one of the response options at the bottom of the screen to decide what mattered most to protect.'},
+      9:{t:'The project review',  b:'Two investment projects are shown side by side. Both carry uncertainty — one has performed better so far, the other has not. Tap the one you want to sell.\n\nYou will see ten pairs. Your pattern across all ten matters more than any single choice.'},
+     10:{t:'Forecasts and practice',b:'A short round of practice decisions. Each one shows you a scenario — tap the option that feels right.\n\nAfterwards, a chart shows how the city’s main indicators moved across all ten chapters.'}
     };
     const DE = {
-      1:{t:'So wird gespielt',   b:'Vier Stadtteile liegen vor dir \u2014 zusammen bilden sie deine Stadt. Tippe direkt auf den, den du zuerst bauen willst, um ihn auszuw\u00e4hlen.\nEs gibt keine falsche Antwort.'},
-      2:{t:'Etwas hat sich ge\u00e4ndert',b:'Ein Stadtteil hat an Wert verloren. Tippe unten auf eine der Optionen, um zu entscheiden, wie die Stadt reagiert.'},
-      3:{t:'Streuen oder b\u00fcndeln',b:'Sechs leuchtende W\u00fcrfel erscheinen unten links. Ziehe jeden einzeln \u2014 dr\u00fccken, halten, bewegen \u2014 auf einen Stadtteil. Alle sechs m\u00fcssen platziert werden, bevor es weitergeht.\nDie Leiste links zeigt, wie jeder Stadtteil sich entwickelt.'},
-      4:{t:'Jetzt oder sp\u00e4ter',b:'Zwei Geb\u00e4ude stehen unten zur Auswahl. Tippe auf das, das du bauen willst. Eine Wahl zahlt sich sofort aus, die andere viel sp\u00e4ter.'},
-      5:{t:'Alle sind begeistert',b:'Ein Stadtteil boomt und Schlagzeilen laufen oben \u00fcber den Bildschirm.\nTippe unten auf eine der vier Optionen \u2014 folgst du der Menge oder h\u00e4ltst du deine Position?'},
-      6:{t:'Besuch kommt an',    b:'Eine Delegation bringt ein Investitionsangebot aus einer Nachbarstadt.\nTippe auf Nachfragen, um kostenlos mehr zu erfahren \u2014 du entscheidest danach trotzdem aus denselben Optionen.'},
-      7:{t:'Laute Schlagzeilen', b:'Berichte laufen oben \u00fcber den Bildschirm. Den Bericht zu lesen ist kostenlos.\nDanach tippst du trotzdem auf eine der anderen Optionen, um zu entscheiden, was die Stadt tut.'},
-      8:{t:'Der Sturm',          b:'Jeder Stadtteil wird getroffen \u2014 du kannst es nicht verhindern. Danach tippst du unten auf eine Option, um zu entscheiden, was dir am wichtigsten war zu sch\u00fctzen.'}
+      1:{t:'So wird gespielt',   b:'Vier Stadtteile liegen vor dir — zusammen bilden sie deine Stadt. Tippe direkt auf den, den du zuerst bauen willst, um ihn auszuwählen.\nEs gibt keine falsche Antwort.'},
+      2:{t:'Etwas hat sich geändert',b:'Ein Stadtteil hat an Wert verloren. Tippe unten auf eine der Optionen, um zu entscheiden, wie die Stadt reagiert.'},
+      3:{t:'Streuen oder bündeln',b:'Sechs leuchtende Würfel erscheinen unten links. Ziehe jeden einzeln — drücken, halten, bewegen — auf einen Stadtteil. Alle sechs müssen platziert werden, bevor es weitergeht.\nDie Leiste links zeigt, wie jeder Stadtteil sich entwickelt.'},
+      4:{t:'Jetzt oder später',b:'Zwei Gebäude stehen unten zur Auswahl. Tippe auf das, das du bauen willst. Eine Wahl zahlt sich sofort aus, die andere viel später.'},
+      5:{t:'Alle sind begeistert',b:'Ein Stadtteil boomt und Schlagzeilen laufen oben über den Bildschirm.\nTippe unten auf eine der vier Optionen — folgst du der Menge oder hältst du deine Position?'},
+      6:{t:'Besuch kommt an',    b:'Eine Delegation bringt ein Investitionsangebot aus einer Nachbarstadt.\nTippe auf Nachfragen, um kostenlos mehr zu erfahren — du entscheidest danach trotzdem aus denselben Optionen.'},
+      7:{t:'Laute Schlagzeilen', b:'Berichte laufen oben über den Bildschirm. Den Bericht zu lesen ist kostenlos.\nDanach tippst du trotzdem auf eine der anderen Optionen, um zu entscheiden, was die Stadt tut.'},
+      8:{t:'Der Sturm',          b:'Jeder Stadtteil wird getroffen — du kannst es nicht verhindern. Danach tippst du unten auf eine Option, um zu entscheiden, was dir am wichtigsten war zu schützen.'},
+      9:{t:'Projektüberprüfung',      b:'Zwei Investitionsprojekte werden nebeneinander gezeigt. Tippe auf das, das du verkaufen möchtest.\n\nDu siehst zehn Paare. Dein Muster über alle zehn ist wichtiger als jede einzelne Entscheidung.'},
+     10:{t:'Prognosen & Übung',       b:'Eine kurze Runde Übungsentscheidungen. Jede zeigt dir ein Szenario — tippe die Option, die sich richtig anfühlt.\n\nDanach zeigt ein Diagramm, wie sich die Kennzahlen der Stadt über alle zehn Kapitel entwickelt haben.'}
     };
     return (de?DE:EN)[level] || null;
   }
@@ -40,27 +44,27 @@ class Tutorial {
   static briefing(de) {
     if (de) return [
       {t:'Willkommen',
-       b:'Dir wurde gerade eine wachsende Stadt \u00fcbergeben \u2014 nicht die Stadt, in der du lebst, sondern eine neue, die vollst\u00e4ndig durch deine Entscheidungen hier entsteht.\n\nJeder Stadtteil, jede Baustelle, jede Wahl geh\u00f6rt dir.'},
+       b:'Dir wurde gerade eine wachsende Stadt übergeben — nicht die Stadt, in der du lebst, sondern eine neue, die vollständig durch deine Entscheidungen hier entsteht.\n\nJeder Stadtteil, jede Baustelle, jede Wahl gehört dir.'},
       {t:'Ein paar kurze Fragen',
-       b:'Gleich stellen wir dir ein paar kurze Fragen zu dir. Sie ver\u00e4ndern das Spiel nicht \u2014 sie helfen uns nur, das, was du am Ende siehst, etwas pers\u00f6nlicher zu machen.'},
+       b:'Gleich stellen wir dir ein paar kurze Fragen zu dir. Sie verändern das Spiel nicht — sie helfen uns nur, das, was du am Ende siehst, etwas persönlicher zu machen.'},
       {t:'Deine Seitenleiste',
-       b:'Links siehst du immer den Zustand deiner Stadt: Zufriedenheit, Wachstum und Mittel.\n\nDarunter zeigt ein Diagramm, wie sich diese Werte \u00fcber die Level entwickeln, und eine Leiste, wie gut jeder einzelne Stadtteil l\u00e4uft. Schau jederzeit hinein.'},
+       b:'Links siehst du immer den Zustand deiner Stadt: Zufriedenheit, Wachstum und Mittel.\n\nDarunter zeigt ein Diagramm, wie sich diese Werte über die Level entwickeln, und eine Leiste, wie gut jeder einzelne Stadtteil läuft. Schau jederzeit hinein.'},
       {t:'Ein Hinweis zur Zeit',
-       b:'In einigen Leveln beginnen Ereignisse zu laufen, sobald sie erscheinen \u2014 Nachrichten scrollen, ein Sturm zieht auf.\n\nEs gibt keinen Countdown. Nimm dir die Zeit, die du brauchst.'},
+       b:'In einigen Leveln beginnen Ereignisse zu laufen, sobald sie erscheinen — Nachrichten scrollen, ein Sturm zieht auf.\n\nEs gibt keinen Countdown. Nimm dir die Zeit, die du brauchst.'},
       {t:'Bleib dran',
-       b:'Jede Entscheidung baut auf der vorherigen auf. Bleib bis zum letzten Kapitel dabei \u2014 am Ende wartet ein Blick auf die Stadt, die du gebaut hast.'}
+       b:'Jede Entscheidung baut auf der vorherigen auf. Bleib bis zum letzten Kapitel dabei — am Ende wartet ein Blick auf die Stadt, die du gebaut hast.'}
     ];
     return [
       {t:'Welcome',
-       b:'You\u2019ve just been handed a growing city \u2014 not the city you live in, but a new one, built entirely through the choices you make here.\n\nEvery district, every building site, every decision belongs to you.'},
+       b:'You’ve just been handed a growing city — not the city you live in, but a new one, built entirely through the choices you make here.\n\nEvery district, every building site, every decision belongs to you.'},
       {t:'A few quick questions',
-       b:'In a moment we\u2019ll ask a few short questions about you. They don\u2019t change the game \u2014 they just help make what you see at the end a little more personal.'},
+       b:'In a moment we’ll ask a few short questions about you. They don’t change the game — they just help make what you see at the end a little more personal.'},
       {t:'Your side panel',
        b:'The panel on the left always shows the state of your city: happiness, growth and funds.\n\nBelow that, a chart tracks how those move across levels, and a performance list shows how each individual district is doing. Check it any time.'},
       {t:'A note about timing',
-       b:'In some levels events start running the moment they appear \u2014 headlines scroll, a storm rolls in.\n\nThere is no countdown. Take whatever time you need to decide.'},
+       b:'In some levels events start running the moment they appear — headlines scroll, a storm rolls in.\n\nThere is no countdown. Take whatever time you need to decide.'},
       {t:'Stick with it',
-       b:'Every decision builds on the last one. Stay with it through the final chapter \u2014 there\u2019s a look back at the city you built waiting at the end.'}
+       b:'Every decision builds on the last one. Stay with it through the final chapter — there’s a look back at the city you built waiting at the end.'}
     ];
   }
 
@@ -73,7 +77,7 @@ class Tutorial {
       const p=pages[idx];
       idx++;
       this._render(p.t, p.b, idx, pages.length,
-        de?(idx>=pages.length?'Los geht\u2019s':'Weiter'):(idx>=pages.length?'Start':'Next'),
+        de?(idx>=pages.length?'Los geht’s':'Weiter'):(idx>=pages.length?'Start':'Next'),
         step, true, false);
     };
     step();
@@ -87,9 +91,9 @@ class Tutorial {
     const de=(typeof currentLang!=='undefined'&&currentLang==='de');
     const c=Tutorial.copy(level,de);
     if(!c){ if(onClose) onClose(); return; }
-    const hint = de ? '\n\nTippe auf Weiter, um diese Anleitung zu schlie\u00dfen und zu beginnen.'
+    const hint = de ? '\n\nTippe auf Weiter, um diese Anleitung zu schließen und zu beginnen.'
                      : '\n\nTap Continue to close this guide and begin.';
-    this._render(c.t, c.b + hint, 0, 0, de?'Weiter \u2192':'Continue \u2192', onClose, false, true);
+    this._render(c.t, c.b + hint, 0, 0, de?'Weiter →':'Continue →', onClose, false, true);
   }
 
   _render(titleTxt, bodyTxt, page, pages, btnLabel, onClose, centred, showSkipLink) {
@@ -137,7 +141,7 @@ class Tutorial {
     if(showSkipLink){
       const de=(typeof currentLang!=='undefined'&&currentLang==='de');
       const skipTxt=this.scene.add.text(bx+bw-this.s(14), by+this.s(14),
-        de?'Anleitungen ausblenden \u2715':'Skip guides \u2715', {
+        de?'Anleitungen ausblenden ✕':'Skip guides ✕', {
         fontFamily:'Inter, Arial, sans-serif', fontSize:this.s(11), color:'#4a6a8c'
       }).setOrigin(1,0).setDepth(133).setInteractive({useHandCursor:true});
       skipTxt.on('pointerover',()=>skipTxt.setColor('#8aaacc'));
