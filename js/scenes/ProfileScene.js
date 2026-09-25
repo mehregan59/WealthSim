@@ -156,7 +156,7 @@ class ProfileScene extends Phaser.Scene {
     if (sm.comparison.length) {
       this._h(de?'Was du gesagt hast und was du getan hast':'What you said and what you did');
       sm.comparison.forEach(c=>{
-        this._bullet(c.label+':  '+(de?'gesagt ':'said ')'"'+c.stated+'"  ·  '+
+        this._bullet(c.label+':  '+(de?'gesagt ':'said ')+String.fromCharCode(34)+c.stated+String.fromCharCode(34)+'  ·  '+
                      (de?'beobachtet ':'observed ')+c.observed.join(', ').replace(/_/g,' '));
         this._note(c.note, this.s(22));
       });
