@@ -74,7 +74,7 @@ class GameScene extends Phaser.Scene {
       { id:'energy',    name:this.de()?'Energie':'Energy',     x:s(1020),y:groundY-s(55),  color:0xe2a840, health:45 },
     ];
     this.districts = defs.map(d => new District(this, d));
-    this.roads.init && this.roads.init(this.districts);
+    this.roads && this.roads.init && this.roads.init(this.districts);
   }
 
   _buildStats(){
