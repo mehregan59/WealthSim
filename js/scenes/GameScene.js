@@ -131,7 +131,7 @@ class GameScene extends Phaser.Scene {
     });
   }
 
-  // ─── helpers ───────────────────────────────────────────────────────────────────────────
+  // ─── helpers ──────────────────────────────────────────────────────────────────────────
   s(n){ return Math.round(n * this.S); }
   de(){ return typeof currentLang!=='undefined' && currentLang==='de'; }
 
@@ -312,8 +312,8 @@ class GameScene extends Phaser.Scene {
     const fmtContract = c =>
       c.outcomes.map(([p, v]) => (Math.round(p * 100) + '% chance of ' + v + ' credits')).join(' / ');
     this._showDecisionPanel([
-      { icon: '🔒', label: 'Contract A', desc: fmtContract(pair.narrow) + '\nMore predictable outcomes.', value: 'narrow', color: 0x4aaa5c },
-      { icon: '🎲', label: 'Contract B', desc: fmtContract(pair.wide)   + '\nHigher potential, higher variance.', value: 'wide',   color: 0x9966cc },
+      { icon: '�퐒', label: 'Contract A', desc: fmtContract(pair.narrow) + '\nMore predictable outcomes.', value: 'narrow', color: 0x4aaa5c },
+      { icon: '🈲', label: 'Contract B', desc: fmtContract(pair.wide)   + '\nHigher potential, higher variance.', value: 'wide',   color: 0x9966cc },
     ], (c) => {
       this._ch1Choices.push(c);
       if (typeof ScoringEngine !== 'undefined')
@@ -327,28 +327,26 @@ class GameScene extends Phaser.Scene {
     });
   }
 
-  // ─── Chapter 2: setback ────────────────────────────────────────────────────────────
+  // ─── Chapter 2: setback ─────────────────────────────────────────────────────────────
   _level2(){
     this._workersLeave();
     const techDistrict = this.districts.find(x => x.id === 'technology');
     if (techDistrict) techDistrict.takeDamage && techDistrict.takeDamage(28);
     this._l2event = this._econ('level2Start');
     this._updateStats(-5, -8, 0);
-    this._collectForecast('f1', () => {
-      this.time.delayedCall(800, () => this._level2Decide(false));
-    });
+    this.time.delayedCall(800, () => this._level2Decide(false));
   }
 
   _level2Decide(hadResearch){
     const de = this.de();
     const opts = [
-      { icon:'❌', label: de?'Abbrechen':'Cancel',       desc: de?'Projekt stoppen.':'Stop the project.',                               value:'cancel',       color:0xe74c3c },
-      { icon:'⏸', label: de?'Abwarten':'Wait',          desc: de?'Weitere Infos abwarten.':'Wait for more information.',               value:'wait',         color:0xe2a840 },
-      { icon:'▶', label: de?'Weitermachen':'Continue',  desc: de?'Trotzdem weiterführen.':'Continue despite the setback.',             value:'continue',     color:0x4aaa5c },
-      { icon:'💰',label: de?'Mehr investieren':'Invest more', desc: de?'Mehr einsetzen.':'Commit additional resources.',               value:'invest_more',  color:0x9966cc },
+      { icon:'❌', label: de?'Abbrechen':'Cancel',       desc: de?'Projekt stoppen.':'Stop the project.',                                          value:'cancel',       color:0xe74c3c },
+      { icon:'⏸', label: de?'Abwarten':'Wait',          desc: de?'Weitere Infos abwarten.':'Wait for more information.',                           value:'wait',         color:0xe2a840 },
+      { icon:'▶', label: de?'Weitermachen':'Continue',  desc: de?'Trotzdem weiterzuführen.':'Continue despite the setback.',                       value:'continue',     color:0x4aaa5c },
+      { icon:'💰',label: de?'Mehr investieren':'Invest more', desc: de?'Mehr einsetzen.':'Commit additional resources.',                       value:'invest_more',  color:0x9966cc },
     ];
     if (!hadResearch)
-      opts.push({ icon:'🔍', label: de?'Untersuchen':'Investigate', desc: de?'Experten befragen.':'Consult experts before deciding.', value:'research',     color:0x5c8ab0 });
+      opts.push({ icon:'�퐍', label: de?'Untersuchen':'Investigate', desc: de?'Experten befragen.':'Consult experts before deciding.', value:'research',     color:0x5c8ab0 });
 
     this._showDecisionPanel(opts, (c) => {
       if (c === 'research') {
@@ -389,6 +387,7 @@ class GameScene extends Phaser.Scene {
   _level3(){
     this.cubeTotal = 6; this.cubeDropped = 0;
     this._clearCubes();
+    this._econ('level3Deposit');
     this._showPersistentMessage(
       this.de() ? '6 Würfel verteilen — dann auf OK klicken.' : 'Distribute 6 cubes across districts — then press OK.'
     );
@@ -419,27 +418,314 @@ class GameScene extends Phaser.Scene {
   }
 
   _finishLevel3(){
-    const ec = this._econ('level3End');
-    const counts = {};
-    this.districts.forEach(d => { counts[d.id] = 0; });
-    if (typeof ScoringEngine !== 'undefined') {
-      ScoringEngine.decisions
-        .filter(d => d.level === 3)
-        .forEach(d => { if (counts[d.value] !== undefined) counts[d.value]++; });
+    const ec = this._econ('level3Done');
+    this._updateStats(3, 5, 0);
+    this._showConsequence(
+      (this.de() ? 'Ressourcen verteilt. Die Stadt wächst!' : 'Resources distributed. The city grows!') + this._yearLine(ec),
+      () => this._nextLevel()
+    );
+  }
+
+  // ─── Chapter 4: time discount ───────────────────────────────────────────────────────────
+  _level4(){
+    const de = this.de();
+    const Ch = window.WS && WS.Chapters;
+    const scenario = Ch ? WS.Chapters.getTimeScenario() : null;
+    const now  = scenario ? scenario.now  : { label: de?'300 jetzt':'300 now',  credits: 300 };
+    const later = scenario ? scenario.later : { label: de?'500 später':'500 later', credits: 500 };
+    this._showDecisionPanel([
+      { icon: '💰', label: de?'Jetzt':'Now',   desc: (de?'Sofortige Gutschrift: ':'Immediate credit: ') + now.label,   value:'now',   color:0xe2a840 },
+      { icon: '🕒', label: de?'Später':'Later', desc: (de?'Spätere Gutschrift: ':'Future credit: ')   + later.label, value:'later', color:0x4aaa5c },
+    ], (c) => {
+      const ec = this._econ('level4', c);
+      ScoringEngine && ScoringEngine.recordDecision(4, c, {
+        phase:'baseline', scenarioId:'ch4:time',
+        trialId: scenario ? scenario.trialId : 'l4main',
+        nowLabel: now.label, laterLabel: later.label,
+      });
+      const msg = c === 'now'
+        ? (de ? 'Sofortige Mittel sichern stadtweite Stabilität.' : 'Immediate funds secure city-wide stability.')
+        : (de ? 'Aufgeschobene Mittel bieten langfristiges Wachstum.' : 'Deferred funds offer long-term growth.');
+      this._updateStats(c === 'now' ? 4 : 2, c === 'now' ? 2 : 6, 0);
+      this._showConsequence(msg + this._yearLine(ec), () => this._nextLevel());
+    });
+  }
+
+  // ─── Chapter 5: boom ───────────────────────────────────────────────────────────────────────────
+  _level5(){
+    const de = this.de();
+    const Ch = window.WS && WS.Chapters;
+    const scenario = Ch ? WS.Chapters.getBoomScenario() : null;
+    const maxGain = scenario ? scenario.maxGain : 800;
+    const safeGain = scenario ? scenario.safeGain : 400;
+    this._showDecisionPanel([
+      { icon: '📊', label: de?'Konservativ':'Conservative', desc: de?('Sicherer Gewinn: '+safeGain+' Credits.'):('Safe gain: '+safeGain+' credits.'),     value:'conservative', color:0x4aaa5c },
+      { icon: '🚀', label: de?'Aggressiv':'Aggressive',     desc: de?('Max. Gewinn: '+maxGain+' Credits.'):('Max gain: '+maxGain+' credits.'),           value:'aggressive',   color:0x9966cc },
+    ], (c) => {
+      const ec = this._econ('level5', c);
+      ScoringEngine && ScoringEngine.recordDecision(5, c, {
+        phase:'baseline', scenarioId:'ch5:boom',
+        trialId: scenario ? scenario.trialId : 'l5main',
+        safeGain, maxGain,
+      });
+      const msg = c === 'aggressive'
+        ? (de ? 'Aggressives Investment zahlt sich aus.' : 'Aggressive investment pays off.')
+        : (de ? 'Konservative Strategie sichert stabile Erträge.' : 'Conservative strategy secures stable returns.');
+      this._updateStats(c === 'aggressive' ? 6 : 3, c === 'aggressive' ? 8 : 4, 0);
+      this._showConsequence(msg + this._yearLine(ec), () => this._nextLevel());
+    });
+  }
+
+  // ─── Chapter 6: outside offer ──────────────────────────────────────────────────────────
+  _level6(){
+    const de = this.de();
+    const Ch = window.WS && WS.Chapters;
+    const scenario = Ch ? WS.Chapters.getOfferScenario() : null;
+    const offerVal = scenario ? scenario.offerVal : 600;
+    const localVal = scenario ? scenario.localVal : 350;
+    this._showDecisionPanel([
+      { icon: '🌍', label: de?'Externes Angebot':'Outside Offer', desc: de?('Externer Anbieter: '+offerVal+' Credits.'):('External provider: '+offerVal+' credits.'), value:'outside', color:0x9966cc },
+      { icon: '🏠', label: de?'Lokal investieren':'Local',          desc: de?('Lokaler Ausbau: '+localVal+' Credits.'):('Local build-out: '+localVal+' credits.'),     value:'local',   color:0x4aaa5c },
+    ], (c) => {
+      const ec = this._econ('level6', c);
+      ScoringEngine && ScoringEngine.recordDecision(6, c, {
+        phase:'baseline', scenarioId:'ch6:offer',
+        trialId: scenario ? scenario.trialId : 'l6main',
+        offerVal, localVal,
+      });
+      const msg = c === 'outside'
+        ? (de ? 'Externes Kapital fließt in die Stadt.' : 'External capital flows into the city.')
+        : (de ? 'Lokale Infrastruktur gestärkt.' : 'Local infrastructure strengthened.');
+      this._updateStats(c === 'outside' ? 4 : 3, c === 'outside' ? 3 : 5, 0);
+      this._showConsequence(msg + this._yearLine(ec), () => this._nextLevel());
+    });
+  }
+
+  // ─── Chapter 7: news ───────────────────────────────────────────────────────────────────────────
+  _level7(){
+    const de = this.de();
+    const Ch = window.WS && WS.Chapters;
+    const scenario = Ch ? WS.Chapters.getNewsScenario() : null;
+    const headline = scenario ? scenario.headline : (de ? 'Steigende Ungleichheit in der Region.' : 'Rising inequality in the region.');
+    const opts = scenario ? scenario.options.map((o,i) => ({
+      icon: ['📺','🗣','🖇','📢'][i] || '○',
+      label: o.label,
+      desc:  o.desc,
+      value: o.value,
+      color: [0x4aaa5c, 0xe2a840, 0x9966cc, 0x5c8ab0][i] || 0x888888,
+    })) : [
+      { icon:'📺', label:de?'Ignorieren':'Ignore',     desc:de?'Keine Reaktion.':'No response.',              value:'ignore',   color:0x888888 },
+      { icon:'🗣', label:de?'Erklären':'Explain',    desc:de?'Sachlich informieren.':'Inform factually.',    value:'explain',  color:0x4aaa5c },
+      { icon:'🖇', label:de?'Gegensteuern':'Redirect', desc:de?'Lenke Aufmerksamkeit um.':'Redirect attention.',value:'redirect', color:0x9966cc },
+      { icon:'📢', label:de?'Handeln':'Act',           desc:de?'Sofort Reformen einleiten.':'Implement reforms immediately.',value:'act',color:0xe2a840 },
+    ];
+    this._showPersistentMessage(de ? 'Schlagzeile: ' + headline : 'Headline: ' + headline);
+    this._showDecisionPanel(opts, (c) => {
+      const ec = this._econ('level7', c);
+      ScoringEngine && ScoringEngine.recordDecision(7, c, {
+        phase:'baseline', scenarioId:'ch7:news',
+        trialId: scenario ? scenario.trialId : 'l7main',
+      });
+      const m = { ignore:'City trust erodes slowly.', explain:'Citizens appreciate transparency.', redirect:'Attention shifts — temporarily.', act:'Swift action boosts confidence.' };
+      const dh = { ignore:-3, explain:2, redirect:1, act:4 }[c] ?? 0;
+      const dd = { ignore:0, explain:1, redirect:0, act:3 }[c] ?? 0;
+      this._clearPersistentMessage();
+      this._updateStats(dh, dd, 0);
+      this._showConsequence((m[c] || '') + this._yearLine(ec), () => this._nextLevel());
+    });
+  }
+
+  // ─── Chapter 8: storm ───────────────────────────────────────────────────────────────────────────
+  _level8(){
+    const de = this.de();
+    const Ch = window.WS && WS.Chapters;
+    const scenario = Ch ? WS.Chapters.getStormScenario() : null;
+    const stormTarget = scenario ? scenario.target : 'housing';
+    const d = this.districts.find(x => x.id === stormTarget);
+    if (d && d.setStorm) { d.setStorm(true); this._storm = d; }
+    this._econ('level8Start');
+    this._updateStats(-8, -5, 0);
+    const opts = scenario ? scenario.options.map((o,i) => ({
+      icon: ['🛡','💰','📝','🤝'][i] || '○',
+      label: o.label, desc: o.desc, value: o.value,
+      color: [0xe74c3c, 0xe2a840, 0x5c8ab0, 0x4aaa5c][i] || 0x888888,
+    })) : [
+      { icon:'🛡', label:de?'Absichern':'Fortify',       desc:de?'Infrastruktur schützen.':'Protect infrastructure.',     value:'fortify',  color:0xe74c3c },
+      { icon:'💰', label:de?'Entschädigen':'Compensate', desc:de?'Betroffene entschädigen.':'Compensate affected citizens.',value:'compensate',color:0xe2a840 },
+      { icon:'📝', label:de?'Dokumentieren':'Document',  desc:de?'Schäden erfassen.':'Document damage for aid.',          value:'document', color:0x5c8ab0 },
+      { icon:'🤝', label:de?'Kooperieren':'Cooperate',   desc:de?'Nachbarn um Hilfe bitten.':'Seek help from neighbors.',   value:'cooperate',color:0x4aaa5c },
+    ];
+    this.time.delayedCall(700, () => {
+      this._showDecisionPanel(opts, (c) => {
+        if (this._storm && this._storm.setStorm) this._storm.setStorm(false);
+        const ec = this._econ('level8', c);
+        ScoringEngine && ScoringEngine.recordDecision(8, c, {
+          phase:'baseline', scenarioId:'ch8:storm',
+          trialId: scenario ? scenario.trialId : 'l8main', stormTarget,
+        });
+        const m = {
+          fortify:    de ? 'Infrastruktur gesichert. Schäden begrenzt.'      : 'Infrastructure secured. Damage limited.',
+          compensate: de ? 'Bürger erhalten Entschädigung.'                 : 'Citizens receive compensation.',
+          document:   de ? 'Schäden erfasst. Hilfe unterwegs.'               : 'Damage recorded. Aid incoming.',
+          cooperate:  de ? 'Nachbarn helfen. Gemeinschaft gestärkt.'          : 'Neighbors help. Community strengthened.',
+        };
+        const dh = { fortify:3, compensate:6, document:2, cooperate:5 }[c] ?? 2;
+        const dd = { fortify:5, compensate:2, document:3, cooperate:4 }[c] ?? 2;
+        this._updateStats(dh, dd, 0);
+        this._showConsequence((m[c] || '') + this._yearLine(ec), () => this._nextLevel());
+      });
+    });
+  }
+
+  // ─── Chapter 9: project review ─────────────────────────────────────────────────────────
+  _level9(){
+    const Ch = window.WS && WS.Chapters;
+    this._ch9Trials = Ch ? WS.Chapters.getCh9Trials() : [];
+    this._ch9TrialIdx = 0;
+    this._ch9ShowTrial();
+  }
+
+  _ch9ShowTrial(){
+    const de = this.de();
+    if (this._ch9TrialIdx >= this._ch9Trials.length) {
+      const ec = this._econ('level9Done');
+      this._updateStats(4, 6, 0);
+      this._showConsequence(
+        (de ? 'Projektprüfungen abgeschlossen.' : 'Project reviews complete.') + this._yearLine(ec),
+        () => this._nextLevel()
+      );
+      return;
     }
-    const max = Math.max(...Object.values(counts));
-    const topId = Object.keys(counts).find(k => counts[k] === max);
-    const top = this.districts.find(x => x.id === topId);
-    const shock = this.districts.find(x => x.id !== topId);
-    if (shock && shock.celebrate) shock.celebrate();
-    const msg = 'The ' + (top ? top.name : topId) + ' district received the most resources. ' +
-      'Another district outperformed expectations.' + this._fundsLine(ec);
-    this._showConsequence(msg, () => this._nextLevel());
+    const trial = this._ch9Trials[this._ch9TrialIdx];
+    const opts = trial.options.map((o, i) => ({
+      icon: ['💡','🔍','ℹ️','📊'][i] || '○',
+      label: o.label, desc: o.desc, value: o.value,
+      color: [0x4aaa5c, 0x5c8ab0, 0xe2a840, 0x9966cc][i] || 0x888888,
+    }));
+    this._showDecisionPanel(opts, (c) => {
+      ScoringEngine && ScoringEngine.recordDecision(9, c, {
+        phase:'baseline', scenarioId:'ch9:review',
+        trialId: trial.trialId, trialIdx: this._ch9TrialIdx,
+      });
+      this._econ('level9', trial.trialId, c);
+      this._updateStats(2, 3, 0);
+      this._ch9TrialIdx++;
+      this._showConsequence(
+        (de ? 'Entscheidung getroffen. Weiter.' : 'Decision recorded. Moving on.'),
+        () => this._ch9ShowTrial(), { auto: true, autoDelay: 1200 }
+      );
+    });
+  }
+
+  // ─── Chapter 10: forecasts & practice ─────────────────────────────────────────────────
+  _level10(){
+    const Ch = window.WS && WS.Chapters;
+    const forecasts = Ch ? WS.Chapters.FORECASTS : [];
+    this._forecastEvents = forecasts.map(f => ({ forecastId: f.id, outcome: undefined }));
+    this._showForecastPanel();
+  }
+
+  _showForecastPanel(){
+    const de = this.de();
+    const Ch = window.WS && WS.Chapters;
+    const forecasts = Ch ? WS.Chapters.FORECASTS : [];
+    const opts = forecasts.map((f, i) => ({
+      icon: ['📈','🏡','⚡','🚌'][i] || '○',
+      label: f.label || f.id,
+      desc:  f.desc  || '',
+      value: f.id,
+      color: [0x4aaa5c, 0xe2a840, 0x9966cc, 0x5c8ab0][i] || 0x888888,
+    }));
+    this._showDecisionPanel(opts, (c) => {
+      const spec = forecasts.find(f => f.id === c);
+      const ev   = this._forecastEvents.find(e => e.forecastId === c);
+      if (ev) ev.prediction = c;
+      ScoringEngine && ScoringEngine.recordDecision(10, c, {
+        phase:'baseline', scenarioId:'ch10:forecast', forecastId: c,
+      });
+      const ec = this._econ('level10', c);
+      const resolve = ev && ev.outcome !== undefined;
+      const correct = ev && ev.outcome === 1;
+      const msg = resolve
+        ? (correct
+            ? (de ? 'Prognose bestätigt! Gut eingeschätzt.' : 'Forecast confirmed! Well judged.')
+            : (de ? 'Prognose nicht bestätigt.' : 'Forecast did not materialise.'))
+        : (de ? 'Prognose registriert.' : 'Forecast recorded.');
+      this._updateStats(correct ? 4 : 1, correct ? 3 : 1, 0);
+      this._showConsequence(msg + this._yearLine(ec), () => this._finish());
+    });
+  }
+
+  // ─── finish ─────────────────────────────────────────────────────────────────────────────────
+  _finish(){
+    this._clearConsequence(); this._clearWorldBtn(); this._clearDecisionPanel();
+    this._clearPersistentMessage(); this._clearSiteMarkers(); this._clearCubes();
+    if (this._storm && this._storm.setStorm) this._storm.setStorm(false);
+    const report = ScoringEngine.finish(this.sim);
+    if (typeof window !== 'undefined' && typeof window.onGameFinish === 'function') {
+      window.onGameFinish(report);
+    } else {
+      this.scene.start('EndScene', { report });
+    }
+  }
+
+  // ─── UI helpers ─────────────────────────────────────────────────────────────────────────────
+  _showDecisionPanel(options, onChoose){
+    this._clearDecisionPanel();
+    if (!this._panelIntroShown) {
+      this._panelIntroShown = true;
+      this.hud.container.setVisible(true);
+      if (this.W >= 700) this.statsPanel.container.setVisible(true);
+    }
+    this.decisionPanel = new DecisionPanel(this, options, onChoose);
+  }
+
+  _clearDecisionPanel(){
+    if (this.decisionPanel) { this.decisionPanel.destroy(); this.decisionPanel = null; }
+  }
+
+  _showConsequence(text, onNext, opts={}){
+    this._clearConsequence();
+    this.consequencePanel = new ConsequencePanel(this, text, onNext, opts);
+  }
+
+  _clearConsequence(){
+    if (this.consequencePanel) { this.consequencePanel.destroy(); this.consequencePanel = null; }
+  }
+
+  _showPersistentMessage(text){
+    this._clearPersistentMessage();
+    this.persistentMsg = new PersistentMessage(this, text);
+  }
+
+  _clearPersistentMessage(){
+    if (this.persistentMsg) { this.persistentMsg.destroy(); this.persistentMsg = null; }
+  }
+
+  _buildWorldBtn(label, onClick){
+    this._clearWorldBtn();
+    this.worldBtn = new WorldButton(this, label, onClick);
+  }
+
+  _worldBtnFlash(){
+    if (this.worldBtn) this.worldBtn.flash && this.worldBtn.flash();
+  }
+
+  _clearWorldBtn(){
+    if (this.worldBtn) { this.worldBtn.destroy(); this.worldBtn = null; }
+    if (this.worldBtnTimer) { this.worldBtnTimer.remove(); this.worldBtnTimer = null; }
+  }
+
+  _clearLevel3Idle(){
+    if (this._level3IdleTimer) { this._level3IdleTimer.remove(); this._level3IdleTimer = null; }
   }
 
   _spawnCubes(){
+    this._clearCubes();
     for (let i = 0; i < this.cubeTotal; i++) {
-      this.cubes.push(new ResourceCube(this, { index: i }));
+      const x = this.PANEL + this.s(60) + Math.random() * (this.W - this.PANEL - this.s(120));
+      const y = this.s(80) + Math.random() * this.s(60);
+      this.cubes.push(new ResourceCube(this, x, y, this.districts));
     }
   }
 
@@ -448,692 +734,16 @@ class GameScene extends Phaser.Scene {
     this.cubes = [];
   }
 
-  // ─── Chapter 4: timing ────────────────────────────────────────────────────────────────
-  _level4(){
-    const de = this.de();
-    const urgentRepair = Math.random() < 0.4;
-    if (urgentRepair) {
-      this._showDecisionPanel([
-        { icon:'🔧', label: de?'Reparatur':'Repair now',   desc: de?'Kritische Infrastruktur sofort reparieren.':'Repair critical infrastructure immediately — required.', value:'repair',      color:0xe74c3c, excludeFromPattern:true },
-        { icon:'🎓', label: de?'Universität':'University', desc: de?'Langfristige Bildungsinvestition.':'Long-term education investment.', value:'university', color:0x4a9edb },
-      ], (c) => {
-        ScoringEngine && ScoringEngine.recordDecision(4, c, { scenarioId:'ch4:timing', variant:'repair', excludeFromPattern: c==='repair' });
-        const ec = this._econ('level4', c);
-        const msg = c === 'repair'
-          ? (de ? 'Infrastruktur gesichert. Notwendige Ausgabe.' : 'Infrastructure secured. Necessary expenditure.')
-          : (de ? 'Universität im Bau.' : 'University under construction.');
-        if (c === 'university') this.hasUniversity = true;
-        this._updateStats(c==='repair'?2:-2, c==='university'?5:0, 0);
-        this._showConsequence(msg + this._yearLine(ec),
-          () => this._collectForecast('f2', () => this._nextLevel()));
-      });
-      return;
-    }
-    this._showDecisionPanel([
-      { icon:'🎉', label: de?'Festival':'Festival',    desc: de?'Sofortiger Glücklichkeitsschub.':'Immediate happiness boost for citizens.',              value:'festival',    color:0xe2a840 },
-      { icon:'🎓', label: de?'Universität':'University', desc: de?'Langfristige Bildung und Einkommen.':'Long-term education and income increase.', value:'university', color:0x4a9edb },
-    ], (c) => {
-      ScoringEngine && ScoringEngine.recordDecision(4, c, { scenarioId:'ch4:timing', variant:'standard' });
-      const ec = this._econ('level4', c);
-      const msg = c === 'festival'
-        ? (de ? 'Das Fest begeistert alle! Kurzzeitig erhöhte Zufriedenheit.' : 'The festival delights everyone! Brief happiness spike.')
-        : (de ? 'Die Universität wird gebaut. Vorteile kommen in Jahren.' : 'The university is under construction. Benefits arrive in years.');
-      if (c === 'university') this.hasUniversity = true;
-      this._updateStats(c==='festival'?8:-2, c==='university'?5:2, 0);
-      this._showConsequence(msg + this._yearLine(ec),
-        () => this._collectForecast('f2', () => this._nextLevel()));
-    });
-  }
-
-  // ─── Chapter 5: boom ──────────────────────────────────────────────────────────────────
-  _level5(){
-    const de = this.de();
-    this._showTicker('Innovation District +47% this quarter. Analysts see continued growth.');
-    this._econ('level5Start');
-    this._showDecisionPanel([
-      { icon:'🚀', label: de?'Alles rein':'All in',        desc: de?'Gesamte Ressourcen in Technologie.':'Move all resources into technology.',   value:'all_in',      color:0xe74c3c },
-      { icon:'➕', label: de?'Etwas mehr':'Invest more',   desc: de?'Etwas mehr hinzufügen.':'Add a moderate extra allocation.',                 value:'invest_more', color:0xe2a840 },
-      { icon:'⚖', label: de?'Diversifiziert':'Stay div.',  desc: de?'Aktuelle Verteilung beibehalten.':'Keep existing allocation unchanged.',    value:'hold',        color:0x4aaa5c },
-      { icon:'💵', label: de?'Gewinne nehmen':'Take profits', desc: de?'Technologie reduzieren, sichern.':'Reduce technology exposure, secure gains.', value:'reduce',   color:0x5c8ab0 },
-      { icon:'🔍', label: de?'Recherchieren':'Research',   desc: de?'Mehr Informationen einholen.':'Seek more information before deciding.',      value:'research',    color:0x9966cc },
-    ], (c) => {
-      if (c === 'research') {
-        ScoringEngine && ScoringEngine.recordDecision(5, 'research', { scenarioId:'ch5:boom', phase:'baseline' });
-        this._showConsequence(
-          'Analysts are split. Some cite fundamentals; others warn of momentum investing.',
-          () => {
-            this._showDecisionPanel([
-              { icon:'🚀', label:'All in',     value:'all_in',      color:0xe74c3c },
-              { icon:'➕', label:'Invest more', value:'invest_more', color:0xe2a840 },
-              { icon:'⚖', label:'Stay div.',   value:'hold',        color:0x4aaa5c },
-              { icon:'💵', label:'Take profits',value:'reduce',      color:0x5c8ab0 },
-            ], (c2) => this._level5Commit(c2, true));
-          }
-        );
-        return;
-      }
-      this._level5Commit(c, false);
-    });
-  }
-
-  _level5Commit(c, hadResearch){
-    const ec = this._econ('level5', c);
-    const m = {
-      all_in:      'All resources moved into technology.',
-      invest_more: 'Additional resources allocated to technology.',
-      hold:        'Allocation unchanged.',
-      reduce:      'Technology exposure reduced; gains secured.',
-    };
-    ScoringEngine && ScoringEngine.recordDecision(5, c, {
-      hadResearch,
-      scenarioId: 'ch5:boom',
-      phase: 'baseline',
-      trialId: 'l5main',
-    });
-    if (c === 'all_in') {
-      const tech = this.districts.find(x => x.id === 'technology');
-      if (tech) { tech.receiveResource && tech.receiveResource(3); }
-    }
-    this._updateStats(c==='all_in'?-3:c==='reduce'?1:2, c==='all_in'?8:c==='hold'?2:4, 0);
-    this._showConsequence((m[c] || m.hold) + this._yearLine(ec), () => this._nextLevel());
-  }
-
-  // ─── Chapter 6: outside offer ────────────────────────────────────────────────────────────
-  _level6(){
-    const de = this.de();
-    this._showPersistentMessage(
-      de ? 'Ein externer Berater unterbreitet ein Angebot.' : 'An external consultant makes an offer.'
-    );
-    this._showDecisionPanel([
-      { icon:'✅', label: de?'Annehmen':'Accept',          desc: de?'Angebot annehmen.':'Accept the offer.',                     value:'accept',    color:0x4aaa5c },
-      { icon:'🏗', label: de?'Selbst bauen':'Build own',   desc: de?'Selbst entwickeln.':'Develop independently.',               value:'build',     color:0xe2a840 },
-      { icon:'❌', label: de?'Ablehnen':'Decline',         desc: de?'Ablehnen.':'Decline the offer.',                            value:'decline',   color:0xe74c3c },
-      { icon:'🔍', label: de?'Untersuchen':'Investigate',  desc: de?'Mehr über das Angebot erfahren.':'Learn more about the offer.', value:'research',  color:0x5c8ab0 },
-    ], (c) => {
-      const hadResearch = false;
-      if (c === 'research') {
-        ScoringEngine && ScoringEngine.recordDecision(6, 'research_access', { scenarioId:'ch6:delegation', trialId:'l6main' });
-        this._showConsequence(
-          'Report: The offer depends on a third-party supplier with moderate reliability. Alternatives exist.',
-          () => this._level6Decide(true)
-        );
-        return;
-      }
-      this._level6Decide(false, c);
-    });
-  }
-
-  _level6Decide(hadResearch, preChoice){
-    const de = this.de();
-    if (!hadResearch && preChoice) {
-      this._level6Commit(preChoice, false);
-      return;
-    }
-    this._showDecisionPanel([
-      { icon:'✅', label: de?'Annehmen':'Accept',        value:'accept',  color:0x4aaa5c },
-      { icon:'🏗', label: de?'Selbst bauen':'Build own', value:'build',   color:0xe2a840 },
-      { icon:'❌', label: de?'Ablehnen':'Decline',       value:'decline', color:0xe74c3c },
-    ], (c) => this._level6Commit(c, hadResearch));
-  }
-
-  _level6Commit(c, hadResearch){
-    const ec = this._econ('level6', c);
-    ScoringEngine && ScoringEngine.recordDecision(6, c, {
-      hadResearch,
-      finalAction: c,
-      scenarioId: 'ch6:delegation',
-      trialId: 'l6main',
-      phase: 'baseline',
-    });
-    const m = {
-      accept:  'Offer accepted. Development proceeds via the consultant.',
-      build:   'Independent development started. Slower but under full control.',
-      decline: 'Offer declined. Resources retained.',
-    };
-    this._updateStats(c==='accept'?3:c==='build'?1:-1, c==='accept'?6:c==='build'?4:0, 0);
-    this._clearPersistentMessage();
-    this._showConsequence(
-      (m[c] || m.decline) + this._yearLine(ec),
-      () => this._collectForecast('f3', () => this._nextLevel())
-    );
-  }
-
-  // ─── Chapter 7: headlines ─────────────────────────────────────────────────────────────
-  _level7(){
-    const de = this.de();
-    this._showTicker(de
-      ? 'Gerüchte: Technologiesektor könnte einbrechen. [Schlecht gestützt]'
-      : 'Rumour: Tech sector may collapse. [Poorly supported]');
-    this._showDecisionPanel([
-      { icon:'💰', label: de?'Alles verkaufen':'Sell all',        desc: de?'Alles liquidieren.':'Liquidate all holdings.',              value:'sell',          color:0xe74c3c },
-      { icon:'📉', label: de?'Reduzieren':'Reduce',               desc: de?'Teilweise aussteigen.':'Reduce exposure partially.',         value:'reduce',        color:0xe2a840 },
-      { icon:'⚖', label: de?'Halten':'Hold',                     desc: de?'Keine Änderung.':'No change in allocation.',                value:'hold',          color:0x4aaa5c },
-      { icon:'📈', label: de?'Mehr investieren':'Invest more',    desc: de?'Bei gþnstigerem Kurs nachkaufen.':'Buy more at lower prices.', value:'invest_more', color:0x9966cc },
-      { icon:'🔍', label: de?'Recherchieren':'Research',          desc: de?'Hintergrundinfos suchen.':'Seek background information.',    value:'research',      color:0x5c8ab0 },
-    ], (c) => {
-      if (c === 'research') {
-        ScoringEngine && ScoringEngine.recordDecision(7, 'research', { scenarioId:'ch7:headlines', phase:'baseline' });
-        this._showConsequence(
-          'Credible update: The sector has genuine structural challenges, not just sentiment.',
-          () => this._level7Decide(true)
-        );
-        return;
-      }
-      this._level7Decide(false, c);
-    });
-  }
-
-  _level7Decide(hadResearch, preChoice){
-    const de = this.de();
-    if (!hadResearch && preChoice) { this._level7Commit(preChoice, false); return; }
-    this._showDecisionPanel([
-      { icon:'💰', label: de?'Alles verkaufen':'Sell all',        value:'sell',          color:0xe74c3c },
-      { icon:'📉', label: de?'Reduzieren':'Reduce',               value:'reduce',        color:0xe2a840 },
-      { icon:'⚖', label: de?'Halten':'Hold',                     value:'hold',          color:0x4aaa5c },
-      { icon:'📈', label: de?'Mehr investieren':'Invest more',    value:'invest_more',   color:0x9966cc },
-    ], (c) => this._level7Commit(c, hadResearch));
-  }
-
-  _level7Commit(c, hadResearch){
-    const ec = this._econ('level7', c);
-    ScoringEngine && ScoringEngine.recordDecision(7, c, {
-      hadResearch,
-      finalAction: c,
-      scenarioId: 'ch7:headlines',
-      trialId: 'l7main',
-      phase: 'baseline',
-    });
-    const m = {
-      sell:        'All holdings liquidated.',
-      reduce:      'Exposure reduced.',
-      hold:        'Allocation unchanged.',
-      invest_more: 'Additional resources invested.',
-    };
-    const dh = c==='sell'?-4:c==='invest_more'?3:1;
-    const dd = c==='invest_more'?6:c==='reduce'?-2:c==='sell'?-5:0;
-    this._updateStats(dh, dd, 0);
-    this._showConsequence(
-      (m[c] || m.hold) + this._yearLine(ec),
-      () => this._collectForecast('f4', () => this._nextLevel())
-    );
-  }
-
-  // ─── Chapter 8: storm ──────────────────────────────────────────────────────────────────
-  _level8(){
-    const de = this.de();
-    this._econ('level8Storm');
-    this.districts.forEach(d => d.setStorm && d.setStorm(true));
-    this.weather.startStorm(() => {
-      this._showDecisionPanel([
-        { icon:'💸', label: de?'Alles verkaufen':'Sell all',       desc: de?'Alles liquidieren.':'Liquidate all holdings.',           value:'sell_all',    color:0xe74c3c },
-        { icon:'🛡', label: de?'Wesentl. schützen':'Protect ess.', desc: de?'Kern schützen.':'Protect essential services only.',       value:'protect',     color:0xe2a840 },
-        { icon:'⚖', label: de?'Umschichten':'Rebalance',          desc: de?'Portfolio neu ausrichten.':'Rebalance the portfolio.',     value:'rebalance',   color:0x4aaa5c },
-        { icon:'▶', label: de?'Weitermachen':'Continue',          desc: de?'Plan beibehalten.':'Stay the course.',                    value:'hold',        color:0x5c8ab0 },
-        { icon:'📈', label: de?'Günstig kaufen':'Buy low',        desc: de?'Günstig nachkaufen.':'Invest while prices are lower.',    value:'invest_low',  color:0x9966cc },
-      ], (c) => {
-        const ec = this._econ('level8', c);
-        ScoringEngine && ScoringEngine.recordDecision(8, c, {
-          scenarioId: 'ch8:storm',
-          trialId: 'l8main',
-          phase: 'baseline',
-        });
-        const m = {
-          sell_all:   'Everything sold. Resources secured but growth potential reduced.',
-          protect:    'Essential services protected. Selective holdings maintained.',
-          rebalance:  'Portfolio rebalanced across districts.',
-          hold:       'Plan maintained through the storm.',
-          invest_low: 'Additional investments made at lower prices.',
-        };
-        this.weather.startRecovery(() => {
-          this.districts.forEach(d => { d.setStorm && d.setStorm(false); if(d.celebrate) d.celebrate(); });
-          if (c !== 'sell_all' && this.hasUniversity) this._econ('level8University');
-          this._updateStats(
-            c==='sell_all'?-5:c==='hold'?3:c==='invest_low'?4:1,
-            c==='invest_low'?8:c==='rebalance'?4:c==='hold'?3:c==='protect'?1:-3,
-            0
-          );
-        });
-        this._showConsequence(
-          (m[c] || m.hold) + this._yearLine(ec),
-          () => this._nextLevel()
-        );
-      });
-    });
-  }
-
-  // ─── Chapter 9: project review ────────────────────────────────────────────────────────────
-  _level9(){
-    const Ch = window.WS && WS.Chapters;
-    if (!Ch) { this._nextLevel(); return; }
-    this._ch9Trials = WS.Chapters.ch9Trials(this.seed);
-    this._ch9TrialIdx = 0;
-    this.time.delayedCall(1200, () => this._ch9ShowTrial());
-  }
-
-  _ch9ShowTrial(){
-    const de = this.de();
-    if (this._ch9TrialIdx >= this._ch9Trials.length) { this._ch9Finish(); return; }
-    const trial = this._ch9Trials[this._ch9TrialIdx];
-    const opts = trial.projects.map(p => {
-      const gain = p.current - p.purchase;
-      const sign = gain >= 0 ? '+' : '';
-      const gainStr = sign + gain + ' cr. from purchase';
-      const fwd = 'Forward outlook: ' + (p.forwardPct > 0 ? '+' : '') + Math.round(p.forwardPct * 100) + '%';
-      return {
-        icon: gain >= 0 ? '📈' : '📉',
-        label: p.name,
-        desc: gainStr + '\nCurrent: ' + p.current + ' cr.\n' + fwd,
-        value: p.id,
-        color: gain >= 0 ? 0xe2a840 : 0x5c8ab0,
-      };
-    });
-    this._showDecisionPanel(opts, (soldId) => {
-      const ev = WS.Chapters.resolveCh9(trial, soldId);
-      ScoringEngine && ScoringEngine.recordDecision(9, ev.action, {
-        trialId: trial.trialId,
-        scenarioId: ev.scenarioId,
-        soldId,
-        keptId: ev.keptId,
-        phase: 'baseline',
-      });
-      const soldP = trial.projects.find(x => x.id === soldId);
-      const consequence = 'You sold ' + (soldP ? soldP.name : soldId) + '. ' +
-        (ev.action === 'sell_winner' ? 'The gain was realised.' :
-         ev.action === 'sell_loser'  ? 'The loss was crystallised.' :
-         ev.action === 'sell_stronger' ? 'You chose the project with better forward prospects.' :
-         'You chose the project with weaker forward prospects.');
-      this._ch9TrialIdx++;
-      if (this._ch9TrialIdx < this._ch9Trials.length) {
-        this._showConsequence(consequence, () => this._ch9ShowTrial(), { auto: true, autoDelay: 1600 });
-      } else {
-        this._showConsequence(consequence, () => this._ch9Finish());
-      }
-    });
-  }
-
-  _ch9Finish(){
-    const de = this.de();
-    const decisions = typeof ScoringEngine !== 'undefined'
-      ? ScoringEngine.decisions.filter(d => d.level === 9) : [];
-    const winners = decisions.filter(d => d.value === 'sell_winner').length;
-    const losers  = decisions.filter(d => d.value === 'sell_loser').length;
-    const msg = de
-      ? `Projekt-Überprüfung abgeschlossen. Gewinner verkauft: ${winners}. Verlierer verkauft: ${losers}.`
-      : `Project review complete. Winners sold: ${winners}. Losers sold: ${losers}.`;
-    this._showConsequence(msg, () => this._nextLevel());
-  }
-
-  // ─── Chapter 10: forecasts & practice ───────────────────────────────────────────────────────
-  _level10(){
-    const de = this.de();
-    const forecasts = this._forecastEvents;
-    const resolved  = forecasts.filter(f => typeof f.outcome === 'number');
-    const brier = resolved.length > 0
-      ? resolved.reduce((s, f) => s + Math.pow((f.p ?? 0.5) - f.outcome, 2), 0) / resolved.length
-      : null;
-    const brierStr = brier !== null
-      ? (de ? 'Vorhersage-Genauigkeit (Brier): ' : 'Forecast accuracy (Brier): ') +
-        brier.toFixed(3) + ' (' + (de ? 'niedriger = besser' : 'lower = better') + ')'
-      : (de ? 'Keine aufgelösten Vorhersagen.' : 'No resolved forecasts.');
-    const forecastLines = forecasts.map((f, i) =>
-      'Forecast ' + (i + 1) + ': ' + Math.round((f.p ?? 0.5) * 100) + '% probability assigned.'
-    ).join('\n');
-    this._showConsequence(
-      (de ? 'Kapitel 10: Deine Vorhersagen\n' : 'Chapter 10: Your Forecasts\n') +
-      (forecastLines || (de ? '(Keine Vorhersagen gesammelt)' : '(No forecasts collected)')) +
-      '\n\n' + brierStr,
-      () => this._level10Practice()
-    );
-  }
-
-  _level10Practice(){
-    const de = this.de();
-    const Ch = window.WS && WS.Chapters;
-    const decisions = typeof ScoringEngine !== 'undefined' ? ScoringEngine.decisions : [];
-    const ch1Choices = decisions.filter(d => d.level === 1 && (d.value==='narrow'||d.value==='wide'));
-    const ch3Cubes = decisions.filter(d => d.level === 3);
-    const ch3Concentrated = ch3Cubes.length >= 4 &&
-      ch3Cubes.filter(d => d.value === ch3Cubes[0].value).length >= 5;
-    if (ch3Concentrated) {
-      this._showDecisionPanel([
-        { icon:'🏠', label: de?'Wohnen':'Housing',     value:'housing',    color:0x4aaa5c },
-        { icon:'🚌', label: de?'Verkehr':'Transport',  value:'transport',  color:0x4a9edb },
-        { icon:'💡', label: de?'Technik':'Technology', value:'technology', color:0x9966cc },
-        { icon:'⚡', label: de?'Energie':'Energy',     value:'energy',     color:0xe2a840 },
-      ], (distId) => {
-        ScoringEngine && ScoringEngine.recordDecision('practice', distId, {
-          kind: 'allocation',
-          scenarioId: 'ch3:allocate',
-          phase: 'practice',
-          trialId: 'practice-alloc',
-        });
-        this._showConsequence(
-          (de ? 'Praxis-Entscheidung erfasst. Kein Einfluss auf dein Profil.' :
-                'Practice decision recorded. Not included in your session profile.'),
-          () => this._finish()
-        );
-      });
-    } else {
-      const pairSpec = (Ch && WS.Chapters.CH1_PAIRS && WS.Chapters.CH1_PAIRS[1]) || { pHigh: 0.5 };
-      this._showDecisionPanel([
-        { icon:'🔒', label: 'Contract A', desc: '50% chance of 100 cr. / 50% chance of 100 cr.',  value:'narrow', color:0x4aaa5c },
-        { icon:'🎲', label: 'Contract B', desc: '50% chance of 150 cr. / 50% chance of 50 cr.',   value:'wide',   color:0x9966cc },
-      ], (c) => {
-        ScoringEngine && ScoringEngine.recordDecision('practice', c, {
-          kind: 'contract',
-          scenarioId: 'ch1:pair',
-          phase: 'practice',
-          trialId: 'pair2',
-        });
-        this._showConsequence(
-          (de ? 'Praxis-Entscheidung erfasst. Kein Einfluss auf dein Profil.' :
-                'Practice decision recorded. Not included in your session profile.'),
-          () => this._finish()
-        );
-      });
-    }
-  }
-
-  // ─── Forecast collection ─────────────────────────────────────────────────────────────────
-  _collectForecast(forecastId, cb){
-    const Ch = window.WS && WS.Chapters;
-    if (!Ch || !WS.Chapters.FORECASTS) { if (cb) cb(); return; }
-    const fspec = WS.Chapters.FORECASTS.find(f => f.id === forecastId);
-    if (!fspec) { if (cb) cb(); return; }
-    const de = this.de();
-    const question = WS.Chapters.forecastText(fspec, de ? 'de' : 'en');
-    this._showPersistentMessage(question);
-    this._showDecisionPanel([
-      { icon:'📉', label:'10%', value:0.1, color:0xe74c3c },
-      { icon:'📊', label:'30%', value:0.3, color:0xe2a840 },
-      { icon:'🔀', label:'50%', value:0.5, color:0x5c8ab0 },
-      { icon:'📈', label:'70%', value:0.7, color:0x4aaa5c },
-      { icon:'🚀', label:'90%', value:0.9, color:0x4ecdc4 },
-    ], (p) => {
-      const ev = WS.Chapters.forecastEvent(fspec, p, null);
-      ev.forecastId = forecastId;
-      const recorded = ScoringEngine && ScoringEngine.recordDecision('forecast', p, ev);
-      this._forecastEvents.push(recorded || ev);
-      this._clearPersistentMessage();
-      if (cb) cb();
-    });
-  }
-
-  // ─── Finish & handoff ────────────────────────────────────────────────────────────────────
-  _finish(){
-    this._clearConsequence(); this._clearWorldBtn();
-    this.statsPanel.recordSnapshot(
-      this.cityStats.happiness, this.cityStats.development,
-      this.cityStats.resources, this.currentLevel);
-    if (this.sim) this.statsPanel.setFundsCredits(this.sim.total());
-    this.cameras.main.fade(1200, 0, 0, 0, false, (cam, progress) => {
-      if (progress >= 1) this._toProfile();
-    });
-  }
-
-  _toProfile(){
-    const profile = (window.WS && WS.Summary && WS.Adapter)
-      ? WS.Summary.build(WS.Adapter.toEvents(ScoringEngine.decisions), {}, { lang: this.de()?'de':'en' })
-      : {};
-    this.scene.start('ProfileScene', {
-      profile,
-      stats: Object.assign({}, this.cityStats),
-      simTotal: this.sim ? this.sim.total() : null,
-      seed: this.seed,
-      forecastBrier: (() => {
-        const resolved = this._forecastEvents.filter(f => typeof f.outcome === 'number');
-        if (!resolved.length) return null;
-        return resolved.reduce((s,f) => s + Math.pow((f.p??0.5) - f.outcome, 2), 0) / resolved.length;
-      })(),
-    });
-  }
-
-  // ─── UI helpers ──────────────────────────────────────────────────────────────────────
-  _showDecisionPanel(opts, cb){
-    this._clearDecisionPanel();
-    if (this.experience) { this.experience.choices(opts, cb); return; }
-    const n = opts.length;
-    const areaW = this.W - this.PANEL;
-    const gap = this.s(12);
-    const btnW = Math.min(this.s(200), Math.floor((areaW - gap * (n + 1)) / n));
-    const btnH = this.s(110);
-    const rowY = this.H - btnH - this.s(18);
-    const totalW = n * btnW + (n - 1) * gap;
-    const startX = this.PANEL + (areaW - totalW) / 2;
-
-    const dimStrip = this.add.graphics().setDepth(19);
-    dimStrip.fillStyle(0x02060c, 0.65);
-    dimStrip.fillRect(this.PANEL, rowY - this.s(12), areaW, btnH + this.s(30));
-
-    const allObjs = [dimStrip];
-
-    opts.forEach((opt, i) => {
-      const bx = startX + i * (btnW + gap);
-      const by = rowY;
-      const baseColor = opt.color || 0x0e2a3a;
-      const hoverColor = 0x1a4a60;
-
-      const card = this.add.graphics().setDepth(20);
-      const drawCard = (hover) => {
-        card.clear();
-        card.fillStyle(hover ? hoverColor : baseColor, 0.97);
-        card.fillRoundedRect(bx, by, btnW, btnH, this.s(10));
-        card.lineStyle(hover ? 2 : 1.5, hover ? 0xe2a840 : 0x2a6a8a, hover ? 0.9 : 0.5);
-        card.strokeRoundedRect(bx, by, btnW, btnH, this.s(10));
-        card.fillStyle(0xe2a840, hover ? 0.9 : 0.5);
-        card.fillRect(bx + this.s(10), by, btnW - this.s(20), this.s(3));
-      };
-      drawCard(false);
-
-      if (opt.icon) {
-        const ico = this.add.text(bx + btnW / 2, by + this.s(18), opt.icon, {
-          fontSize: this.s(20) + 'px', color: '#e2c87a',
-        }).setOrigin(0.5, 0).setDepth(21);
-        allObjs.push(ico);
-      }
-      const lbl = this.add.text(bx + btnW / 2, by + (opt.icon ? this.s(44) : this.s(24)), opt.label, {
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: this.s(13) + 'px',
-        color: '#e8f0f8', fontStyle: 'bold',
-        align: 'center', wordWrap: { width: btnW - this.s(16) },
-      }).setOrigin(0.5, 0).setDepth(21);
-      allObjs.push(lbl);
-      if (opt.desc) {
-        const dsc = this.add.text(bx + btnW / 2, by + (opt.icon ? this.s(68) : this.s(50)), opt.desc, {
-          fontFamily: 'Inter, Arial, sans-serif',
-          fontSize: this.s(10) + 'px',
-          color: '#8aaabf', align: 'center', wordWrap: { width: btnW - this.s(16) },
-        }).setOrigin(0.5, 0).setDepth(21);
-        allObjs.push(dsc);
-      }
-
-      const hit = this.add.rectangle(bx + btnW/2, by + btnH/2, btnW, btnH, 0xffffff, 0)
-        .setDepth(22).setInteractive({ useHandCursor: true });
-      hit.on('pointerover', () => drawCard(true));
-      hit.on('pointerout',  () => drawCard(false));
-      hit.on('pointerdown', () => {
-        this._clearDecisionPanel();
-        cb(opt.value);
-      });
-      allObjs.push(card, hit);
-    });
-
-    this.decisionPanel = { objects: allObjs };
-    if (!this._panelIntroShown) {
-      this._panelIntroShown = true;
-      this.statsPanel.introHighlight && this.statsPanel.introHighlight(() => {});
-    }
-  }
-
-  _clearDecisionPanel(){
-    if (this.experience) this.experience.clear();
-    if (!this.decisionPanel) return;
-    this.decisionPanel.objects.forEach(o => o && o.destroy && o.destroy());
-    this.decisionPanel = null;
-  }
-
-  _showConsequence(text, cont, opts){
-    this._clearConsequence();
-    if (this.experience) { this.experience.consequence(text, cont); return; }
-    const auto = opts && opts.auto;
-    const delay = (opts && opts.autoDelay) || 2000;
-    const de = this.de();
-
-    const objects = [];
-
-    const dim = this.add.graphics().setDepth(28);
-    dim.fillStyle(0x02060c, 0.88); dim.fillRect(0, 0, this.W, this.H);
-    objects.push(dim);
-
-    const panelW = Math.min(this.s(600), this.W - this.PANEL - this.s(60));
-    const cx = this.PANEL + (this.W - this.PANEL) / 2;
-    const textNode = this.add.text(cx, 0, text, {
-      fontFamily: 'Playfair Display, Georgia, serif',
-      fontSize: this.s(17) + 'px', color: '#c8dcee',
-      align: 'center', lineSpacing: this.s(6),
-      wordWrap: { width: panelW - this.s(60) },
-    }).setOrigin(0.5, 0).setDepth(30);
-
-    const pad = this.s(28);
-    const panelH = pad * 2 + textNode.height + this.s(auto ? 20 : 120);
-    const py = (this.H - panelH) / 2 - this.s(20);
-    const px = cx - panelW / 2;
-
-    const card = this.add.graphics().setDepth(29);
-    card.fillStyle(0x08131f, 0.98); card.fillRoundedRect(px, py, panelW, panelH, this.s(14));
-    card.lineStyle(1.5, 0xe2a840, 0.5); card.strokeRoundedRect(px, py, panelW, panelH, this.s(14));
-    card.fillStyle(0xe2a840, 0.8); card.fillRect(px, py, panelW, this.s(3));
-
-    textNode.setPosition(cx, py + pad);
-    objects.push(card, textNode);
-
-    if (!auto) {
-      const wbX = cx, wbY = py + panelH - this.s(60);
-      const wb = new WorldButton(this, wbX, wbY, de ? 'Weiter →' : 'Continue →', () => {
-        this._clearConsequence();
-        if (cont) cont();
-      });
-      wb.container.setDepth(35);
-      this._consequenceWorldBtn = wb;
-
-      const retryTxt = this.add.text(px + panelW - this.s(14), py + panelH - this.s(10),
-        de ? '↩ Nochmal' : '↩ Retry level', {
-          fontFamily: 'Inter, Arial, sans-serif', fontSize: this.s(11) + 'px', color: '#4a6a8c',
-        }).setOrigin(1, 1).setDepth(31).setInteractive({ useHandCursor: true });
-      retryTxt.on('pointerover', () => retryTxt.setColor('#8aaacc'));
-      retryTxt.on('pointerout',  () => retryTxt.setColor('#4a6a8c'));
-      retryTxt.on('pointerdown', () => this._retryLevel());
-      objects.push(retryTxt);
-    } else {
-      this.time.delayedCall(delay, () => { this._clearConsequence(); if (cont) cont(); });
-    }
-
-    this.consequencePanel = { objects };
-  }
-
-  _clearConsequence(){
-    if (this.experience) this.experience.clear();
-    if (!this.consequencePanel) return;
-    this.consequencePanel.objects.forEach(o => o && o.destroy && o.destroy());
-    this.consequencePanel = null;
-    if (this._consequenceWorldBtn) { try { this._consequenceWorldBtn.destroy(); } catch(e) {} this._consequenceWorldBtn = null; }
-  }
-
-  _buildWorldBtn(label, cb){
-    this._clearWorldBtn();
-    const x = this.W - this.s(130), y = this.H - this.s(70);
-    const btn = this.add.text(x, y, label, {
-      fontSize: this.s(18) + 'px', color:'#fff', fontFamily:'Arial', fontStyle:'bold',
-      backgroundColor:'#2a6e3c', padding:{ x:this.s(12), y:this.s(8) },
-    }).setDepth(18).setInteractive().on('pointerup', () => cb && cb());
-    this.worldBtn = { btn };
-  }
-
-  _worldBtnFlash(){
-    if (!this.worldBtn) return;
-    this.tweens.add({ targets: this.worldBtn.btn, alpha: { from:1, to:0.5 }, yoyo:true, repeat:2, duration:180 });
-  }
-
-  _clearWorldBtn(){
-    if (!this.worldBtn) return;
-    if (this.worldBtnTimer) { this.worldBtnTimer.remove && this.worldBtnTimer.remove(); this.worldBtnTimer = null; }
-    this.worldBtn.btn && this.worldBtn.btn.destroy && this.worldBtn.btn.destroy();
-    this.worldBtn = null;
-  }
-
-  _showPersistentMessage(text){
-    if (this.experience) { this.experience.hint=text; return; }
-    this._clearPersistentMessage();
-    this.persistentMsg = this.add.text(this.PANEL + this.s(16), this.s(16), text, {
-      fontSize: this.s(13) + 'px', color:'#a0d0a0', fontFamily:'Arial',
-      wordWrap:{ width: this.W - this.PANEL - this.s(32) },
-    }).setDepth(14);
-  }
-
-  _clearPersistentMessage(){
-    if (this.experience) this.experience.hint="";
-    if (!this.persistentMsg) return;
-    this.persistentMsg.destroy && this.persistentMsg.destroy();
-    this.persistentMsg = null;
-  }
-
   _clearSiteMarkers(){
-    this.siteMarkers.forEach(m => m && m.destroy && m.destroy());
+    this.siteMarkers.forEach(m => m.destroy && m.destroy());
     this.siteMarkers = [];
   }
 
-  _clearLevel3Idle(){
-    if (this._level3IdleTimer) {
-      this._level3IdleTimer.remove && this._level3IdleTimer.remove();
-      this._level3IdleTimer = null;
-    }
-  }
-
-  _showTicker(msg){
-    if (this.tickerActive) return;
-    this.tickerActive = true;
-    const x = this.W / 2 - this.s(200);
-    const ticker = this.add.text(x, this.s(12), '📰 ' + msg, {
-      fontSize: this.s(13)+'px', color:'#ffe980', fontFamily:'Arial',
-      backgroundColor:'#1a2e20', padding:{ x:this.s(8), y:this.s(4) },
-    }).setDepth(25);
-    this.time.delayedCall(5000, () => {
-      ticker.destroy && ticker.destroy();
-      this.tickerActive = false;
-    });
-  }
-
-  _reportModal(title, body, cb){
-    if (this.experience) { this.experience.consequence(title+"\n\n"+body, cb); return; }
-    const bg = this.add.graphics().setDepth(30);
-    const rw = this.s(480), rh = this.s(320);
-    const rx = (this.W - rw) / 2, ry = (this.H - rh) / 2;
-    bg.fillStyle(0x111d14, 0.98); bg.fillRoundedRect(rx, ry, rw, rh, this.s(12));
-    bg.lineStyle(1.5, 0x4aaa5c, 0.6); bg.strokeRoundedRect(rx, ry, rw, rh, this.s(12));
-    this.add.text(rx + this.s(16), ry + this.s(16), title, {
-      fontSize: this.s(16)+'px', color:'#6af0a0', fontFamily:'Arial', fontStyle:'bold',
-    }).setDepth(31);
-    this.add.text(rx + this.s(16), ry + this.s(50), body, {
-      fontSize: this.s(13)+'px', color:'#d4f0d4', fontFamily:'Arial', wordWrap:{ width: rw - this.s(32) },
-    }).setDepth(31);
-    const closeBtn = this.add.text(rx + rw - this.s(90), ry + rh - this.s(40),
-      this.de() ? '✕ Schließen' : '✕ Close', {
-        fontSize: this.s(13)+'px', color:'#6af0a0', fontFamily:'Arial',
-        backgroundColor:'#1a4e2a', padding:{ x:this.s(8), y:this.s(4) },
-      }).setDepth(31).setInteractive().on('pointerup', () => {
-        bg.destroy(); closeBtn.destroy();
-        if (cb) cb();
-      });
-  }
-
+  // ─── update ────────────────────────────────────────────────────────────────────────────────
   update(time, delta){
-    if (this.experience?.paused) return;
-    this.experience?.update();
-    if (this.reducedMotion) delta=0;
-    if (this.ambient) this.ambient.update(time, delta);
-    if (this.weather) this.weather.update && this.weather.update(delta);
-    if (this.roads)   this.roads.update && this.roads.update(delta, this.ambient ? this.ambient.isNightTime() : false);
-    const night = this.ambient ? this.ambient.isNightTime() : false;
+    const night = this.ambient ? this.ambient.update(time, delta) : false;
+    this.weather && this.weather.update(time, delta);
+    this.roads && this.roads.update(time, delta);
     this.districts.forEach(d => d.update && d.update(time, delta, night));
   }
 }
