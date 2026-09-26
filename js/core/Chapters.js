@@ -130,7 +130,7 @@
   function normCdf(z) {
     const t = 1/(1+0.2316419*Math.abs(z));
     const d = 0.3989423*Math.exp(-z*z/2);
-    const p = d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));
+    const p = d*t*(0.3193815+t*(-0.3565638+t*(1.7814780+t*(-1.8212560+t*1.3302740))));
     return z > 0 ? 1-p : p;
   }
   function modelPUp(districtId) {
@@ -165,7 +165,7 @@
     return { available:true, n:f.length, meanGap: Math.round(g*1000)/1000 };
   }
 
-  // ── Post-feedback practice ───────────────────────────────────────
+  // ── Post-feedback practice ────────────────────────────────────────
   // One new, equivalent decision chosen from a pattern that was actually
   // observed. Tagged phase:'practice' so it can never enter the profile.
   function practiceTrial(summary) {
@@ -187,22 +187,30 @@
       const placed = practiceEvents.filter(function (e){ return e.scenarioId==='ch3:allocate' && e.districtId; });
       if (!placed.length) return { available:false };
       const counts = {};
-      placed.forEach(function (e){ counts[e.districtId]=(counts[e.districtId]||0)+1; });
-      const largest = Math.max.apply(null, Object.keys(counts).map(function (k){ return counts[k]; })) / placed.length;
-      return { available:true, kind:'allocation',
-               before:practice.baseline.largestShare, after:largest,
-               changed: Math.abs(largest - practice.baseline.largestShare) > 1e-9 };
+      placed.forEach(function (e){ counts[e.districtId] = (counts[e.districtId] || 0) + 1; });
+      const maxShare = Math.max.apply(null, Object.values(counts)) / placed.length;
+      return { available:true, kind:'allocation', practiceUnits: placed.length,
+               baselineLargestShare: practice.baseline.largestShare, practiceLargestShare: maxShare,
+               note:'one-attempt transfer is suggestive, not conclusive' };
     }
-    const e = practiceEvents.filter(function (x){ return x.scenarioId===practice.scenarioId; }).pop();
-    return e ? { available:true, kind:practice.kind, action:e.action } : { available:false };
+    if (practice.kind === 'headline') {
+      const ev = practiceEvents.filter(function (e){ return e.scenarioId==='ch7:news'; }).pop();
+      if (!ev) return { available:false };
+      return { available:true, kind:'headline', action: ev.action,
+               note:'one-attempt transfer is suggestive, not conclusive' };
+    }
+    const ev = practiceEvents.filter(function (e){ return e.scenarioId==='ch1:pair' && e.trialId==='pair2'; }).pop();
+    if (!ev) return { available:false };
+    return { available:true, kind:'contract', action: ev.action,
+             note:'one-attempt transfer is suggestive, not conclusive' };
   }
 
   root.Chapters = {
-    COST:COST, CH1_PAIRS:CH1_PAIRS, expected:expected, spread:spread, dominates:dominates,
-    riskPairs:riskPairs, MATCHED:MATCHED, PROSPECTS:PROSPECTS, ch9Trials:ch9Trials,
-    resolveCh9:resolveCh9, disposition:disposition, FORECASTS:FORECASTS,
-    forecastText:forecastText, forecastEvent:forecastEvent, modelPUp:modelPUp,
-    modelGap:modelGap, practiceTrial:practiceTrial, transfer:transfer
+    CH1_PAIRS, COST, NARROW, MATCHED, PROSPECTS, NAMES, FORECASTS,
+    expected, spread, dominates,
+    riskPairs, ch9Trials, resolveCh9, disposition,
+    forecastText, forecastEvent, modelGap, modelPUp,
+    practiceTrial, transfer,
   };
 })(typeof module !== 'undefined' && module.exports ? module.exports : (window.WS = window.WS || {}),
-   typeof module !== 'undefined' && module.exports ? require('./Sim.js').Sim : window.WS.Sim);
+   typeof module !== 'undefined' && module.exports ? require('./Sim') : (window.WS = window.WS || {}));
