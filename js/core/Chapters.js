@@ -106,7 +106,7 @@
     const base = Object.assign({ trialId:trial.trialId, projectId:soldId,
       soldName:sold.name, phase:'baseline' }, extra || {});
     if (trial.type === 'matched') {
-      return Object.assign(base, { scenarioId:'ch9:review',
+      return Object.assign(base, { scenarioId:'ch9:matched_gain_loss',
         action: sold.purchase < sold.current ? 'sell_winner' : 'sell_loser' });
     }
     return Object.assign(base, { scenarioId:'ch9:prospects',
@@ -116,7 +116,7 @@
   // Counts across matched trials only — the prospects trial is confounded
   // by design and never enters this count.
   function disposition(events) {
-    const m = events.filter(function (e){ return e.scenarioId==='ch9:review' && e.phase!=='practice'; });
+    const m = events.filter(function (e){ return e.scenarioId==='ch9:matched_gain_loss' && e.phase!=='practice'; });
     if (!m.length) return { available:false };
     return { available:true, n:m.length,
       soldGain: m.filter(function (e){ return e.action==='sell_winner'; }).length,

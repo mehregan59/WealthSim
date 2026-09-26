@@ -23,16 +23,20 @@ class ProfileScene extends Phaser.Scene {
       this.summary = null;
       console.error('[WealthSim] core modules not loaded — summary unavailable');
     } else {
-      this.events  = WS.Adapter.toEvents(decisions);
-      this.summary = WS.Summary.build(this.events, WS.Adapter.toStated(answers), { units:6, districts:4, lang:this.de?'de':'en' });
+      this.decisionEvents = WS.Adapter.toEvents(decisions);
+      this.summary = WS.Summary.build(this.decisionEvents, WS.Adapter.toStated(answers), { units:6, districts:4, lang:this.de?'de':'en' });
       this.label   = WS.Summary.optionalLabel(this.summary);
       if (this.summary.unsupported.length)
         console.warn('[WealthSim] Unsupported actions (not scored):', this.summary.unsupported);
       console.log('[WealthSim] Session summary:', JSON.stringify(this.summary, null, 2));
     }
 
+    // Compute persona via SessionStyle when available
+    this.style = (window.WS && WS.SessionStyle && this.decisionEvents)
+      ? WS.SessionStyle.classify(this.decisionEvents)
+      : null;
+
     this._bg();
-    if (typeof CityExperience !== "undefined") { CityExperience.summary(this); return; }
     this._curtainDrop();
   }
   s(v){ return Math.round(v * this.S); }
@@ -74,7 +78,7 @@ class ProfileScene extends Phaser.Scene {
     this.tweens.add({targets:trans,alpha:1,duration:1000,delay:totalIn+500});
 
     const go=()=>{ objs.forEach(o=>{try{o.destroy();}catch(e){}}); try{trans.destroy();}catch(e){}
-                   try{skip.destroy();}catch(e){} try{skipBg.destroy();}catch(e){} this._dashboard(); };
+                   try{skip.destroy();}catch(e){} try{skipBg.destroy();}catch(e){} this._personaReveal(); };
     this.curtainTimer=this.time.delayedCall(totalIn+2000,()=>{
       this.tweens.add({targets:objs.concat([trans]),alpha:0,duration:800,onComplete:go});
     });
@@ -89,6 +93,132 @@ class ProfileScene extends Phaser.Scene {
     skip.on('pointerout', ()=>{ skip.setColor('#e2a840'); skipBg.clear(); skipBg.fillStyle(0xe2a840,0.12); skipBg.fillRoundedRect(skipX,skipY,skipW,skipH,this.s(10)); skipBg.lineStyle(1,0xe2a840,0.5); skipBg.strokeRoundedRect(skipX,skipY,skipW,skipH,this.s(10)); });
     skip.on('pointerdown',()=>{ this.tweens.killAll(); if(this.curtainTimer)this.curtainTimer.remove(); go(); });
     this.input.keyboard.once('keydown-SPACE',()=>{ this.tweens.killAll(); if(this.curtainTimer)this.curtainTimer.remove(); go(); });
+  }
+
+  // ── Persona reveal (navy/gold, primary landing) ──────────────────
+  _personaReveal() {
+    const W=this.W, H=this.H, de=this.de;
+    const sm=this.summary;
+    const style=this.style;
+    const personaName = style && style.available
+      ? (de ? style.personaDE : style.persona)
+      : (de ? 'Gemischter Stil' : 'Mixed Style');
+    const personaAvail = style && style.available;
+
+    // Header band
+    const headH=this.s(64);
+    const hb=this.add.graphics().setDepth(50);
+    hb.fillStyle(0x061019,1); hb.fillRect(0,0,W,headH);
+    hb.lineStyle(1,0x1e3350,1); hb.lineBetween(0,headH,W,headH);
+    this.add.text(W/2,headH/2, de?'Dein Ergebnis':'Your result',{
+      fontFamily:'Playfair Display, Georgia, serif',fontSize:this.s(24),color:'#e2a840'
+    }).setOrigin(0.5).setDepth(51);
+
+    // Scrollable content
+    this.content=this.add.container(0,0).setDepth(10);
+    this.y=headH+this.s(30);
+    this.colW=Math.min(this.s(780),W-this.s(80));
+    this.left=(W-this.colW)/2;
+
+    // Persona name — large, gold
+    if (personaAvail) {
+      const pLabel = this._add(this.add.text(this.left, this.y,
+        (de?'Dein Stil: ':'Your style: ')+personaName, {
+          fontFamily:'Playfair Display, Georgia, serif', fontSize:this.s(30), color:'#e2a840',
+          wordWrap:{width:this.colW}
+        }));
+      this.y += pLabel.height + this.s(4);
+      const styleDesc = WS && WS.SessionStyle ? WS.SessionStyle.describe(style, de?'de':'en') : null;
+      if (styleDesc) this._note(styleDesc);
+    } else {
+      const pLabel = this._add(this.add.text(this.left, this.y, de?'Kein eindeutiger Stil':'No single style', {
+        fontFamily:'Playfair Display, Georgia, serif', fontSize:this.s(24), color:'#b0c8e0',
+        wordWrap:{width:this.colW}
+      }));
+      this.y += pLabel.height + this.s(4);
+      this._note(de
+        ? 'Diese Sitzung hat keine klare Übereinstimmung mit einem einzelnen Stil — das ist häufig und in Ordnung.'
+        : 'This session did not match a single style clearly — that is common and fine.');
+    }
+    this.y += this.s(10);
+
+    // City silhouette from ending district state
+    this._citySilhouette();
+    this.y += this.s(8);
+
+    // Two-column behavioral summary (patterns)
+    if (sm && sm.patterns && sm.patterns.length) {
+      this._h(de?'Was beobachtet wurde':'What was observed');
+      const cols = 2, gap = this.s(16);
+      const cellW = (this.colW - gap) / cols;
+      const startX = this.left, startY = this.y;
+      let maxY = this.y;
+      sm.patterns.forEach((p, i) => {
+        const col = i % cols;
+        const cx = startX + col * (cellW + gap);
+        const cy = col === 0 ? this.y : maxY - (sm.patterns.length % 2 === 0 || i < sm.patterns.length - 1 ? 0 : 0);
+        const card = this._add(this.add.graphics());
+        card.fillStyle(0x0c1e30, 0.95); card.fillRoundedRect(cx, this.y, cellW, this.s(80), this.s(8));
+        card.lineStyle(1, 0x1e3350, 1); card.strokeRoundedRect(cx, this.y, cellW, this.s(80), this.s(8));
+        const chip = this._chipText(p.coverage, p.n, de);
+        this._add(this.add.text(cx+this.s(10), this.y+this.s(8), p.label, {
+          fontFamily:'Inter, Arial, sans-serif', fontSize:this.s(13), color:'#e8f2ff', fontStyle:'600',
+          wordWrap:{width:cellW-this.s(20)}
+        }));
+        this._add(this.add.text(cx+this.s(10), this.y+this.s(28), chip, {
+          fontFamily:'Inter, Arial, sans-serif', fontSize:this.s(11), color:'#7d97b3'
+        }));
+        this._add(this.add.text(cx+this.s(10), this.y+this.s(44), p.text, {
+          fontFamily:'Inter, Arial, sans-serif', fontSize:this.s(11), color:'#a8c0d8',
+          wordWrap:{width:cellW-this.s(20)}
+        }));
+        if (col === cols - 1) { this.y += this.s(90); maxY = this.y; }
+        else maxY = this.y + this.s(90);
+      });
+      if (sm.patterns.length % cols !== 0) this.y += this.s(90);
+      this.y += this.s(6);
+    }
+
+    // City outcome stats
+    if (this.stats) {
+      this._note((de?'Stadtindikatoren: ':'City indicators: ')
+        +(de?'Zufriedenheit ':'Happiness ')+Math.round(this.stats.happiness)
+        +'  ·  '+(de?'Entwicklung ':'Development ')+Math.round(this.stats.development));
+    }
+    this.y += this.s(6);
+
+    // Action buttons
+    this._playAgain();
+    this.y += this.s(8);
+    const exW=this.s(260), exH=this.s(42), exX=this.left, exY=this.y;
+    const exG=this._add(this.add.graphics());
+    exG.lineStyle(1,0xe2a840,0.6); exG.strokeRoundedRect(exX,exY,exW,exH,this.s(8));
+    this._add(this.add.text(exX+exW/2, exY+exH/2,
+      de?'Entscheidungen im Detail →':'Explore my decisions →',{
+        fontFamily:'Inter, Arial, sans-serif',fontSize:this.s(14),color:'#e2a840'
+      }).setOrigin(0.5));
+    const exHit=this._add(this.add.rectangle(exX+exW/2,exY+exH/2,exW,exH,0xffffff,0).setInteractive({useHandCursor:true}));
+    exHit.on('pointerup',()=>{ if(this._dragged) return; this.content.destroy(); this.content=null; this.y=0; this._dashboard(); });
+    this.y += exH + this.s(40);
+
+    this._finishScroll(headH);
+  }
+
+  // Minimal city silhouette drawn from district state
+  _citySilhouette() {
+    const W=this.W, colW=this.colW, left=this.left;
+    const silH=this.s(60);
+    const g=this._add(this.add.graphics());
+    const pal={housing:0xe2a18a,transport:0x74b7c7,technology:0xb6a0d5,energy:0xf0c96b};
+    const ids=['housing','transport','technology','energy'];
+    const segW=colW/ids.length;
+    ids.forEach((id,i)=>{
+      const h=this.stats ? Math.max(this.s(20), this.s(20)+this.s(30)*(this.stats.happiness/100)) : this.s(30);
+      const bx=left+i*segW+segW*0.15, bw=segW*0.7;
+      g.fillStyle(pal[id]||0x5c8ab0, 0.7);
+      g.fillRect(bx, this.y+silH-h, bw, h);
+    });
+    this.y += silH + this.s(8);
   }
 
   // ── Scrollable dashboard ─────────────────────────────────────────
@@ -199,7 +329,7 @@ class ProfileScene extends Phaser.Scene {
     this._h(de?'Über diese Auswertung':'About this summary');
     this._p(sm.disclaimer);
     this._note(de ? 'Die Szenarien sind von Forschung zu Risikoentscheidungen, Zeitpräferenz, Verlustrealisierung und Prognosegenauigkeit inspiriert. Keine dieser Studien validiert die Werte dieses Spiels.'
-                  : 'The scenarios are inspired by research on risk choices, time preference, realising losses, and forecast accuracy. None of those studies validates this game’s results.');
+                  : 'The scenarios are inspired by research on risk choices, time preference, realising losses, and forecast accuracy. None of those studies validates this game\'s results.');
 
     this._playAgain();
     this._finishScroll(headH);
@@ -306,7 +436,8 @@ class ProfileScene extends Phaser.Scene {
     hit.on('pointerup',()=>{ if(this._dragged) return;
       if(typeof ScoringEngine!=='undefined') ScoringEngine.reset();
       if(typeof Tutorial!=='undefined') Tutorial.skipAll=false;
-      this.scene.start('PlayerSetup'); });
+      window.WS_PLAY_MODE = null; window.cityName = '';
+      this.scene.start('GameScene'); });
     this.y += bH + this.s(40);
   }
 

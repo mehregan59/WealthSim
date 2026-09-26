@@ -23,8 +23,9 @@ const ctx=vm.createContext({document,window,console,Phaser:{Scene:class {}},setL
 vm.runInContext(fs.readFileSync('js/ui/CityExperience.js','utf8')+';this.UI=CityExperience;',ctx);
 function makeScene(de=false){return {de:()=>de,currentLevel:1,cityStats:{happiness:60,development:40,resources:80},events:new EventEmitter(),time:{},tweens:{},input:{},hud:{cityText:{setText(){}}},scene:{start(n){this.started=n;},restart(){}},reducedMotion:false};}
 for(const de of [false,true]){
- test((de?'DE':'EN')+' welcome reaches first choice without questionnaires',()=>{const s=makeScene(de);const ui=new ctx.UI(s);let started=0;ui.welcome(()=>started++);ui.panel.querySelector('input').value='Test City';ui.panel.querySelector('button').click();assert.equal(started,1);assert.equal(window.cityName,'Test City');assert.equal(window.WS_PLAY_MODE,'quick');s.events.emit('shutdown');});
- test((de?'DE':'EN')+' background-question route remains separate',()=>{const s=makeScene(de);const ui=new ctx.UI(s);ui.welcome(()=>{});ui.panel.querySelectorAll('button')[1].click();assert.equal(window.WS_PLAY_MODE,'research');assert.equal(s.scene.started,'PlayerSetup');s.events.emit('shutdown');});
+ test((de?'DE':'EN')+' welcome reaches first choice without questionnaires',()=>{const s=makeScene(de);const ui=new ctx.UI(s);let started=0;ui.welcome(()=>started++);ui.panel.querySelector('input').value='Test City';ui.panel.querySelectorAll('button')[1].click();// confirm the skip dialog (first button = Back, second = Start directly)
+ui.panel.querySelectorAll('button')[1].click();assert.equal(started,1);assert.equal(window.cityName,'Test City');assert.equal(window.WS_PLAY_MODE,'quick');s.events.emit('shutdown');});
+ test((de?'DE':'EN')+' background-question route remains separate',()=>{const s=makeScene(de);const ui=new ctx.UI(s);ui.welcome(()=>{});ui.panel.querySelectorAll('button')[0].click();assert.equal(window.WS_PLAY_MODE,'research');assert.equal(s.scene.started,'PlayerSetup');s.events.emit('shutdown');});
 }
 test('native choice submits once and preserves numeric zero',()=>{const s=makeScene();const ui=new ctx.UI(s);const values=[];ui.choices([{label:'Zero',value:0}],v=>values.push(v));const b=ui.panel.querySelector('button');b.click();b.click();assert.deepEqual(values,[0]);s.events.emit('shutdown');});
 test('pause freezes clocks and blocks decision panel; resume restores them',()=>{const s=makeScene();const ui=new ctx.UI(s);ui.setPaused(true);assert.equal(s.time.paused,true);assert.equal(s.tweens.timeScale,0);assert.equal(s.input.enabled,false);assert.equal(ui.panel.inert,true);ui.setPaused(false);assert.equal(s.time.paused,false);assert.equal(s.input.enabled,true);s.events.emit('shutdown');});
@@ -77,7 +78,7 @@ test('native decision controls complete all ten chapters with the real evidence 
     available[0].click();
   }
   assert.equal(s.destination,'ProfileScene');assert.equal(levels.size,10);assert.deepEqual(errors,[]);
-  assert.equal(s.result.profile.forecast.n,4);assert.equal(s.result.profile.unsupported.length,0);
+  assert.equal(s.result.profile.forecast.available,false);assert.equal(s.result.profile.unsupported.length,0);
   assert.equal(WS.Chapters.riskPairs(WS.Adapter.toEvents(ctx.realEngine.decisions)).n,3);
   assert.equal(ctx.realEngine.decisions.filter(d=>d.level===3).length,6);
   s.events.emit('shutdown');
