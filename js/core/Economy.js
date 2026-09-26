@@ -63,7 +63,7 @@
                            cash:sim.state.cash, holdings:Object.assign({}, sim.state.holdings) }, extra || {});
   }
 
-  // ── Level functions ─────────────────────────────────────────────
+  // ── Level functions ────────────────────────────────────────────────────────────
   function start(sim) { /* session starts with RULES.startCash in cash */ return sim; }
 
   function level1(sim, districtId) {
