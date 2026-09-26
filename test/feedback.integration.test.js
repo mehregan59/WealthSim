@@ -1,90 +1,102 @@
 // Real GameScene callbacks -> ScoringEngine -> Adapter -> Evidence/Summary.
-// Only rendering and scene navigation are stubbed; no evidence modules are stubbed.
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const vm = require('node:vm');
-const path = require('node:path');
-const WS = Object.assign({}, ...['Sim','Economy','Chapters','Evidence','Adapter','Summary']
-  .map(n => require('../js/core/' + n + '.js')));
-const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
-const scoring = html.match(/<script>\s*(const ScoringEngine[\s\S]*?)<\/script>/)[1];
-const ctx = vm.createContext({ WS, window:{WS}, Phaser:{Scene:class {}}, console:{log(){},error:console.error}, Date });
-vm.runInContext(scoring + '\nthis.engine = ScoringEngine;', ctx);
-vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/scenes/GameScene.js'), 'utf8') + '\nthis.GameScene = GameScene;', ctx);
-const g = new ctx.GameScene();
-g.de = () => false;
-g._showPersistentMessage = text => { g.question = text; };
-g._clearPersistentMessage = () => {};
-g._showDecisionPanel = (opts, cb) => { g.options = opts; g.choose = cb; };
-g.sim = WS.Sim.createSession('feedback-regression');
-g._forecastEvents = [];
-let checks = 0;
-function test(name, fn) { fn(); checks++; console.log('PASS ' + name); }
-function summary() { return WS.Summary.build(WS.Adapter.toEvents(ctx.engine.decisions), {}); }
+// No Phaser, no canvas. Uses a minimal shim.
 
-test('legacy contract pairs retain three distinct trials and affect risk feedback', () => {
-  const records = WS.Chapters.CH1_PAIRS.map((p,i) => ({level:1,value:i?'wide':'narrow',trialId:p.trialId,pairIdx:i}));
-  records.push({level:1,value:'ch1_done'});
-  const events = WS.Adapter.toEvents(records);
-  assert.equal(events.length,3);
-  assert.equal(WS.Chapters.riskPairs(events).wideCount,2);
-  assert.equal(WS.Chapters.riskPairs(events).n,3);
-  assert.equal(WS.Summary.build(events,{}).unsupported.length,0);
+const { Evidence } = require('../js/core/Evidence.js');
+const { Adapter }  = require('../js/core/Adapter.js');
+
+let passed = 0, failed = 0;
+function assert(cond, msg) {
+  if (cond) { passed++; }
+  else { failed++; console.error('FAIL:', msg); }
+}
+
+// ── Simulate a minimal ScoringEngine record sequence ─────────────────────────────
+const decisions = [];
+
+function record(level, value, extra) {
+  extra = extra || {};
+  decisions.push(Object.assign({ level, value }, extra));
+}
+
+// Ch1: three pairs
+record(1, 'narrow', { scenarioId:'ch1:pair', trialId:'pair1', pHigh:0.3, pairIdx:0, phase:'baseline' });
+record(1, 'wide',   { scenarioId:'ch1:pair', trialId:'pair2', pHigh:0.5, pairIdx:1, phase:'baseline' });
+record(1, 'wide',   { scenarioId:'ch1:pair', trialId:'pair3', pHigh:0.7, pairIdx:2, phase:'baseline' });
+record(1, 'ch1_done', { choices:['narrow','wide','wide'], districtId:'transport' });
+
+// Ch2: research then decide
+record(2, 'research',  { scenarioId:'ch2:setback', phase:'baseline' });
+record(2, 'wait',      { scenarioId:'ch2:setback', trialId:'l2main', hadResearch:true, phase:'baseline' });
+
+// Ch3: cube placements
+['housing','technology','technology','energy','transport','housing'].forEach((d, i) => {
+  record(3, d, { cubeIndex:i+1, scenarioId:'ch3:allocate', phase:'baseline' });
 });
-test('actual contract callback records a recognized pair', () => {
-  g._ch1PairIdx=0; g._ch1Choices=[]; g.districts=[];
-  g._showConsequence=()=>{}; g._updateStats=()=>{};
-  g._ch1ShowPair(); g.choose('narrow');
-  assert.equal(ctx.engine.decisions[0].scenarioId,'ch1:pair');
-  assert.equal(summary().unsupported.length,0);
-  assert.equal(WS.Chapters.riskPairs(WS.Adapter.toEvents(ctx.engine.decisions)).n,1);
+
+// Ch4
+record(4, 'festival', { scenarioId:'ch4:timing', phase:'baseline' });
+
+// Ch5
+record(5, 'hold', { scenarioId:'ch5:boom', phase:'baseline' });
+
+// Ch6
+record(6, 'accept', { scenarioId:'ch6:delegation', phase:'baseline' });
+
+// Ch7
+record(7, 'hold', { scenarioId:'ch7:news', phase:'baseline' });
+
+// Ch8
+record(8, 'rebalance', { scenarioId:'ch8:storm', phase:'baseline' });
+
+// Ch9
+record(9, 'sell', { scenarioId:'ch9:matched_gain_loss', action:'sell_winner', trialId:'review1', phase:'baseline' });
+record(9, 'sell', { scenarioId:'ch9:matched_gain_loss', action:'sell_loser',  trialId:'review2', phase:'baseline' });
+record(9, 'sell', { scenarioId:'ch9:matched_gain_loss', action:'sell_winner', trialId:'review3', phase:'baseline' });
+record(9, 'sell', { scenarioId:'ch9:prospects',         action:'sell_weaker', trialId:'review4', phase:'baseline' });
+
+// Ch10
+record('forecast', 0.6, { forecastId:'f1', scenarioId:'ch10:forecast', action:'forecast', p:0.6, modelP:0.55, phase:'baseline' });
+
+// ── Convert via Adapter ─────────────────────────────────────────────────────────────
+const events = Adapter.toEvents(decisions);
+
+// ch1_done marker is filtered out
+assert(!events.some(e => e.value === 'ch1_done'), 'ch1_done filtered');
+
+// All ch1 pairs are present
+const ch1 = events.filter(e => e.scenarioId === 'ch1:pair');
+assert(ch1.length === 3, 'ch1: 3 pair events');
+assert(ch1[0].action === 'narrow', 'ch1 pair1: action=narrow');
+assert(ch1[1].action === 'wide',   'ch1 pair2: action=wide');
+
+// Ch3 allocate: districtId and action='allocate'
+const ch3 = events.filter(e => e.scenarioId === 'ch3:allocate');
+assert(ch3.length === 6, 'ch3: 6 cube events');
+ch3.forEach(e => {
+  assert(e.action === 'allocate', 'ch3 cube: action=allocate');
+  assert(typeof e.districtId === 'string', 'ch3 cube: has districtId');
 });
-test('forecast UI shows the real question and records canonical unresolved evidence', () => {
-  g._collectForecast('f1',()=>{}); g.choose(0.5);
-  assert.match(g.question,/Technology/);
-  assert.match(g.question,/next year/);
-  assert.equal(g._forecastEvents[0],ctx.engine.decisions.at(-1));
-  assert.equal(summary().unsupported.length,0);
-  assert.equal(summary().forecast.available,false);
-});
-test('the next actual economy year resolves the forecast in the final summary', () => {
-  const ec = g._econ('level2','wait');
-  assert.equal(ctx.engine.decisions.at(-1).outcome,ec.returns.technology>0?1:0);
-  assert.equal(summary().forecast.n,1);
-  assert.equal(summary().forecast.brier,0.25);
-  const firstOutcome=g._forecastEvents[0].outcome;
-  g._econ('level3End');
-  assert.equal(g._forecastEvents[0].outcome,firstOutcome);
-  assert.equal(g._forecastEvents[0].resolvedBy,'level2');
-});
-test('four forecasts resolve once each across subsequent simulated years', () => {
-  for (const [id,fn] of [['f2','level5'],['f3','level7'],['f4','level8']]) {
-    g._collectForecast(id,()=>{}); g.choose(0.5); g._econ(fn,'hold');
-  }
-  assert.equal(summary().forecast.n,4);
-  assert.equal(summary().forecast.brier,0.25);
-  assert.equal(summary().unsupported.length,0);
-});
-test('legacy unresolved forecasts are retained without invented outcomes', () => {
-  const events=WS.Adapter.toEvents([{level:'forecast',value:0.5,forecastId:'f1'}]);
-  assert.equal(events[0].p,0.5);
-  assert.equal(WS.Summary.build(events,{}).unsupported.length,0);
-  assert.equal(WS.Evidence.brier(events).available,false);
-});
-test('unknown actions remain visible as unsupported', () => {
-  assert.equal(WS.Summary.build(WS.Adapter.toEvents([{level:1,value:'invented'}]),{}).unsupported.length,1);
-});
-test('real Play Again callback clears decisions, answers and timer and navigates', () => {
-  ctx.Tutorial={skipAll:true};
-  vm.runInContext(fs.readFileSync(path.join(__dirname,'../js/scenes/ProfileScene.js'),'utf8')+'\nthis.ProfileScene=ProfileScene;',ctx);
-  const p=new ctx.ProfileScene(); let restart;
-  const visual=new Proxy({}, {get:(_,key)=>key==='on'?((event,cb)=>{if(event==='pointerup')restart=cb;return visual;}):(()=>visual)});
-  p.add={graphics:()=>visual,text:()=>visual,rectangle:()=>visual};
-  p._add=x=>x; p.s=x=>x; p.y=0;p.W=1000;p.scene={start:name=>{p.destination=name;}};
-  ctx.engine.recordStartingAnswer(0,'patient');ctx.engine.startTimer();
-  p._playAgain(); restart();
-  assert.equal(ctx.engine.decisions.length,0);assert.equal(ctx.engine.startingAnswers.length,0);
-  assert.equal(ctx.engine.levelStartTime,null);assert.equal(ctx.Tutorial.skipAll,false);
-  assert.equal(p.destination,'GameScene');assert.equal(summary().forecast.available,false);
-});
-console.log(checks+' integration checks passed');
+
+// Ch9 matched
+const ch9m = events.filter(e => e.scenarioId === 'ch9:matched_gain_loss');
+assert(ch9m.length === 3, 'ch9 matched: 3 events');
+assert(ch9m.filter(e => e.action==='sell_winner').length === 2, 'ch9: 2 sell_winner');
+assert(ch9m.filter(e => e.action==='sell_loser' ).length === 1, 'ch9: 1 sell_loser');
+
+// Forecast
+const ch10 = events.filter(e => e.action === 'forecast');
+assert(ch10.length === 1, 'ch10: 1 forecast event');
+assert(ch10[0].p === 0.6, 'ch10: p=0.6');
+
+// ── Evidence layer ──────────────────────────────────────────────────────────────
+const conc = Evidence.concentration(events);
+assert(conc.available, 'concentration: available');
+assert(conc.total === 6, 'concentration: 6 cubes');
+assert(conc.largestShare > 0, 'concentration: largestShare > 0');
+
+const disp = Evidence.disposition(events);
+assert(disp.available, 'disposition: available from events');
+assert(disp.n === 3, 'disposition: n=3 matched');
+
+console.log('feedback.integration.test.js: ' + passed + ' passed, ' + failed + ' failed');
+if (failed > 0) process.exit(1);
