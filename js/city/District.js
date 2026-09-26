@@ -4,9 +4,9 @@ class District {
     this.S = config.scale || scene.S || 1;
     this.id = config.id;
     this.name = config.name;      this.nameDE = config.nameDE;
-    this.color = config.color;    this.darkColor = config.darkColor;
-    this.accentColor = config.accentColor;
-    this.cx = config.cx;          this.cy = config.cy;
+    this.color = config.color;    this.darkColor = config.darkColor || 0xb2cb98;
+    this.accentColor = config.accentColor || config.color;
+    this.cx = config.cx ?? config.x; this.cy = config.cy ?? config.y;
     this.health = config.health || 45;
     this.resources = 0;
     this.tooltip = config.tooltip; this.tooltipDE = config.tooltipDE;
@@ -36,11 +36,11 @@ class District {
     this.labelBaseY = this.cy - this.s(112);
     this.labelContainer = this.scene.add.container(this.cx, this.labelBaseY).setDepth(13);
     const t=this.scene.add.text(0,0,this._icon()+'  '+txt,{
-      fontFamily:'Inter, Arial, sans-serif', fontSize:this.s(13), color:'#e2eeff', fontStyle:'600'
+      fontFamily:'Inter, Arial, sans-serif', fontSize:this.s(13), color:'#29473e', fontStyle:'600'
     }).setOrigin(0.5);
     const w=t.width+this.s(22), h=this.s(25);
     const bg=this.scene.add.graphics();
-    bg.fillStyle(0x040a14,0.9); bg.fillRoundedRect(-w/2,-h/2,w,h,this.s(7));
+    bg.fillStyle(0xfff9e9,0.97); bg.fillRoundedRect(-w/2,-h/2,w,h,this.s(7));
     bg.lineStyle(1,this.accentColor,0.6); bg.strokeRoundedRect(-w/2,-h/2,w,h,this.s(7));
     this.labelContainer.add([bg,t]);
     this.labelH = h;
@@ -49,7 +49,7 @@ class District {
   // Safe Y for a second label — always sits clear below the district name
   subLabelY(){ return this.labelContainer.y + this.labelH/2 + this.s(19); }
 
-  _icon(){ return {housing:'\uD83C\uDFD8',transport:'\uD83D\uDE8F',technology:'\uD83D\uDDA5',energy:'\u26A1'}[this.id]||'\uD83C\uDFD7'; }
+  _icon(){ return {housing:'🏘',transport:'🚏',technology:'🖥',energy:'⚡'}[this.id]||'🏗'; }
 
   draw() {
     const g=this.gfx; g.clear();
@@ -64,9 +64,21 @@ class District {
     const g=this.gfx;
     const p=[{x:this.ix(0,2.2),y:this.iy(0,2.2,0)},{x:this.ix(2.2,2.2),y:this.iy(2.2,2.2,0)},
              {x:this.ix(2.2,0),y:this.iy(2.2,0,0)},{x:this.ix(0,0),y:this.iy(0,0,0)}];
-    g.fillStyle(this.darkColor,0.58);
+    g.fillStyle(0x315443,0.15); g.fillEllipse(this.cx+this.s(8),this.cy+this.s(45),this.s(174),this.s(64));
+    g.fillStyle(this.darkColor,1);
     g.beginPath(); g.moveTo(p[0].x,p[0].y); p.forEach(q=>g.lineTo(q.x,q.y)); g.closePath(); g.fillPath();
     g.lineStyle(1,this.color,0.38); g.strokePath();
+    // Cream footpath and pocket gardens at the edges of each miniature tile.
+    g.lineStyle(this.s(5),0xeee1bd,0.85);
+    g.beginPath();g.moveTo(this.ix(0.1,1.8),this.iy(0.1,1.8,0));
+    g.lineTo(this.ix(2,1.8),this.iy(2,1.8,0));g.strokePath();
+    [[0.12,0.6],[0.15,1.4],[1.95,0.12]].forEach(([x,y])=>{
+      const px=this.ix(x,y), py=this.iy(x,y,0);
+      g.fillStyle(0x416747,0.18);g.fillEllipse(px+this.s(3),py+this.s(2),this.s(17),this.s(7));
+      g.fillStyle(0x8b7250,1);g.fillRect(px-this.s(1),py-this.s(10),this.s(3),this.s(11));
+      g.fillStyle(0x609657,1);g.fillCircle(px,py-this.s(13),this.s(8));
+      g.fillStyle(0x92bb68,1);g.fillCircle(px-this.s(2),py-this.s(16),this.s(5));
+    });
   }
 
   _box(gx,gy,w,d,h,cT,cL,cR,a) {
@@ -95,7 +107,7 @@ class District {
     for(let i=0;i<Math.min(n,sp.length);i++){
       const gx=sp[i][0], gy=sp[i][1];
       const h=0.28+(this.health/100)*0.35;
-      this._box(gx,gy,0.42,0.42,h,0x6fbf7f,0x1d5a2a,0x2f8a42);
+      this._box(gx,gy,0.42,0.42,h,0xffe2bc,0xc98066,0xe4aa8b);
       const rz=h+0.22;
       g.fillStyle(0x9c4a3a,0.95);
       g.beginPath(); g.moveTo(this.ix(gx,gy),this.iy(gx,gy,h));
@@ -131,7 +143,7 @@ class District {
       g.lineTo(this.ix(dx+0.22,0.98),this.iy(dx+0.22,0.98,0.03)); g.strokePath(); }
     const n=Math.max(1,Math.round(this.health/30));
     const h=0.35+(this.health/100)*0.4;
-    this._box(0.15,0.08,1.0,0.5,h,0x7ea8d0,0x1a3350,0x33608f);
+    this._box(0.15,0.08,1.0,0.5,h,0xb5dce2,0x51899b,0x79b4c0);
     g.fillStyle(0x9dc0e0,0.8);
     for(let v=0;v<3;v++) g.fillRect(this.ix(0.3+v*0.28,0.3)-this.s(3),this.iy(0.3+v*0.28,0.3,h)-this.s(2),this.s(6),this.s(3));
     for(let b=0;b<Math.min(n+1,3);b++){
@@ -153,7 +165,7 @@ class District {
     for(let i=0;i<Math.min(n,sp.length);i++){
       const gx=sp[i][0], gy=sp[i][1];
       const h=0.55+(this.health/100)*1.5+(i%3)*0.28;
-      this._box(gx,gy,0.3,0.3,h,0xc9a6f5,0x2f1657,0x6b3fae);
+      this._box(gx,gy,0.3,0.3,h,0xe4cef1,0x9375b0,0xb79acb);
       if(this.health>20){
         g.fillStyle(0x9ee8ff,0.75);
         for(let w=0;w<Math.floor(h*3);w++){
@@ -221,7 +233,7 @@ class District {
     this._selGfx.lineStyle(this.s(3),this.accentColor,0.9);
     this._selGfx.beginPath(); this._selGfx.moveTo(p[0].x,p[0].y);
     p.forEach(q=>this._selGfx.lineTo(q.x,q.y)); this._selGfx.closePath(); this._selGfx.strokePath();
-    this.scene.tweens.add({targets:this._selGfx,alpha:{from:1,to:0.25},duration:800,yoyo:true,repeat:-1});
+    if (!this.scene.reducedMotion) this.scene.tweens.add({targets:this._selGfx,alpha:{from:1,to:0.25},duration:800,yoyo:true,repeat:-1});
   }
   _pulseOff(){ if(this._selGfx){this.scene.tweens.killTweensOf(this._selGfx);this._selGfx.destroy();this._selGfx=null;} }
 
@@ -237,7 +249,7 @@ class District {
   _glowOff(){ if(this.glowGfx){this.glowGfx.destroy();this.glowGfx=null;} }
 
   // Citizens stay inside the tile and off the road band
-  _initCitizens(){ for(let i=0;i<3;i++) this.citizens.push(this._newCitizen()); }
+  _initCitizens(){ for(let i=0;i<5;i++) this.citizens.push(this._newCitizen()); }
   _newCitizen(){
     return { gx:0.25+Math.random()*1.6, gy:0.2+Math.random()*1.3,
              tgx:0.25+Math.random()*1.6, tgy:0.2+Math.random()*1.3,
@@ -246,7 +258,7 @@ class District {
   }
   _updateCitizens(delta){
     const g=this.animGfx;
-    const active=Math.max(1,Math.round(this.health/25));
+    const active=Math.min(5,Math.max(3,Math.round(this.health/20)));
     this.citizens.forEach((c,idx)=>{
       if(idx>=active) return;
       if(c.pause>0){ c.pause-=delta; }
@@ -270,12 +282,13 @@ class District {
   receiveResource(a){
     this.resources+=a;
     this._animHealth(this.health, Math.min(100,this.health+a*9), 850,'Back.easeOut');
-    this._sparkle();
-    this.scene.tweens.add({targets:this.labelContainer,scaleX:1.1,scaleY:1.1,duration:180,yoyo:true});
+    if (!this.scene.reducedMotion) this._sparkle();
+    if (!this.scene.reducedMotion) this.scene.tweens.add({targets:this.labelContainer,scaleX:1.1,scaleY:1.1,duration:180,yoyo:true});
   }
   takeDamage(a){ this._animHealth(this.health, Math.max(6,this.health-a), 950,'Power2.easeIn'); this._cracks(); }
 
   _animHealth(from,to,dur,ease){
+    if(this.scene.reducedMotion){ this.health=to; this.draw(); return; }
     const o={h:from};
     this.scene.tweens.add({targets:o,h:to,duration:dur,ease:ease,
       onUpdate:()=>{ this.health=o.h; this.draw(); this.labelContainer.y=this.labelBaseY-(o.h/100)*this.s(24); },
@@ -283,15 +296,16 @@ class District {
   }
 
   _sparkle(){
-    for(let i=0;i<10;i++){
+    for(let i=0;i<4;i++){
       const px=this.cx+Phaser.Math.Between(-this.s(58),this.s(58));
       const py=this.cy+Phaser.Math.Between(-this.s(16),this.s(22));
       const s=this.scene.add.graphics().setDepth(20);
-      s.fillStyle(this.accentColor,1); s.fillCircle(0,0,this.s(3)); s.setPosition(px,py);
+      s.fillStyle(0xdac7a2,0.7); s.fillCircle(0,0,this.s(3)); s.setPosition(px,py);
       this.scene.tweens.add({targets:s,y:py-this.s(65),alpha:0,duration:700+Math.random()*500,delay:i*55,onComplete:()=>s.destroy()});
     }
   }
   _cracks(){
+    if(this.scene.reducedMotion) return;
     for(let i=0;i<4;i++){
       this.scene.time.delayedCall(i*190,()=>{
         const c=this.scene.add.graphics().setDepth(20);
@@ -304,19 +318,7 @@ class District {
     }
   }
 
-  celebrate(){
-    const cols=[0xffd54a,0x4ecdc4,0xff6b9d,0x9966cc,0x6fbf7f];
-    for(let i=0;i<26;i++){
-      this.scene.time.delayedCall(i*40,()=>{
-        const p=this.scene.add.graphics().setDepth(40);
-        p.fillStyle(cols[i%cols.length],1);
-        p.fillRect(0,0,this.s(4),this.s(7));
-        p.setPosition(this.cx+Phaser.Math.Between(-this.s(60),this.s(60)), this.cy-this.s(70));
-        this.scene.tweens.add({targets:p,y:this.cy+this.s(30),angle:Phaser.Math.Between(-220,220),
-          alpha:{from:1,to:0},duration:1500+Math.random()*700,onComplete:()=>p.destroy()});
-      });
-    }
-  }
+  celebrate(){ this.draw(); }
 
   setStorm(a){
     this.scene.tweens.add({targets:[this.gfx,this.animGfx],alpha:a?0.32:1,duration:1600});

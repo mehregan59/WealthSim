@@ -95,7 +95,7 @@ Tests cover: Ch1 district routing, Ch2 research flag, Ch3 cube records, Ch7 `inv
 Each dimension is scored independently with a coverage label:
 
 | Label | Meaning |
-|-------|---------|
+|-------|-------|
 | `insufficient` | No eligible observations in this session |
 | `single` | One decision recorded |
 | `limited` | Two decisions recorded |
@@ -138,3 +138,21 @@ See `RESEARCH_MAP.md` for the source-to-design table and `VALIDATION_PLAN.md` fo
 ---
 
 Built as a prototype for the German retirement education market.
+
+### Warm city presentation
+
+The default opening now shows the city with **Start building** and a separate
+**Start with background questions** route. Quick play omits personal questions;
+the other route retains pre-play questions. The game still has ten chapters.
+Decision cards, allocation controls and the final report use native HTML for
+keyboard/touch access. Help, pause, text enlargement and reduced motion are in
+the game toolbar. The city uses a brighter palette and persistent daylight.
+
+Run the focused presentation and feedback checks with:
+
+```sh
+node test/verify-visual.cjs
+```
+
+See `docs/CLAUDE_VISUAL_HANDOFF.md` for the patch base, verification results and
+remaining rendered-browser checks. Node test success is not visual certification.

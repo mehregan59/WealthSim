@@ -1,0 +1,36 @@
+/* Native controls keep text sharp, selectable and keyboard/touch accessible. */
+.ws-experience { --ink:#203e43; --paper:#fffaf0; --teal:#216b63; position:fixed; inset:0; z-index:100; pointer-events:none; color:var(--ink); font:15px/1.5 Inter,Arial,sans-serif; }
+.ws-experience * { box-sizing:border-box; }
+.ws-experience button,.ws-experience input { font:inherit; }
+.ws-experience button { min-height:44px; border:1px solid #b9cfc3; border-radius:12px; padding:10px 16px; color:var(--ink); background:var(--paper); cursor:pointer; }
+.ws-experience button:hover { background:#e4f0e5; border-color:var(--teal); }
+.ws-experience button:focus-visible,.ws-experience input:focus-visible { outline:3px solid #b25825; outline-offset:3px; }
+.ws-experience button:disabled { opacity:.5; cursor:default; }
+.ws-experience .ws-primary { background:var(--teal); color:white; border-color:var(--teal); }
+.ws-toolbar { position:absolute; top:12px; right:16px; display:flex; gap:6px; pointer-events:auto; }
+.ws-status { position:absolute; top:70px; left:max(20px,19%); right:20px; display:flex; flex-wrap:wrap; gap:8px; }
+.ws-status span { background:#fffaf0ed; padding:5px 12px; border-radius:20px; font-size:13px; box-shadow:0 2px 6px #203e4310; }
+.ws-panel { position:absolute; bottom:18px; left:max(20px,19%); right:20px; max-height:43vh; overflow:auto; background:#fffaf0f7; border:1px solid #d5dfc9; border-radius:20px; padding:20px; box-shadow:0 10px 30px #18352a25; pointer-events:auto; }
+.ws-panel:empty { display:none; }
+.ws-panel h1,.ws-panel h2 { font-family:Georgia,serif; font-weight:normal; margin:0 0 8px; line-height:1.2; }
+.ws-panel h1 { font-size:30px; } .ws-panel h2 { font-size:24px; }
+.ws-panel p { margin:0 0 12px; white-space:pre-line; }
+.ws-kicker { display:block; font-size:11px; letter-spacing:.13em; text-transform:uppercase; color:#44645c; margin-bottom:8px; }
+.ws-options { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+.ws-option { text-align:left; display:flex; flex-direction:column; gap:4px; }
+.ws-option strong { font-size:16px; } .ws-option span { font-size:13px; white-space:pre-line; }
+.ws-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+.ws-panel label { display:block; margin:10px 0; } .ws-panel input { padding:10px; border:1px solid #90ada0; border-radius:9px; max-width:100%; background:white; color:var(--ink); }
+.ws-help { position:absolute; top:65px; right:18px; width:min(440px,calc(100% - 36px)); max-height:65vh; overflow:auto; background:var(--paper); border-radius:16px; border:1px solid #bbcfbd; padding:20px; pointer-events:auto; box-shadow:0 6px 28px #153b3430; }
+.ws-help[hidden] { display:none; }
+.ws-summary { background:#f3f4e9; overflow:auto; pointer-events:auto; padding:32px max(20px,calc((100vw - 880px)/2)); }
+.ws-summary h1,.ws-summary h2 { font-family:Georgia,serif; font-weight:normal; }
+.ws-summary h1 { font-size:36px; margin:8px 0 16px; }.ws-summary h2 { font-size:24px; margin:24px 0 12px; }
+.ws-summary p { margin:8px 0; }.ws-summary li { margin:12px 0; }
+.ws-summary section { background:#fffdf6; border:1px solid #dce2d1; padding:18px 24px; border-radius:16px; margin-bottom:14px; }
+.ws-summary small { display:block; color:#46615b; }.ws-summary details { margin:10px 0; }.ws-summary summary { cursor:pointer; padding:10px 0; }
+.ws-mini-city { display:flex; gap:8px; align-items:end; min-height:95px; margin:16px 0; }
+.ws-mini-city div { flex:1; border-bottom:7px solid #88ad74; text-align:center; padding:8px; background:#e9efe0; border-radius:12px 12px 0 0; }
+.ws-large { font-size:18px; }.ws-large .ws-option span,.ws-large .ws-status span { font-size:16px; }
+@media(max-width:700px) { .ws-status { left:12px; top:68px; right:12px; gap:4px; }.ws-status span { font-size:11px; padding:4px 8px; }.ws-toolbar { left:12px; right:12px; justify-content:flex-end; }.ws-toolbar button { padding:6px 9px; font-size:12px; }.ws-panel { left:10px;right:10px;bottom:10px;padding:14px;max-height:46vh; }.ws-panel h1 { font-size:25px; }.ws-options { grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }.ws-option { padding:9px!important; }.ws-summary {padding:18px 12px;} }
+@media(prefers-reduced-motion:reduce) { .ws-experience * { scroll-behavior:auto!important; } }

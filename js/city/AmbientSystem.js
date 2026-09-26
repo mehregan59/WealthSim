@@ -3,7 +3,7 @@ class AmbientSystem {
     this.scene = scene;
     this.W = scene.scale.width;
     this.H = scene.scale.height;
-    this.time = 34000;          // start mid-morning so the first view is bright
+    this.time = 46000;          // start mid-morning so the first view is bright
     this.dayDuration = 120000;  // slower 2-minute cycle
     this.birds = [];
     this.stars = [];
@@ -49,7 +49,7 @@ class AmbientSystem {
   }
 
   update(time, delta) {
-    this.time += delta;
+    this.time = 46000; // Stable daylight keeps the miniature city readable.
     this.W = this.scene.scale.width;
     const t = this.getDayProgress();
     const night = this.isNightTime();

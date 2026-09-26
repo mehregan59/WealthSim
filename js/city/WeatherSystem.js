@@ -34,6 +34,7 @@ class WeatherSystem {
   }
 
   _thunder(){
+    if(this.scene.reducedMotion) return;
     const f=this.scene.add.graphics().setDepth(72);
     const lx=Phaser.Math.Between(this.W*0.15,this.W*0.85);
     f.lineStyle(this.s(3),0xffffff,1);
