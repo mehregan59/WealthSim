@@ -5,15 +5,16 @@ class GameScene extends Phaser.Scene {
     this.W = this.scale.width;
     this.H = this.scale.height;
     this.S = Math.max(0.85, Math.min(1.9, this.H / 720));
-    this.PANEL = Math.round(Math.min(260, Math.max(190, this.W * 0.155)));
+    this.PANEL = this.W < 700 ? 0 : Math.round(Math.min(240, this.W * 0.18));
+    this.reducedMotion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false;
     this.cityName = (window.cityName && String(window.cityName).trim()) ||
       ((typeof currentLang!=='undefined'&&currentLang==='de') ? 'Meine Stadt' : 'My City');
 
-    const groundY = this.s(352);
+    const groundY = Math.min(this.H * 0.42, this.s(310));
     this.groundY = groundY;
     const ground = this.add.graphics().setDepth(-5);
-    ground.fillStyle(0x18351c,1); ground.fillRect(0,groundY,this.W,this.H-groundY);
-    ground.fillStyle(0x122a15,1); ground.fillRect(0,groundY+this.s(10),this.W,this.s(14));
+    ground.fillStyle(0x9fc88a,1); ground.fillRect(0,groundY,this.W,this.H-groundY);
+    ground.fillStyle(0xb2d39a,1); ground.fillRect(0,groundY+this.s(10),this.W,this.s(14));
 
     this.ambient = new AmbientSystem(this);
     this.weather = new WeatherSystem(this);
@@ -53,27 +54,28 @@ class GameScene extends Phaser.Scene {
     this._buildStats();
     this.roads = new RoadNetwork(this, this.districts);
 
-    this.cameras.main.setBackgroundColor('#0d1f12');
+    this.cameras.main.setBackgroundColor('#b8dded');
+    this.experience = new CityExperience(this);
+    this.hud.container.setVisible(false);
+    if (this.W < 700) this.statsPanel.container.setVisible(false);
+    const shake = this.cameras.main.shake.bind(this.cameras.main);
+    this.cameras.main.shake = (...args) => this.reducedMotion ? this.cameras.main : shake(...args);
 
     this._drawCityBoundary();
 
-    // Fade from black then show city name before starting
-    this.cameras.main.fadeIn(800, 0, 0, 0);
-    this.time.delayedCall(900, () => this._introSequence());
+    this.ambient.update(0, 0);
+    if (window.WS_PLAY_MODE === 'research') this._startLevel(1);
+    else this.experience.welcome(() => this._startLevel(1));
   }
 
   _drawCityBoundary(){
-    // Compute centroid of all district positions
-    const pts = this.districts.map(d => ({ x: d.x || d.container && d.container.x || 0, y: d.y || d.container && d.container.y || 0 }));
-    // Use fixed district x values from defs since District objects may store differently
-    const dxs = [this.s(260), this.s(510), this.s(780), this.s(1020)];
-    const dys = [this.groundY - this.s(60), this.groundY - this.s(50), this.groundY - this.s(80), this.groundY - this.s(55)];
-    const cx = dxs.reduce((a,v) => a+v, 0) / dxs.length;
-    const cy = dys.reduce((a,v) => a+v, 0) / dys.length;
-    const rx = (dxs[dxs.length-1] - dxs[0]) / 2 + this.s(120);
-    const ry = this.s(145);
+    const dxs = this.districts.map(d => d.cx);
+    const dys = this.districts.map(d => d.cy);
+    const cx = (Math.min(...dxs) + Math.max(...dxs)) / 2;
+    const cy = (Math.min(...dys) + Math.max(...dys)) / 2 + this.s(20);
+    const rx = (Math.max(...dxs) - Math.min(...dxs)) / 2 + this.s(90);
+    const ry = (Math.max(...dys) - Math.min(...dys)) / 2 + this.s(80);
     const N = 32;
-    // Build wobbled ellipse, clamped so top never rises above sky layer
     const clampTop = this.s(60);
     const outer = [], inner = [];
     for (let i = 0; i < N; i++) {
@@ -87,12 +89,10 @@ class GameScene extends Phaser.Scene {
       inner.push({ x: ix, y: iy });
     }
     const boundary = this.add.graphics().setDepth(-3);
-    // Outer thick ring — gold, semi-transparent
     boundary.lineStyle(3, 0xe2a840, 0.22);
     boundary.beginPath();
     outer.forEach((p, i) => i === 0 ? boundary.moveTo(p.x, p.y) : boundary.lineTo(p.x, p.y));
     boundary.closePath(); boundary.strokePath();
-    // Inner faint ring — teal
     boundary.lineStyle(1.2, 0x4adfbb, 0.13);
     boundary.beginPath();
     inner.forEach((p, i) => i === 0 ? boundary.moveTo(p.x, p.y) : boundary.lineTo(p.x, p.y));
@@ -106,7 +106,6 @@ class GameScene extends Phaser.Scene {
       : (this.cityName + ' awaits.');
     const cx = this.PANEL + (this.W - this.PANEL) / 2;
     const cy = this.H / 2 - this.s(20);
-    // Full-screen dim for the intro moment
     const dim = this.add.graphics().setDepth(50);
     dim.fillStyle(0x02060c, 0.75); dim.fillRect(0, 0, this.W, this.H);
     const title = this.add.text(cx, cy, cityLabel, {
@@ -132,20 +131,29 @@ class GameScene extends Phaser.Scene {
     });
   }
 
-  // ─── helpers ──────────────────────────────────────────────────────────────
+  // ─── helpers ───────────────────────────────────────────────────────────────────────────
   s(n){ return Math.round(n * this.S); }
   de(){ return typeof currentLang!=='undefined' && currentLang==='de'; }
 
   _buildDistricts(){
     const W=this.W, H=this.H, s=n=>this.s(n);
     const groundY=this.groundY;
-    const defs=[
-      { id:'housing',   name:this.de()?'Wohnen':'Housing',    x:s(260), y:groundY-s(60),  color:0x4aaa5c, health:45 },
-      { id:'transport', name:this.de()?'Verkehr':'Transport',  x:s(510), y:groundY-s(50),  color:0x4a9edb, health:45 },
-      { id:'technology',name:this.de()?'Technik':'Technology', x:s(780), y:groundY-s(80),  color:0x9966cc, health:45 },
-      { id:'energy',    name:this.de()?'Energie':'Energy',     x:s(1020),y:groundY-s(55),  color:0xe2a840, health:45 },
+    const narrow = W < 700;
+    const area = W - this.PANEL;
+    const scale = Math.min(this.S, area / (narrow ? 430 : 850));
+    const palette = [
+      ['housing','Housing','Wohnen',0xe2a18a,0xb6ce94,0x934d3e],
+      ['transport','Transport','Verkehr',0x74b7c7,0xb2d3a3,0x276772],
+      ['technology','Technology','Technik',0xb6a0d5,0xb9cba0,0x735b9d],
+      ['energy','Energy','Energie',0xf0c96b,0xc3d59c,0x94722c]
     ];
-    this.districts = defs.map(d => new District(this, d));
+    this.districts = palette.map((d,i) => new District(this, {
+      id:d[0], name:d[1], nameDE:d[2], label:d[1], labelDE:d[2],
+      cx:this.PANEL + area * (narrow ? (i%2 ? 0.74 : 0.26) : (0.14+i*0.235)),
+      cy:narrow ? this.H * (i<2 ? 0.30 : 0.43) : groundY + this.s(15+(i%2)*18),
+      scale, color:d[3], darkColor:d[4], accentColor:d[5], health:45,
+      tooltip:d[1], tooltipDE:d[2]
+    }));
     this.roads && this.roads.init && this.roads.init(this.districts);
   }
 
@@ -162,9 +170,12 @@ class GameScene extends Phaser.Scene {
     if (this.sim) this.statsPanel.setFundsCredits(this.sim.total());
   }
 
-  // ─── level routing ────────────────────────────────────────────────────────
+  // ─── level routing ────────────────────────────────────────────────────────────────
   _startLevel(n, isRetry){
+    if (ScoringEngine.session) ScoringEngine.session.mode = window.WS_PLAY_MODE || 'quick';
     this.currentLevel = n;
+    this.experience && (this.experience.hint = "");
+    ScoringEngine.startTimer();
     if (!isRetry) this._snapshotBefore(n);
     this.hud && this.hud.setLevel(n, this._levelName(n));
     const map = {
@@ -183,6 +194,7 @@ class GameScene extends Phaser.Scene {
   }
 
   _levelName(n){
+    if (this.de()) return ['', 'Die ersten Verträge', 'Der unerwartete Rückschlag', 'Expansion', 'Heute oder morgen', 'Der Boom', 'Das externe Angebot', 'Schlagzeilen', 'Der große Sturm', 'Die Projektüberprüfung', 'Prognosen und Übung'][n] || ('Kapitel '+n);
     return {
       1: 'The First Contracts', 2: 'The Unexpected Setback',
       3: 'Expansion',           4: 'Today or Tomorrow',
@@ -231,12 +243,11 @@ class GameScene extends Phaser.Scene {
     this.time.delayedCall(250, () => this._startLevel(n, true));
   }
 
-  // ─── economy bridge ───────────────────────────────────────────────────────
+  // ─── economy bridge ──────────────────────────────────────────────────────────────
   _econ(fn, ...args){
     if (!this.sim || !window.WS || !WS.Economy) return null;
     try {
       const report = WS.Economy[fn](this.sim, ...args);
-      // Resolve only against the first simulated year after the forecast.
       if (report && report.returns) {
         (this._forecastEvents || []).forEach(ev => {
           const spec = WS.Chapters.FORECASTS.find(f => f.id === ev.forecastId);
@@ -266,7 +277,7 @@ class GameScene extends Phaser.Scene {
     return this._fundsLine(ec);
   }
 
-  // ─── Chapter 1: contract ladder ───────────────────────────────────────────
+  // ─── Chapter 1: contract ladder ─────────────────────────────────────────────────────
   _level1(){
     this._ch1PairIdx = 0;
     this._ch1Choices = [];
@@ -277,7 +288,6 @@ class GameScene extends Phaser.Scene {
     const Ch = window.WS && WS.Chapters;
     const pairs = Ch ? WS.Chapters.CH1_PAIRS : [];
     if (this._ch1PairIdx >= pairs.length) {
-      // All pairs done — route to district
       const wideCount = this._ch1Choices.filter(c => c === 'wide').length;
       const distId = wideCount >= 3 ? 'technology'
                    : wideCount === 2 ? 'transport'
@@ -317,14 +327,13 @@ class GameScene extends Phaser.Scene {
     });
   }
 
-  // ─── Chapter 2: setback ───────────────────────────────────────────────────
+  // ─── Chapter 2: setback ────────────────────────────────────────────────────────────
   _level2(){
     this._workersLeave();
     const techDistrict = this.districts.find(x => x.id === 'technology');
     if (techDistrict) techDistrict.takeDamage && techDistrict.takeDamage(28);
     this._l2event = this._econ('level2Start');
     this._updateStats(-5, -8, 0);
-    // Collect forecast f1 before presenting the decision
     this._collectForecast('f1', () => {
       this.time.delayedCall(800, () => this._level2Decide(false));
     });
@@ -371,19 +380,19 @@ class GameScene extends Phaser.Scene {
   }
 
   _workersLeave(){
-    // Visual: dim the tech district briefly
     const d = this.districts.find(x => x.id === 'technology');
     if (d && d.setStorm) d.setStorm(true);
     this.time.delayedCall(1200, () => { if (d && d.setStorm) d.setStorm(false); });
   }
 
-  // ─── Chapter 3: allocation ────────────────────────────────────────────────
+  // ─── Chapter 3: allocation ─────────────────────────────────────────────────────────────
   _level3(){
     this.cubeTotal = 6; this.cubeDropped = 0;
     this._clearCubes();
     this._showPersistentMessage(
       this.de() ? '6 Würfel verteilen — dann auf OK klicken.' : 'Distribute 6 cubes across districts — then press OK.'
     );
+    if (this.experience) { this.experience.allocation(); return; }
     this._spawnCubes();
     this._buildWorldBtn(this.de() ? 'OK' : 'OK', () => {
       if (this.cubeDropped < this.cubeTotal) return;
@@ -391,7 +400,6 @@ class GameScene extends Phaser.Scene {
       this._clearSiteMarkers();
       this._finishLevel3();
     });
-    // Idle hint after 12 s
     this._level3IdleTimer = this.time.delayedCall(12000, () => {
       this._showPersistentMessage(
         this.de() ? 'Alle Würfel platzieren, dann OK drücken.' : 'Place all cubes, then press OK.'
@@ -400,7 +408,7 @@ class GameScene extends Phaser.Scene {
   }
 
   _onResourceDropped(district){
-    if (!district) return;
+    if (!district || this.cubeDropped >= this.cubeTotal) return;
     this.cubeDropped++;
     if (typeof ScoringEngine !== 'undefined')
       ScoringEngine.recordDecision(3, district.id, { cubeIndex: this.cubeDropped, scenarioId:'ch3:allocate' });
@@ -422,7 +430,6 @@ class GameScene extends Phaser.Scene {
     const max = Math.max(...Object.values(counts));
     const topId = Object.keys(counts).find(k => counts[k] === max);
     const top = this.districts.find(x => x.id === topId);
-    // Trigger one district shock: top district underperforms, another does well
     const shock = this.districts.find(x => x.id !== topId);
     if (shock && shock.celebrate) shock.celebrate();
     const msg = 'The ' + (top ? top.name : topId) + ' district received the most resources. ' +
@@ -431,7 +438,6 @@ class GameScene extends Phaser.Scene {
   }
 
   _spawnCubes(){
-    // Visual stubs — in production, draggable cubes spawn here
     for (let i = 0; i < this.cubeTotal; i++) {
       this.cubes.push(new ResourceCube(this, { index: i }));
     }
@@ -442,12 +448,11 @@ class GameScene extends Phaser.Scene {
     this.cubes = [];
   }
 
-  // ─── Chapter 4: timing ────────────────────────────────────────────────────
+  // ─── Chapter 4: timing ────────────────────────────────────────────────────────────────
   _level4(){
     const de = this.de();
-    const urgentRepair = Math.random() < 0.4; // ~40% of sessions see the forced-repair variant
+    const urgentRepair = Math.random() < 0.4;
     if (urgentRepair) {
-      // Forced-repair variant: liquidity choice must not reduce patience score
       this._showDecisionPanel([
         { icon:'🔧', label: de?'Reparatur':'Repair now',   desc: de?'Kritische Infrastruktur sofort reparieren.':'Repair critical infrastructure immediately — required.', value:'repair',      color:0xe74c3c, excludeFromPattern:true },
         { icon:'🎓', label: de?'Universität':'University', desc: de?'Langfristige Bildungsinvestition.':'Long-term education investment.', value:'university', color:0x4a9edb },
@@ -480,7 +485,7 @@ class GameScene extends Phaser.Scene {
     });
   }
 
-  // ─── Chapter 5: boom ──────────────────────────────────────────────────────
+  // ─── Chapter 5: boom ──────────────────────────────────────────────────────────────────
   _level5(){
     const de = this.de();
     this._showTicker('Innovation District +47% this quarter. Analysts see continued growth.');
@@ -533,7 +538,7 @@ class GameScene extends Phaser.Scene {
     this._showConsequence((m[c] || m.hold) + this._yearLine(ec), () => this._nextLevel());
   }
 
-  // ─── Chapter 6: outside offer ────────────────────────────────────────────
+  // ─── Chapter 6: outside offer ────────────────────────────────────────────────────────────
   _level6(){
     const de = this.de();
     this._showPersistentMessage(
@@ -593,18 +598,17 @@ class GameScene extends Phaser.Scene {
     );
   }
 
-  // ─── Chapter 7: headlines ────────────────────────────────────────────────
+  // ─── Chapter 7: headlines ─────────────────────────────────────────────────────────────
   _level7(){
     const de = this.de();
     this._showTicker(de
       ? 'Gerüchte: Technologiesektor könnte einbrechen. [Schlecht gestützt]'
       : 'Rumour: Tech sector may collapse. [Poorly supported]');
-    this._econ('level7Start') || null;
     this._showDecisionPanel([
       { icon:'💰', label: de?'Alles verkaufen':'Sell all',        desc: de?'Alles liquidieren.':'Liquidate all holdings.',              value:'sell',          color:0xe74c3c },
       { icon:'📉', label: de?'Reduzieren':'Reduce',               desc: de?'Teilweise aussteigen.':'Reduce exposure partially.',         value:'reduce',        color:0xe2a840 },
       { icon:'⚖', label: de?'Halten':'Hold',                     desc: de?'Keine Änderung.':'No change in allocation.',                value:'hold',          color:0x4aaa5c },
-      { icon:'📈', label: de?'Mehr investieren':'Invest more',    desc: de?'Bei günstigerem Kurs nachkaufen.':'Buy more at lower prices.', value:'invest_more', color:0x9966cc },
+      { icon:'📈', label: de?'Mehr investieren':'Invest more',    desc: de?'Bei gþnstigerem Kurs nachkaufen.':'Buy more at lower prices.', value:'invest_more', color:0x9966cc },
       { icon:'🔍', label: de?'Recherchieren':'Research',          desc: de?'Hintergrundinfos suchen.':'Seek background information.',    value:'research',      color:0x5c8ab0 },
     ], (c) => {
       if (c === 'research') {
@@ -654,7 +658,7 @@ class GameScene extends Phaser.Scene {
     );
   }
 
-  // ─── Chapter 8: storm ────────────────────────────────────────────────────
+  // ─── Chapter 8: storm ──────────────────────────────────────────────────────────────────
   _level8(){
     const de = this.de();
     this._econ('level8Storm');
@@ -697,7 +701,7 @@ class GameScene extends Phaser.Scene {
     });
   }
 
-  // ─── Chapter 9: project review ───────────────────────────────────────────
+  // ─── Chapter 9: project review ────────────────────────────────────────────────────────────
   _level9(){
     const Ch = window.WS && WS.Chapters;
     if (!Ch) { this._nextLevel(); return; }
@@ -759,7 +763,7 @@ class GameScene extends Phaser.Scene {
     this._showConsequence(msg, () => this._nextLevel());
   }
 
-  // ─── Chapter 10: forecasts & practice ────────────────────────────────────
+  // ─── Chapter 10: forecasts & practice ───────────────────────────────────────────────────────
   _level10(){
     const de = this.de();
     const forecasts = this._forecastEvents;
@@ -785,15 +789,12 @@ class GameScene extends Phaser.Scene {
   _level10Practice(){
     const de = this.de();
     const Ch = window.WS && WS.Chapters;
-    // Determine which practice to offer based on session observations
     const decisions = typeof ScoringEngine !== 'undefined' ? ScoringEngine.decisions : [];
     const ch1Choices = decisions.filter(d => d.level === 1 && (d.value==='narrow'||d.value==='wide'));
-    // Default to contract practice; allocation if ch3 was concentrated
     const ch3Cubes = decisions.filter(d => d.level === 3);
     const ch3Concentrated = ch3Cubes.length >= 4 &&
       ch3Cubes.filter(d => d.value === ch3Cubes[0].value).length >= 5;
     if (ch3Concentrated) {
-      // Allocation practice
       this._showDecisionPanel([
         { icon:'🏠', label: de?'Wohnen':'Housing',     value:'housing',    color:0x4aaa5c },
         { icon:'🚌', label: de?'Verkehr':'Transport',  value:'transport',  color:0x4a9edb },
@@ -813,7 +814,6 @@ class GameScene extends Phaser.Scene {
         );
       });
     } else {
-      // Contract practice — pair2 (50/50)
       const pairSpec = (Ch && WS.Chapters.CH1_PAIRS && WS.Chapters.CH1_PAIRS[1]) || { pHigh: 0.5 };
       this._showDecisionPanel([
         { icon:'🔒', label: 'Contract A', desc: '50% chance of 100 cr. / 50% chance of 100 cr.',  value:'narrow', color:0x4aaa5c },
@@ -834,7 +834,7 @@ class GameScene extends Phaser.Scene {
     }
   }
 
-  // ─── Forecast collection ─────────────────────────────────────────────────
+  // ─── Forecast collection ─────────────────────────────────────────────────────────────────
   _collectForecast(forecastId, cb){
     const Ch = window.WS && WS.Chapters;
     if (!Ch || !WS.Chapters.FORECASTS) { if (cb) cb(); return; }
@@ -852,7 +852,6 @@ class GameScene extends Phaser.Scene {
     ], (p) => {
       const ev = WS.Chapters.forecastEvent(fspec, p, null);
       ev.forecastId = forecastId;
-      // Keep the same authoritative record for resolution and final feedback.
       const recorded = ScoringEngine && ScoringEngine.recordDecision('forecast', p, ev);
       this._forecastEvents.push(recorded || ev);
       this._clearPersistentMessage();
@@ -860,7 +859,7 @@ class GameScene extends Phaser.Scene {
     });
   }
 
-  // ─── Finish & handoff ────────────────────────────────────────────────────
+  // ─── Finish & handoff ────────────────────────────────────────────────────────────────────
   _finish(){
     this._clearConsequence(); this._clearWorldBtn();
     this.statsPanel.recordSnapshot(
@@ -878,6 +877,7 @@ class GameScene extends Phaser.Scene {
       : {};
     this.scene.start('ProfileScene', {
       profile,
+      stats: Object.assign({}, this.cityStats),
       simTotal: this.sim ? this.sim.total() : null,
       seed: this.seed,
       forecastBrier: (() => {
@@ -888,10 +888,10 @@ class GameScene extends Phaser.Scene {
     });
   }
 
-  // ─── UI helpers ──────────────────────────────────────────────────────────
+  // ─── UI helpers ──────────────────────────────────────────────────────────────────────
   _showDecisionPanel(opts, cb){
     this._clearDecisionPanel();
-    // Horizontal card row at the bottom of the play area (right of left panel)
+    if (this.experience) { this.experience.choices(opts, cb); return; }
     const n = opts.length;
     const areaW = this.W - this.PANEL;
     const gap = this.s(12);
@@ -901,7 +901,6 @@ class GameScene extends Phaser.Scene {
     const totalW = n * btnW + (n - 1) * gap;
     const startX = this.PANEL + (areaW - totalW) / 2;
 
-    // Dim strip behind the cards
     const dimStrip = this.add.graphics().setDepth(19);
     dimStrip.fillStyle(0x02060c, 0.65);
     dimStrip.fillRect(this.PANEL, rowY - this.s(12), areaW, btnH + this.s(30));
@@ -921,20 +920,17 @@ class GameScene extends Phaser.Scene {
         card.fillRoundedRect(bx, by, btnW, btnH, this.s(10));
         card.lineStyle(hover ? 2 : 1.5, hover ? 0xe2a840 : 0x2a6a8a, hover ? 0.9 : 0.5);
         card.strokeRoundedRect(bx, by, btnW, btnH, this.s(10));
-        // Gold top bar
         card.fillStyle(0xe2a840, hover ? 0.9 : 0.5);
         card.fillRect(bx + this.s(10), by, btnW - this.s(20), this.s(3));
       };
       drawCard(false);
 
-      // Icon
       if (opt.icon) {
         const ico = this.add.text(bx + btnW / 2, by + this.s(18), opt.icon, {
           fontSize: this.s(20) + 'px', color: '#e2c87a',
         }).setOrigin(0.5, 0).setDepth(21);
         allObjs.push(ico);
       }
-      // Label
       const lbl = this.add.text(bx + btnW / 2, by + (opt.icon ? this.s(44) : this.s(24)), opt.label, {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: this.s(13) + 'px',
@@ -942,7 +938,6 @@ class GameScene extends Phaser.Scene {
         align: 'center', wordWrap: { width: btnW - this.s(16) },
       }).setOrigin(0.5, 0).setDepth(21);
       allObjs.push(lbl);
-      // Description
       if (opt.desc) {
         const dsc = this.add.text(bx + btnW / 2, by + (opt.icon ? this.s(68) : this.s(50)), opt.desc, {
           fontFamily: 'Inter, Arial, sans-serif',
@@ -971,6 +966,7 @@ class GameScene extends Phaser.Scene {
   }
 
   _clearDecisionPanel(){
+    if (this.experience) this.experience.clear();
     if (!this.decisionPanel) return;
     this.decisionPanel.objects.forEach(o => o && o.destroy && o.destroy());
     this.decisionPanel = null;
@@ -978,18 +974,17 @@ class GameScene extends Phaser.Scene {
 
   _showConsequence(text, cont, opts){
     this._clearConsequence();
+    if (this.experience) { this.experience.consequence(text, cont); return; }
     const auto = opts && opts.auto;
     const delay = (opts && opts.autoDelay) || 2000;
     const de = this.de();
 
     const objects = [];
 
-    // Full-screen dim
     const dim = this.add.graphics().setDepth(28);
     dim.fillStyle(0x02060c, 0.88); dim.fillRect(0, 0, this.W, this.H);
     objects.push(dim);
 
-    // Consequence card — centred in play area
     const panelW = Math.min(this.s(600), this.W - this.PANEL - this.s(60));
     const cx = this.PANEL + (this.W - this.PANEL) / 2;
     const textNode = this.add.text(cx, 0, text, {
@@ -1013,7 +1008,6 @@ class GameScene extends Phaser.Scene {
     objects.push(card, textNode);
 
     if (!auto) {
-      // WorldButton continue
       const wbX = cx, wbY = py + panelH - this.s(60);
       const wb = new WorldButton(this, wbX, wbY, de ? 'Weiter →' : 'Continue →', () => {
         this._clearConsequence();
@@ -1022,7 +1016,6 @@ class GameScene extends Phaser.Scene {
       wb.container.setDepth(35);
       this._consequenceWorldBtn = wb;
 
-      // Retry level (small, bottom-right of card)
       const retryTxt = this.add.text(px + panelW - this.s(14), py + panelH - this.s(10),
         de ? '↩ Nochmal' : '↩ Retry level', {
           fontFamily: 'Inter, Arial, sans-serif', fontSize: this.s(11) + 'px', color: '#4a6a8c',
@@ -1039,6 +1032,7 @@ class GameScene extends Phaser.Scene {
   }
 
   _clearConsequence(){
+    if (this.experience) this.experience.clear();
     if (!this.consequencePanel) return;
     this.consequencePanel.objects.forEach(o => o && o.destroy && o.destroy());
     this.consequencePanel = null;
@@ -1068,6 +1062,7 @@ class GameScene extends Phaser.Scene {
   }
 
   _showPersistentMessage(text){
+    if (this.experience) { this.experience.hint=text; return; }
     this._clearPersistentMessage();
     this.persistentMsg = this.add.text(this.PANEL + this.s(16), this.s(16), text, {
       fontSize: this.s(13) + 'px', color:'#a0d0a0', fontFamily:'Arial',
@@ -1076,6 +1071,7 @@ class GameScene extends Phaser.Scene {
   }
 
   _clearPersistentMessage(){
+    if (this.experience) this.experience.hint="";
     if (!this.persistentMsg) return;
     this.persistentMsg.destroy && this.persistentMsg.destroy();
     this.persistentMsg = null;
@@ -1108,6 +1104,7 @@ class GameScene extends Phaser.Scene {
   }
 
   _reportModal(title, body, cb){
+    if (this.experience) { this.experience.consequence(title+"\n\n"+body, cb); return; }
     const bg = this.add.graphics().setDepth(30);
     const rw = this.s(480), rh = this.s(320);
     const rx = (this.W - rw) / 2, ry = (this.H - rh) / 2;
@@ -1130,9 +1127,12 @@ class GameScene extends Phaser.Scene {
   }
 
   update(time, delta){
+    if (this.experience?.paused) return;
+    this.experience?.update();
+    if (this.reducedMotion) delta=0;
     if (this.ambient) this.ambient.update(time, delta);
-    if (this.weather) this.weather.update && this.weather.update(time, delta);
-    if (this.roads)   this.roads.update && this.roads.update(time, delta);
+    if (this.weather) this.weather.update && this.weather.update(delta);
+    if (this.roads)   this.roads.update && this.roads.update(delta, this.ambient ? this.ambient.isNightTime() : false);
     const night = this.ambient ? this.ambient.isNightTime() : false;
     this.districts.forEach(d => d.update && d.update(time, delta, night));
   }
