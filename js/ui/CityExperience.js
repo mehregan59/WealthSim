@@ -27,11 +27,20 @@ class CityExperience {
   welcome(start){
     this.clear();this.el('span',this.text('A city shaped by your choices','Eine Stadt, geprägt von deinen Entscheidungen'),'ws-kicker',this.panel);
     this.el('h1',this.text('A small city. A future to build.','Eine kleine Stadt. Eine Zukunft zum Gestalten.'),null,this.panel);
-    this.el('p',this.text('Build, adapt and watch your neighbourhoods grow. Ten short chapters; no countdown. Your ending reflects the choices you make.','Baue, passe dich an und sieh deine Viertel wachsen. Zehn kurze Kapitel, kein Countdown. Dein Abschluss zeigt deine Entscheidungen.'),null,this.panel);
+    this.el('p',this.text('Build, adapt and watch your neighbourhoods grow. Ten short chapters; no countdown.','Baue, passe dich an und sieh deine Viertel wachsen. Zehn kurze Kapitel, kein Countdown.'),null,this.panel);
     const label=this.el('label',this.text('City name (optional) ','Stadtname (optional) '),null,this.panel);const input=this.el('input',null,null,label);input.maxLength=32;input.placeholder=this.text('My Future City','Meine Zukunftsstadt');
     const actions=this.el('div',null,'ws-actions',this.panel);
-    this.button(this.text('Start building →','Stadt gestalten →'),()=>{window.cityName=input.value.trim()||input.placeholder;window.WS_PLAY_MODE='quick';this.scene.cityName=window.cityName;if(this.scene.hud.cityText)this.scene.hud.cityText.setText(window.cityName);this.clear();start();},actions,'ws-primary');
-    this.button(this.text('Start with background questions','Mit Hintergrundfragen starten'),()=>{window.WS_PLAY_MODE='research';this.scene.scene.start('PlayerSetup');},actions);
+    this.button(this.text('Start with background questions','Mit Hintergrundfragen starten'),()=>{window.WS_PLAY_MODE='research';this.scene.scene.start('PlayerSetup');},actions,'ws-primary');
+    this.button(this.text('Start building →','Stadt gestalten →'),()=>{
+      // Show a one-step confirmation before skipping questions
+      const name=input.value.trim()||input.placeholder;
+      this.clear();
+      this.el('span',this.text('Skip the background questions?','Hintergrundfragen überspringen?'),'ws-kicker',this.panel);
+      this.el('p',this.text('You can start right away — no questions needed. The result screen still reflects your in-game choices.','Du kannst sofort starten — ohne Fragen. Die Auswertung basiert weiterhin auf deinen Spielentscheidungen.'),null,this.panel);
+      const ca=this.el('div',null,'ws-actions',this.panel);
+      this.button(this.text('Back to questions','Zurück zu den Fragen'),()=>this.welcome(start),ca);
+      this.button(this.text('Start directly →','Direkt starten →'),()=>{window.cityName=name;window.WS_PLAY_MODE='quick';this.scene.cityName=name;if(this.scene.hud&&this.scene.hud.cityText)this.scene.hud.cityText.setText(name);this.clear();start();},ca,'ws-primary');
+    },actions);
     this.el('small',this.text('Quick play skips personal questions. The question-first route keeps the original pre-play sequence.','Schnellstart überspringt persönliche Fragen. Der zweite Weg behält die ursprünglichen Fragen vor dem Spiel bei.'),null,this.panel);
     this.button(this.de?'English':'Deutsch',()=>{setLang(this.de?'en':'de');this.scene.scene.restart();},actions);
   }
