@@ -28,8 +28,7 @@ class CityExperience {
     this.clear();this.el('span',this.text('A city shaped by your choices','Eine Stadt, geprägt von deinen Entscheidungen'),'ws-kicker',this.panel);
     this.el('h1',this.text('A small city. A future to build.','Eine kleine Stadt. Eine Zukunft zum Gestalten.'),null,this.panel);
     this.el('p',this.text('Build, adapt and watch your neighbourhoods grow. Ten short chapters; no countdown. Your ending reflects the choices you make.','Baue, passe dich an und sieh deine Viertel wachsen. Zehn kurze Kapitel, kein Countdown. Dein Abschluss zeigt deine Entscheidungen.'),null,this.panel);
-    const label=this.el('label',this.text('City name (optional) ','Stadtname (optional) '),null,this.panel);
-    const input=this.el('input',null,null,label);input.maxLength=32;input.placeholder=this.text('My Future City','Meine Zukunftsstadt');
+    const label=this.el('label',this.text('City name (optional) ','Stadtname (optional) '),null,this.panel);const input=this.el('input',null,null,label);input.maxLength=32;input.placeholder=this.text('My Future City','Meine Zukunftsstadt');
     const actions=this.el('div',null,'ws-actions',this.panel);
     this.button(this.text('Start building →','Stadt gestalten →'),()=>{window.cityName=input.value.trim()||input.placeholder;window.WS_PLAY_MODE='quick';this.scene.cityName=window.cityName;if(this.scene.hud.cityText)this.scene.hud.cityText.setText(window.cityName);this.clear();start();},actions,'ws-primary');
     this.button(this.text('Start with background questions','Mit Hintergrundfragen starten'),()=>{window.WS_PLAY_MODE='research';this.scene.scene.start('PlayerSetup');},actions);
@@ -61,7 +60,6 @@ class CityExperience {
     this.button(this.text('Continue →','Weiter →'),()=>{if(s.cubeDropped<6||finished)return;finished=true;s.districts.forEach(d=>d.setSelectable(false));s._clearPersistentMessage();this.clear();s._finishLevel3();},this.panel,'ws-primary').disabled=true;
     const next=this.panel.lastChild;
     const oldRefresh=refresh;
-    // Use the same guarded allocation action for map taps and native buttons.
     const update=()=>{oldRefresh();next.disabled=s.cubeDropped<6;};
     row.querySelectorAll('button').forEach(b=>b.addEventListener('click',update));
     s.districts.forEach(d=>d.setSelectable(true,()=>{if(s.cubeDropped>=6||this.paused)return;s._onResourceDropped(d);update();}));update();
@@ -76,7 +74,6 @@ class CityExperience {
   static summary(scene){
     const de=scene.de, sm=scene.summary, ui=Object.create(CityExperience.prototype);ui.de=de;
     const root=ui.el('main',null,'ws-experience ws-summary');root.lang=de?'de':'en';document.body.append(root);
-    scene.events.once('shutdown',()=>root.remove());
     ui.el('span',ui.text('Your city story','Deine Stadtgeschichte'),'ws-kicker',root);
     ui.el('h1',ui.text('Look at what you built.','Sieh, was du aufgebaut hast.'),null,root);
     ui.el('p',ui.text('Your decisions first. Interpretations second.','Zuerst deine Entscheidungen. Dann mögliche Deutungen.'),null,root);
@@ -95,7 +92,7 @@ class CityExperience {
       ui.el('p',sm.disclaimer,null,next);
       const pension=ui.el('details',null,null,next);ui.el('summary',ui.text('Retirement context','Rentenkontext'),null,pension);ui.el('p',scene._pensionNote(de),null,pension);
     }
-    ui.button(ui.text('Build another city →','Eine neue Stadt bauen →'),()=>{ScoringEngine.reset();Tutorial.skipAll=false;window.WS_PLAY_MODE=null;window.cityName='';window.playerInfo={};window.retirementContext={};scene.scene.start('GameScene');},root,'ws-primary');
+    ui.button(ui.text('Build another city →','Eine neue Stadt bauen →'),()=>{root.remove();ScoringEngine.reset();Tutorial.skipAll=false;window.WS_PLAY_MODE=null;window.cityName='';window.playerInfo={};window.retirementContext={};scene.scene.start('GameScene');},root,'ws-primary');
     root.tabIndex=-1;root.focus({preventScroll:true});
   }
 }
