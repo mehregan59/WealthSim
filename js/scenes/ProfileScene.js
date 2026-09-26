@@ -32,6 +32,7 @@ class ProfileScene extends Phaser.Scene {
     }
 
     this._bg();
+    if (typeof CityExperience !== "undefined") { CityExperience.summary(this); return; }
     this._curtainDrop();
   }
   s(v){ return Math.round(v * this.S); }

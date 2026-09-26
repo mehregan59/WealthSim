@@ -15,6 +15,8 @@ class Boot extends Phaser.Scene {
     this.load.on('complete', () => { text.destroy(); bar.destroy(); progress.destroy(); });
   }
   create() {
-    this.scene.start('PlayerSetup');
+    ScoringEngine.reset();
+    window.WS_PLAY_MODE=null;
+    this.scene.start('GameScene');
   }
 }
