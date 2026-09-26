@@ -40,13 +40,15 @@
   <script>
     const ScoringEngine = {
       decisions:[],startingAnswers:[],levelStartTime:null,
-      reset(){this.decisions=[];this.startingAnswers=[];},
+      reset(){this.decisions=[];this.startingAnswers=[];this.levelStartTime=null;},
       startTimer(){this.levelStartTime=Date.now();},
       recordDecision(level,value,extra){
         extra = extra || {};
         const elapsed=this.levelStartTime?Date.now()-this.levelStartTime:null;
-        this.decisions.push(Object.assign({level:level,value:value,elapsed:elapsed},extra));
+        const record=Object.assign({level:level,value:value,elapsed:elapsed},extra);
+        this.decisions.push(record);
         console.log('[WealthSim] L'+level+': '+value);
+        return record;
       },
       recordStartingAnswer(idx,value){
         this.startingAnswers[idx]=value;

@@ -14,7 +14,17 @@
 
   function toEvents(decisions) {
     let cube = 0;
-    return (decisions || []).map(function (d, i) {
+    // ch1_done is a routing marker, not an additional player decision.
+    return (decisions || []).filter(d => !(d.level === 1 && d.value === 'ch1_done')).map(function (d, i) {
+      if (!d.scenarioId && d.level === 1 && ['narrow', 'wide'].includes(d.value)) {
+        return Object.assign({}, d, { eventId:'e' + i, scenarioId:'ch1:pair',
+          trialId:d.trialId || ('pair' + (d.pairIdx + 1)), action:d.value, phase:d.phase || 'baseline' });
+      }
+      // Legacy forecasts retain their probability, but no outcome is invented.
+      if (!d.scenarioId && d.level === 'forecast') {
+        return Object.assign({}, d, { eventId:'e' + i, scenarioId:'ch10:forecast',
+          trialId:d.forecastId, action:'forecast', p:d.value, phase:d.phase || 'baseline' });
+      }
       // New chapters record scenario-keyed events directly; pass them through.
       // Ensure the event always has an explicit `action` field — GameScene
       // stores the player's choice in `value`; Evidence reads `action`.
@@ -32,7 +42,7 @@
         return ev;
       }
       const scenarioId = SCENARIO[d.level] || ('unknown:L' + d.level);
-      const trialId = d.level === 3 ? ('cube' + (cube++)) : ('L' + d.level);
+      const trialId = d.trialId || (d.level === 3 ? ('cube' + (cube++)) : ('L' + d.level));
       return {
         eventId: 'e' + i,
         scenarioId: scenarioId,

@@ -234,7 +234,20 @@ class GameScene extends Phaser.Scene {
   // ─── economy bridge ───────────────────────────────────────────────────────
   _econ(fn, ...args){
     if (!this.sim || !window.WS || !WS.Economy) return null;
-    try { return WS.Economy[fn](this.sim, ...args); } catch(e) { console.error('[_econ]', fn, e); return null; }
+    try {
+      const report = WS.Economy[fn](this.sim, ...args);
+      // Resolve only against the first simulated year after the forecast.
+      if (report && report.returns) {
+        (this._forecastEvents || []).forEach(ev => {
+          const spec = WS.Chapters.FORECASTS.find(f => f.id === ev.forecastId);
+          if (ev.outcome === undefined && spec && Number.isFinite(report.returns[spec.district])) {
+            ev.outcome = report.returns[spec.district] > 0 ? 1 : 0;
+            ev.resolvedBy = fn;
+          }
+        });
+      }
+      return report;
+    } catch(e) { console.error('[_econ]', fn, e); return null; }
   }
 
   _fundsLine(ec){
@@ -294,7 +307,7 @@ class GameScene extends Phaser.Scene {
     ], (c) => {
       this._ch1Choices.push(c);
       if (typeof ScoringEngine !== 'undefined')
-        ScoringEngine.recordDecision(1, c, { trialId: pair.trialId, pHigh: pair.pHigh, pairIdx: this._ch1PairIdx });
+        ScoringEngine.recordDecision(1, c, { scenarioId:'ch1:pair', trialId: pair.trialId, pHigh: pair.pHigh, pairIdx: this._ch1PairIdx });
       this._ch1PairIdx++;
       const msg = c === 'wide'
         ? 'Contract B chosen — higher potential, higher variance.'
@@ -678,7 +691,7 @@ class GameScene extends Phaser.Scene {
         });
         this._showConsequence(
           (m[c] || m.hold) + this._yearLine(ec),
-          () => this._collectForecast('f4', () => this._nextLevel())
+          () => this._nextLevel()
         );
       });
     });
@@ -752,14 +765,14 @@ class GameScene extends Phaser.Scene {
     const forecasts = this._forecastEvents;
     const resolved  = forecasts.filter(f => typeof f.outcome === 'number');
     const brier = resolved.length > 0
-      ? resolved.reduce((s, f) => s + Math.pow((f.p || 0.5) - f.outcome, 2), 0) / resolved.length
+      ? resolved.reduce((s, f) => s + Math.pow((f.p ?? 0.5) - f.outcome, 2), 0) / resolved.length
       : null;
     const brierStr = brier !== null
       ? (de ? 'Vorhersage-Genauigkeit (Brier): ' : 'Forecast accuracy (Brier): ') +
         brier.toFixed(3) + ' (' + (de ? 'niedriger = besser' : 'lower = better') + ')'
       : (de ? 'Keine aufgelösten Vorhersagen.' : 'No resolved forecasts.');
     const forecastLines = forecasts.map((f, i) =>
-      'Forecast ' + (i + 1) + ': ' + Math.round((f.p || 0.5) * 100) + '% probability assigned.'
+      'Forecast ' + (i + 1) + ': ' + Math.round((f.p ?? 0.5) * 100) + '% probability assigned.'
     ).join('\n');
     this._showConsequence(
       (de ? 'Kapitel 10: Deine Vorhersagen\n' : 'Chapter 10: Your Forecasts\n') +
@@ -828,7 +841,8 @@ class GameScene extends Phaser.Scene {
     const fspec = WS.Chapters.FORECASTS.find(f => f.id === forecastId);
     if (!fspec) { if (cb) cb(); return; }
     const de = this.de();
-    const question = de ? fspec.questionDe : fspec.questionEn;
+    const question = WS.Chapters.forecastText(fspec, de ? 'de' : 'en');
+    this._showPersistentMessage(question);
     this._showDecisionPanel([
       { icon:'📉', label:'10%', value:0.1, color:0xe74c3c },
       { icon:'📊', label:'30%', value:0.3, color:0xe2a840 },
@@ -838,8 +852,10 @@ class GameScene extends Phaser.Scene {
     ], (p) => {
       const ev = WS.Chapters.forecastEvent(fspec, p, null);
       ev.forecastId = forecastId;
-      this._forecastEvents.push(ev);
-      ScoringEngine && ScoringEngine.recordDecision('forecast', p, { forecastId, modelP: fspec.modelP });
+      // Keep the same authoritative record for resolution and final feedback.
+      const recorded = ScoringEngine && ScoringEngine.recordDecision('forecast', p, ev);
+      this._forecastEvents.push(recorded || ev);
+      this._clearPersistentMessage();
       if (cb) cb();
     });
   }
@@ -867,7 +883,7 @@ class GameScene extends Phaser.Scene {
       forecastBrier: (() => {
         const resolved = this._forecastEvents.filter(f => typeof f.outcome === 'number');
         if (!resolved.length) return null;
-        return resolved.reduce((s,f) => s + Math.pow((f.p||0.5) - f.outcome, 2), 0) / resolved.length;
+        return resolved.reduce((s,f) => s + Math.pow((f.p??0.5) - f.outcome, 2), 0) / resolved.length;
       })(),
     });
   }
