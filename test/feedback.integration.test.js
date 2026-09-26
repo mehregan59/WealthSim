@@ -85,6 +85,6 @@ test('real Play Again callback clears decisions, answers and timer and navigates
   p._playAgain(); restart();
   assert.equal(ctx.engine.decisions.length,0);assert.equal(ctx.engine.startingAnswers.length,0);
   assert.equal(ctx.engine.levelStartTime,null);assert.equal(ctx.Tutorial.skipAll,false);
-  assert.equal(p.destination,'PlayerSetup');assert.equal(summary().forecast.available,false);
+  assert.equal(p.destination,'GameScene');assert.equal(summary().forecast.available,false);
 });
 console.log(checks+' integration checks passed');

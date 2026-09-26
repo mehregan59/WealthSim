@@ -108,7 +108,7 @@
     if (choice === 'all_in') {
       sim.districtIds.forEach(function (id){ if (id !== 'technology') sim.divest(id); });
       sim.invest('technology', sim.state.cash);
-    } else if (choice === 'increase') {
+    } else if (choice === 'increase' || choice === 'invest_more') {
       moveTo(sim, 'technology', RULES.L5.increase);
     } else if (choice === 'reduce') {
       sim.divest('technology', sim.state.holdings.technology / 2);
@@ -119,8 +119,8 @@
 
   function level6(sim, choice) {
     const b = sim.total();
-    if (choice === 'accept')      pay(sim, RULES.L6.acceptCost, 'shared infrastructure');
-    if (choice === 'independent') pay(sim, RULES.L6.independentCost, 'own infrastructure');
+    if (choice === 'accept')                        pay(sim, RULES.L6.acceptCost,      'shared infrastructure');
+    if (choice === 'independent' || choice === 'build') pay(sim, RULES.L6.independentCost, 'independent construction');
     const r = sim.advanceYear('L6');
     return report(sim, b, { returns:r });
   }
@@ -150,8 +150,13 @@
   function level8(sim, choice) {
     const b = sim.total();
     if (choice === 'sell_all') sim.districtIds.forEach(function (id){ sim.divest(id); });
+    else if (choice === 'protect') {
+      // Sell exposed (volatile) holdings; retain essential services
+      sim.divest('technology');
+      sim.divest('transport');
+    }
     else if (choice === 'rebalance') sim.rebalanceEven();
-    else if (choice === 'opportunistic') {
+    else if (choice === 'opportunistic' || choice === 'invest_low') {
       const per = sim.state.cash / sim.districtIds.length;
       sim.districtIds.forEach(function (id){ sim.invest(id, per); });
     }

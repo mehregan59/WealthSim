@@ -209,7 +209,7 @@ t('ladder, review and forecast facts all appear', ()=>{
   ok(/Brier/.test(txt)); ok(/model/.test(txt));
 });
 t('selling the gain in all three matched reviews is stated as a count, not a bias', ()=>{
-  const lines=en.did.filter(d=>d.scenario==='ch9:review');
+  const lines=en.did.filter(d=>d.scenario==='ch9:matched_gain_loss');
   eq(lines.length,1,'matched reviews summarised in exactly one line');
   const line=lines[0].text;
   ok(/3 times/.test(line) && /0 times/.test(line));

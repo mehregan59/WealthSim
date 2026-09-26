@@ -32,6 +32,8 @@
         const ev = Object.assign({ eventId:'e' + i, phase:'baseline' }, d);
         // Evidence reads `action`; GameScene stores the choice in `value`.
         if (!ev.action && ev.value) ev.action = ev.value;
+        // Normalize legacy research_access → research
+        if (ev.action === 'research_access') ev.action = 'research';
         // ch3 cube placements: GameScene records the district name in `value`.
         // Evidence.concentration() needs the district in `districtId`; the
         // observations() lookup needs action='allocate' (the fixed action name).
@@ -39,6 +41,8 @@
           if (!ev.districtId && ev.value) ev.districtId = ev.value;
           ev.action = 'allocate';
         }
+        // hadResearch / afterResearch → afterEvidence
+        if (!('afterEvidence' in ev)) ev.afterEvidence = !!(d.hadResearch || d.afterResearch);
         return ev;
       }
       const scenarioId = SCENARIO[d.level] || ('unknown:L' + d.level);
