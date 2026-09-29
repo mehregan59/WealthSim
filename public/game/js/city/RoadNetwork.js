@@ -8,19 +8,23 @@ class RoadNetwork {
     this.cars = [];
     this.visitor = null;
     this.gfx     = scene.add.graphics().setDepth(3);
-    this.carGfx  = scene.add.graphics().setDepth(10);
+    this.carGfx  = scene.add.graphics().setDepth(6);
     this.signGfx = scene.add.graphics().setDepth(11).setAlpha(0);
     this.lanes   = this._lanes();
-    this._draw();
+    // The metropolis draws and runs every street itself, so this older
+    // stand-alone highway stays silent; only the Level 6 visitor uses it.
+    this.quiet   = !!(scene.hasMetro || scene.hasPanorama);
+    if(!this.quiet){ this._draw(); this._seed(); }
+
     this._buildSign();
-    this._seed();
   }
+
   s(v){ return Math.round(v*this.S); }
   get W(){ return this.scene.scale.width; }
   get H(){ return this.scene.scale.height; }
 
   _lanes() {
-    const d=this.districts, off=this.s(46);
+    const d=this.districts, off=this.s(78);
     const n=d.map(x=>({x:x.cx, y:x.cy+off}));
     const east=[
       {x:-this.s(180), y:n[0].y-this.s(8)},
@@ -80,12 +84,12 @@ class RoadNetwork {
 
   _draw() {
     const main=this.lanes[0].pts, branch=this.lanes[2].pts;
-    this._band(branch,this.s(11),0x1e2026,0.85);
-    this._dashes(branch,0xf5dd88,0.2,this.s(26));
-    this._band(main,this.s(15),0x23252b,0.92);
-    this._dashes(main,0xf5dd88,0.28,this.s(24));
+    this._band(branch,this.s(12),0x485b5b,0.94);
+    this._dashes(branch,0xf2d77d,0.68,this.s(26));
+    this._band(main,this.s(17),0x485b5b,0.98);
+    this._dashes(main,0xf2d77d,0.78,this.s(24));
     const g=this.gfx;
-    g.lineStyle(1,0x3d4048,0.6);
+    g.lineStyle(this.s(4),0xc9c9b7,0.95);
     g.beginPath(); g.moveTo(main[0].x,main[0].y-this.s(15));
     main.forEach(p=>g.lineTo(p.x,p.y-this.s(15))); g.strokePath();
     g.beginPath(); g.moveTo(main[0].x,main[0].y+this.s(15));
@@ -105,7 +109,7 @@ class RoadNetwork {
     sg.lineStyle(1,0x5c8ab0,0.9);  sg.strokeRoundedRect(b.x-this.s(6*K), b.y-this.s(56*K), this.s(84*K), this.s(21*K), this.s(4*K));
     this.signText=this.scene.add.text(b.x+this.s(36*K), b.y-this.s(45*K),
       (typeof currentLang!=='undefined'&&currentLang==='de')?'Nachbarstadt \u203A':'Neighbour city \u203A',{
-      fontFamily:'Inter, Arial, sans-serif', fontSize:this.s(11*K), color:'#bcd8f0'
+      fontFamily:CityTheme.body, fontSize:this.s(11*K), color:'#173b40'
     }).setOrigin(0.5).setDepth(12).setAlpha(0);
   }
 
@@ -114,12 +118,12 @@ class RoadNetwork {
   }
 
   _seed() {
-    [0,2,4,6].forEach((n,i)=>{
+    [0,1,2,3,4,5,6].forEach((n,i)=>{
       this.scene.time.delayedCall(i*420,      ()=>this._spawn(0,n));
       this.scene.time.delayedCall(i*420+1300, ()=>this._spawn(1,n));
     });
     this.scene.time.addEvent({delay:4200, loop:true, callback:()=>{
-      if(this.cars.length<7) this._spawn(Math.random()>0.5?0:1,0);
+       if(this.cars.length<12) this._spawn(Math.random()>0.5?0:1,0);
     }});
   }
 
@@ -137,6 +141,15 @@ class RoadNetwork {
 
   // Delegation (Level 6)
   sendVisitor(onArrive) {
+    const riv=this.scene.metro&&this.scene.metro.river;
+    if(riv){
+      // In the connected city the offer arrives by ship up the river.
+      const pts=[riv[4],riv[3],riv[2]].map(q=>({x:q.x,y:q.y}));
+      this._shipLabel();
+      this.visitor={ ship:true, path:pts, i:0, t:0, sp:0.006, arrived:false, exiting:false,
+                     x:pts[0].x, y:pts[0].y, onArrive:onArrive };
+      return;
+    }
     this.showSign(true);
     const pts=this.lanes[2].pts.slice().reverse();
     this.visitor={ path:pts, i:0, t:0, sp:0.010, arrived:false, exiting:false,
@@ -145,12 +158,23 @@ class RoadNetwork {
   visitorAccept(target, onDone) {
     if(!this.visitor) return;
     const v=this.visitor;
+    if(v.ship){
+      v.arrived=true;v.exiting=false;v.accepted=true;v.parked=true;v.onArrive=null;
+      this.scene.time.delayedCall(1900,()=>{if(onDone)onDone();});
+      return;
+    }
     v.driveTo={ from:{x:v.x,y:v.y}, to:{x:target.cx,y:target.cy+this.s(46)}, t:0, sp:0.011,
       onDone:()=>{ this.visitor=null; this.showSign(false); if(onDone) onDone(); } };
   }
   visitorDecline() {
     if(!this.visitor) return;
     const v=this.visitor;
+    if(v.ship){
+      const riv=this.scene.metro.river;
+      v.path=[{x:v.x,y:v.y},{x:riv[3].x,y:riv[3].y},{x:riv[4].x,y:riv[4].y}]; v.i=0; v.t=0; v.arrived=false; v.exiting=true;
+      v.onExit=()=>this._dropShipLabel();
+      return;
+    }
     v.path=this.lanes[2].pts.slice(); v.i=0; v.t=0; v.exiting=true; v.arrived=false;
     this.showSign(false);
   }
@@ -193,26 +217,47 @@ class RoadNetwork {
       v.t+=v.sp*(delta/16);
       while(v.t>=1){ v.t-=1; v.i++; }
       if(v.i>=pts.length-1){
-        if(v.exiting){ this.visitor=null; return; }
+        if(v.exiting){ this.visitor=null; if(v.onExit) v.onExit(); return; }
         v.arrived=true; v.i=pts.length-2; v.t=1;
         if(v.onArrive){ const cb=v.onArrive; v.onArrive=null; cb(); }
       }
     }
     const p1=pts[Math.min(v.i,pts.length-2)], p2=pts[Math.min(v.i+1,pts.length-1)];
     v.x=p1.x+(p2.x-p1.x)*v.t; v.y=p1.y+(p2.y-p1.y)*v.t;
+    if(v.ship){this._ship(v.x,v.y,Math.atan2(p2.y-p1.y,p2.x-p1.x),isNight);return;}
     this._car(v.x,v.y,Math.atan2(p2.y-p1.y,p2.x-p1.x),{col:0xffd54a,stop:0},isNight,true);
+  }
+
+  _shipLabel() {
+    this._dropShipLabel();
+    const de=(typeof currentLang!=='undefined'&&currentLang==='de');
+    this.shipText=this.scene.add.text(0,0,de?'\u2691 Investitionsangebot':'\u2691 Investment offer',{
+      fontFamily:CityTheme.heading,fontSize:this.s(13),color:'#fffbf1',fontStyle:'700',
+      backgroundColor:'#296b72',padding:{x:this.s(8),y:this.s(4)}
+    }).setOrigin(0,1).setDepth(40);
+  }
+  _dropShipLabel(){ if(this.shipText){ this.shipText.destroy(); this.shipText=null; } }
+  _ship(x,y,ang,isNight) {
+    const g=this.carGfx,L=this.s(54),H=this.s(18),cs=Math.cos(ang),sn=Math.sin(ang),p=(a,b)=>({x:x+a*cs-b*sn,y:y+a*sn+b*cs});
+    const poly=(pts,col)=>{g.fillStyle(col,1);g.beginPath();g.moveTo(pts[0].x,pts[0].y);pts.slice(1).forEach(q=>g.lineTo(q.x,q.y));g.closePath();g.fillPath();};
+    poly([p(-L*.48,-H*.38),p(L*.28,-H*.48),p(L*.55,0),p(L*.28,H*.48),p(-L*.48,H*.38),p(-L*.58,0)],0x6f3e31);
+    poly([p(-L*.36,-H*.26),p(L*.25,-H*.32),p(L*.43,0),p(L*.25,H*.32),p(-L*.36,H*.26)],0xd9c596);
+    const cabin=[p(-L*.22,-H*.24),p(L*.02,-H*.24),p(L*.02,H*.24),p(-L*.22,H*.24)];poly(cabin,0xfffbf1);
+    const win=p(-L*.08,0);g.fillStyle(0x5f8790,1);g.fillCircle(win.x,win.y,this.s(3));
+    const mast=p(L*.08,0),top=p(L*.08,-H*1.8);g.lineStyle(this.s(2),0x3c3c3c,1);g.lineBetween(mast.x,mast.y,top.x,top.y);poly([top,p(L*.40,-H*1.55),p(L*.08,-H*.95)],0xe0a82e);
+    if(isNight){const bow=p(L*.48,0);g.fillStyle(0xffe9a0,.9);g.fillCircle(bow.x,bow.y,this.s(2.6));}if(this.shipText)this.shipText.setPosition(x+this.s(28),y-this.s(34));
   }
 
   _car(x,y,ang,c,isNight,big) {
     const g=this.carGfx;
     const cos=Math.cos(ang),sin=Math.sin(ang);
-    const L=big?this.s(34):this.s(17), W=big?this.s(15):this.s(9);
+    const L=big?this.s(38):this.s(22), W=big?this.s(16):this.s(11);
     const put=(ox,oy)=>({x:x+ox*cos-oy*sin, y:y+ox*sin+oy*cos});
-    g.fillStyle(0x000000,0.3); g.fillEllipse(x,y+this.s(4),L,W*0.6);
+    g.fillStyle(0x173b40,0.22); g.fillEllipse(x,y+this.s(4),L,W*0.6);
     g.fillStyle(c.col,0.97);
     const b=[put(-L/2,-W/2),put(L/2,-W/2),put(L/2,W/2),put(-L/2,W/2)];
     g.beginPath(); g.moveTo(b[0].x,b[0].y); b.forEach(p=>g.lineTo(p.x,p.y)); g.closePath(); g.fillPath();
-    g.fillStyle(0x101820,0.5);
+    g.fillStyle(0xbfe4e6,0.85);
     const r=[put(-L*0.12,-W/2+1),put(L*0.3,-W/2+1),put(L*0.3,W/2-1),put(-L*0.12,W/2-1)];
     g.beginPath(); g.moveTo(r[0].x,r[0].y); r.forEach(p=>g.lineTo(p.x,p.y)); g.closePath(); g.fillPath();
     g.fillStyle(0x14161a,0.9);

@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WealthSim — Behavioural City Simulator</title>
+  <meta name="description" content="An educational city-building game about everyday investing behaviour. Not financial advice." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root{--ink:#173f43;--paper:#f4f6ef;--accent:#e0a82e;--line:rgba(23,63,67,.18);--white:#fff}
+    *{box-sizing:border-box}
+    html,body{margin:0;height:100%;background:var(--paper);color:var(--ink);font-family:"DM Sans",sans-serif}
+    body{overflow:auto}
+    button{font:inherit}
+    #landing{min-height:100dvh;background:var(--paper)}
+    .hero{position:relative;display:flex;min-height:88dvh;align-items:flex-end;overflow:hidden;border-bottom:1px solid var(--line)}
+    .hero-image{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+    .hero-shade{position:absolute;inset:0;background:linear-gradient(0deg,rgba(15,47,50,.94) 0%,rgba(15,47,50,.42) 48%,rgba(15,47,50,.06) 100%)}
+    .hero-copy{position:relative;width:min(1180px,100%);margin:0 auto;padding:8rem 2rem 4.5rem;color:var(--white)}
+    .eyebrow{margin:0;font:700 .8rem "Space Grotesk",sans-serif;text-transform:uppercase;letter-spacing:.16em;opacity:.84}
+    h1{margin:.8rem 0 0;font:700 clamp(3.5rem,8vw,6.8rem)/.95 "Space Grotesk",sans-serif;letter-spacing:0}
+    .intro{max-width:700px;margin:1.4rem 0 0;font-size:clamp(1.05rem,2vw,1.3rem);line-height:1.6}
+    #start-game{display:inline-flex;align-items:center;gap:.75rem;margin-top:2rem;padding:1rem 1.35rem;border:0;border-radius:6px;background:var(--accent);color:#173236;font-weight:700;cursor:pointer;box-shadow:0 12px 30px rgba(0,0,0,.22);transition:transform .18s ease,filter .18s ease}
+    #start-game:hover{transform:translateY(-2px);filter:brightness(1.05)}
+    #start-game:focus-visible{outline:3px solid var(--white);outline-offset:4px}
+    .arrow{font-size:1.35rem;line-height:1}
+    .features{display:grid;grid-template-columns:repeat(3,1fr);gap:2.5rem;width:min(1180px,100%);margin:0 auto;padding:3.5rem 2rem 4.5rem}
+    .feature{border-top:3px solid var(--accent);padding-top:1.1rem}
+    .feature h2{margin:0;font:700 1.2rem "Space Grotesk",sans-serif;letter-spacing:0}
+    .feature p{margin:.65rem 0 0;line-height:1.6;color:#48676a}
+    #game{display:none;width:100vw;height:100dvh;overflow:hidden;background:#a7d8de}
+    body.playing{overflow:hidden}
+    body.playing #landing{display:none}
+    body.playing #game{display:block}
+    @media(max-width:720px){.hero{min-height:82dvh}.hero-copy{padding:6rem 1.25rem 3rem}.features{grid-template-columns:1fr;gap:2rem;padding:2.5rem 1.25rem 3.5rem}}
+    @media(prefers-reduced-motion:reduce){#start-game{transition:none}}
+  </style>
+</head>
+<body>
+  <main id="landing">
+    <section class="hero">
+      <img class="hero-image" src="assets/city-panorama.jpg" alt="A connected modern eco city" />
+      <div class="hero-shade"></div>
+      <div class="hero-copy">
+        <p class="eyebrow">Behavioral retirement education</p>
+        <h1>WealthSim</h1>
+        <p class="intro">Build a connected city. Navigate uncertainty. Discover how your decisions shape long-term planning.</p>
+        <button id="start-game" type="button">Start building <span class="arrow" aria-hidden="true">→</span></button>
+      </div>
+    </section>
+    <section class="features" aria-label="About WealthSim">
+      <article class="feature"><h2>Ten city chapters</h2><p>Make choices as your districts grow, react, and face changing events.</p></article>
+      <article class="feature"><h2>See your patterns</h2><p>Your final profile explains how recorded decisions shaped the result.</p></article>
+      <article class="feature"><h2>Education, not advice</h2><p>Learn within Germany’s three-pillar retirement context without product recommendations.</p></article>
+    </section>
+  </main>
+  <div id="game" aria-label="WealthSim game"></div>
+  <!-- Standalone build (used for GitHub Pages). Same scripts as the app. -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+  <script>
+    window.playerInfo = window.playerInfo || {};
+    window.retirementContext = window.retirementContext || {};
+    window.WS_TEXT_RES = Math.max(2, Math.min(window.devicePixelRatio || 1, 3));
+    (function () {
+      var F = Phaser.GameObjects.GameObjectFactory.prototype, orig = F.text;
+      F.text = function (x, y, t, s) { s = s || {}; if (s.resolution === undefined) s.resolution = window.WS_TEXT_RES; return orig.call(this, x, y, t, s); };
+    })();
+    window.WS_setTextRes = function (r) { window.WS_TEXT_RES = r; if (window.WS_game) window.WS_game.scene.getScenes(true).forEach(function (sc) { sc.scene.restart(); }); };
+  </script>
+  <script>window.WS_ASSET_BASE="assets/";</script>
+  <script src="js/i18n.js"></script>
+  <script src="js/scoring.js"></script>
+  <script src="js/assessment.js"></script>
+  <script src="js/pensionContent.js"></script>
+  <script src="js/city/CityTheme.js"></script>
+  <script src="js/city/UrbanFabric.js"></script>
+  <script src="js/city/CityScape.js"></script>
+  <script src="js/city/Metropolis.js"></script>
+
+  <script src="js/city/District.js"></script>
+  <script src="js/city/RoadNetwork.js"></script>
+  <script src="js/city/ResourceCube.js"></script>
+  <script src="js/city/AmbientSystem.js"></script>
+  <script src="js/city/WeatherSystem.js"></script>
+  <script src="js/ui/TooltipManager.js"></script>
+  <script src="js/ui/AskResults.js"></script>
+  <script src="js/ui/HUD.js"></script>
+  <script src="js/ui/StatsPanel.js"></script>
+  <script src="js/ui/WorldButton.js"></script>
+  <script src="js/ui/Tutorial.js"></script>
+  <script src="js/scenes/Boot.js"></script>
+  <script src="js/scenes/PlayerSetup.js"></script>
+  <script src="js/scenes/RetirementContext.js"></script>
+  <script src="js/scenes/StartingQuestions.js"></script>
+  <script src="js/scenes/GameScene.js"></script>
+  <script src="js/scenes/ProfileScene.js"></script>
+  <script>
+    (function () {
+      var startButton = document.getElementById('start-game');
+      var gameRoot = document.getElementById('game');
+
+      function startGame() {
+        document.body.classList.add('playing');
+        window.scrollTo(0, 0);
+        if (window.WS_game) return;
+        window.playerInfo = {};
+        window.retirementContext = {};
+        window.WS_game = new Phaser.Game({
+          type: Phaser.AUTO,
+          backgroundColor: '#a7d8de',
+          scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.NO_CENTER, parent: 'game', width: '100%', height: '100%' },
+          render: { antialias: true, antialiasGL: true, pixelArt: false, roundPixels: false },
+          dom: { createContainer: true },
+          scene: [Boot, PlayerSetup, RetirementContext, StartingQuestions, GameScene, ProfileScene]
+        });
+      }
+
+      function showLanding() {
+        if (window.WS_game) {
+          // Phaser owns the canvas and removes it during shutdown.
+          window.WS_game.destroy(true);
+          window.WS_game = null;
+        }
+        document.body.classList.remove('playing');
+        window.scrollTo(0, 0);
+        startButton.focus({ preventScroll: true });
+      }
+
+      startButton.addEventListener('click', startGame);
+      window.addEventListener('wealthsim:home', showLanding);
+      window.addEventListener('pageshow', function (event) {
+        if (event.persisted) showLanding();
+      });
+    })();
+  </script>
+</body>
+</html>

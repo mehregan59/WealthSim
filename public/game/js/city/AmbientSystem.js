@@ -5,6 +5,7 @@ class AmbientSystem {
     this.H = scene.scale.height;
     this.time = 34000;          // start mid-morning so the first view is bright
     this.dayDuration = 120000;  // slower 2-minute cycle
+    this.targetProgress = null;
     this.birds = [];
     this.stars = [];
     this.clouds = [
@@ -13,9 +14,14 @@ class AmbientSystem {
       { x: this.W*0.64, y: 92,  speed: 0.20, scale: 1.15 },
       { x: this.W*0.85, y: 66,  speed: 0.13, scale: 0.85 }
     ];
-    this.skyGfx   = scene.add.graphics().setDepth(-10);
-    this.cloudGfx = scene.add.graphics().setDepth(-8);
-    this.sunMoon  = scene.add.graphics().setDepth(-9);
+    // In the connected metropolis the city fills the whole view, so the old
+    // sky band, sun and clouds sit behind the land instead of over the city.
+    const back = scene.hasMetro ? -30 : 0;
+    this.skyGfx   = scene.add.graphics().setDepth(back ? back : -10);
+    this.cloudGfx = scene.add.graphics().setDepth(back ? back+1 : -8);
+    this.sunMoon  = scene.add.graphics().setDepth(back ? back+2 : -9);
+    this.nightShade = scene.add.graphics().setDepth(41);
+
     for (let i = 0; i < 70; i++) {
       this.stars.push({ x: Phaser.Math.Between(0, this.W), y: Phaser.Math.Between(0, 230), r: Math.random()*1.4+0.4, tw: Math.random()*Math.PI*2 });
     }
@@ -33,13 +39,15 @@ class AmbientSystem {
   }
 
   getDayProgress(){ return (this.time % this.dayDuration) / this.dayDuration; }
-  isNightTime(){ const t=this.getDayProgress(); return t < 0.16 || t > 0.84; }
+  getNightStrength(){const t=this.getDayProgress();if(t>=.72)return Math.min(1,(t-.72)/.16);if(t<=.25)return Math.min(1,(.25-t)/.15);return 0;}
+  isNightTime(){ return this.getNightStrength()>.55; }
   isDaytime(){ const t=this.getDayProgress(); return t>=0.30 && t<0.70; }
+  setSimulationLevel(level){const phases=[.35,.43,.52,.62,.72,.82,.92,.05,.18,.30];this.targetProgress=phases[Math.max(0,Math.min(phases.length-1,(level||1)-1))];}
 
   // Bright sky-blue day, warm dawn/dusk, deep night
   getSkyColor() {
     const t = this.getDayProgress();
-    const NIGHT={r:10,g:16,b:38}, DAWN={r:96,g:96,b:150}, DAY={r:104,g:174,b:232}, DUSK={r:150,g:96,b:120};
+    const NIGHT={r:8,g:24,b:38}, DAWN={r:112,g:166,b:173}, DAY={r:167,g:216,b:222}, DUSK={r:210,g:146,b:110};
     const mix=(a,b,p)=>({r:a.r+(b.r-a.r)*p, g:a.g+(b.g-a.g)*p, b:a.b+(b.b-a.b)*p});
     if (t < 0.16) return mix(NIGHT,DAWN,t/0.16);
     if (t < 0.30) return mix(DAWN,DAY,(t-0.16)/0.14);
@@ -49,18 +57,21 @@ class AmbientSystem {
   }
 
   update(time, delta) {
-    this.time += delta;
+    if(this.targetProgress!==null){const now=this.getDayProgress();let diff=this.targetProgress-now;if(diff>.5)diff-=1;if(diff<-.5)diff+=1;this.time+=diff*this.dayDuration*Math.min(1,delta/2600);if(Math.abs(diff)<.004)this.targetProgress=null;}else this.time += delta;
     this.W = this.scene.scale.width;
     const t = this.getDayProgress();
     const night = this.isNightTime();
     const sky = this.getSkyColor();
+    const nightStrength=this.getNightStrength();
+    this.nightShade.clear();
+    if(nightStrength>0){this.nightShade.fillStyle(0x061522,0.58*nightStrength);this.nightShade.fillRect(0,0,this.W,this.H);}
 
     this.skyGfx.clear();
     this.skyGfx.fillStyle(Phaser.Display.Color.GetColor(sky.r|0, sky.g|0, sky.b|0), 1);
     this.skyGfx.fillRect(0, 0, this.W, 400);
 
     if (this.isDaytime()) {
-      this.skyGfx.fillStyle(0xbadcf2, 0.45);
+      this.skyGfx.fillStyle(0xe7f5f3, 0.5);
       this.skyGfx.fillRect(0, 250, this.W, 150);
     }
     const dawn = t>=0.16 && t<0.30, dusk = t>=0.70 && t<0.84;

@@ -15,15 +15,14 @@ class WeatherSystem {
   startStorm(onPeak) {
     this.isStorming = true;
     const o={a:0};
-    this.scene.tweens.add({targets:o,a:1,duration:2000,
+    this.scene.tweens.add({targets:o,a:1,duration:900,
       onUpdate:()=>{ this.tint.clear();
         this.tint.fillStyle(0x2a4a6a, o.a*0.18);
         this.tint.fillRect(0,0,this.W,this.H); }});
-    this.scene.time.delayedCall(700,  ()=>this._rain(110));
-    this.scene.time.delayedCall(1400, ()=>this._thunder());
-    this.scene.time.delayedCall(2900, ()=>{ this._rain(150); this._thunder(); if(onPeak) onPeak(); });
-    this.scene.time.delayedCall(4300, ()=>this._thunder());
-    this._loop = this.scene.time.addEvent({delay:5200, loop:true, callback:()=>{ if(this.isStorming) this._thunder(); }});
+    this.scene.time.delayedCall(250, ()=>this._rain(90));
+    this.scene.time.delayedCall(650, ()=>this._thunder());
+    this.scene.time.delayedCall(1250, ()=>{ this._rain(110); if(onPeak) onPeak(); });
+    this._loop = this.scene.time.addEvent({delay:4200, loop:true, callback:()=>{ if(this.isStorming) this._thunder(); }});
   }
 
   _rain(n){
@@ -58,7 +57,7 @@ class WeatherSystem {
     if(this._loop){ this._loop.remove(); this._loop=null; }
     this.scene.time.delayedCall(delay||1000,()=>{
       const o={a:1};
-      this.scene.tweens.add({targets:o,a:0,duration:2600,
+      this.scene.tweens.add({targets:o,a:0,duration:900,
         onUpdate:()=>{ this.tint.clear(); this.tint.fillStyle(0x2a4a6a,o.a*0.18); this.tint.fillRect(0,0,this.W,this.H); },
         onComplete:()=>{ this.tint.clear(); this.rain=[]; this.rainGfx.clear(); }});
     });
@@ -66,10 +65,10 @@ class WeatherSystem {
 
   startRecovery(onDone){
     this.stopStorm(0);
-    this.scene.time.delayedCall(500,()=>{
+    this.scene.time.delayedCall(150,()=>{
       const b=this.scene.add.graphics().setDepth(6);
       const o={a:0};
-      this.scene.tweens.add({targets:o,a:0.22,duration:1800,yoyo:true,
+      this.scene.tweens.add({targets:o,a:0.22,duration:700,yoyo:true,
         onUpdate:()=>{ b.clear(); b.fillStyle(0xfff0d8,o.a); b.fillRect(0,0,this.W,this.H); },
         onComplete:()=>{ b.destroy(); if(onDone) onDone(); }});
     });

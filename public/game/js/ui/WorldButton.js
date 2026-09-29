@@ -19,15 +19,15 @@ class WorldButton {
     this.innerCircle.fillStyle(0xe2a840,0.15);this.innerCircle.fillCircle(0,0,46);
     this.innerCircle.fillStyle(0xe2a840,0.4);this.innerCircle.fillCircle(0,0,32);
     this.container.add(this.innerCircle);
-    this.arrow=this.scene.add.text(0,0,'▶',{fontSize:28,color:'#f0c060',fontStyle:'bold'}).setOrigin(0.5);
+    this.arrow=this.scene.add.text(0,0,'▶',{fontSize:28,color:'#296b72',fontStyle:'bold'}).setOrigin(0.5);
     this.container.add(this.arrow);
     // Single label, stacked directly beneath the circle — one visual unit,
     // not a separate floating chip.
     this.labelBg=this.scene.add.graphics();
-    this.labelBg.fillStyle(0x060e1c,0.88);this.labelBg.fillRoundedRect(-91,88,182,46,14);
+    this.labelBg.fillStyle(0xfffbf1,0.88);this.labelBg.fillRoundedRect(-91,88,182,46,14);
     this.labelBg.lineStyle(1.4,0xe2a840,0.5);this.labelBg.strokeRoundedRect(-91,88,182,46,14);
     this.container.add(this.labelBg);
-    this.labelText=this.scene.add.text(0,110,this.label,{fontFamily:'Georgia,serif',fontSize:21,color:'#f0c060',fontStyle:'bold'}).setOrigin(0.5);
+    this.labelText=this.scene.add.text(0,110,this.label,{fontFamily:CityTheme.heading,fontSize:21,color:'#296b72',fontStyle:'bold'}).setOrigin(0.5);
     this.container.add(this.labelText);
     const stem=this.scene.add.graphics();
     stem.lineStyle(1.4,0xe2a840,0.4); stem.lineBetween(0,77,0,88);

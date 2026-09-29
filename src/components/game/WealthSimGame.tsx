@@ -1,12 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 
 const SCRIPTS = [
+  "i18n",
+  "scoring",
+  "assessment",
+  "pensionContent",
+  "city/CityTheme",
+  "city/UrbanFabric",
+  "city/CityScape",
+  "city/Metropolis",
+
   "city/District",
   "city/RoadNetwork",
   "city/ResourceCube",
   "city/AmbientSystem",
   "city/WeatherSystem",
   "ui/TooltipManager",
+  "ui/AskResults",
   "ui/HUD",
   "ui/StatsPanel",
   "ui/WorldButton",
@@ -43,27 +53,8 @@ function installGlobals() {
   if (!w["currentLang"]) w["currentLang"] = "en";
   if (!w["playerInfo"]) w["playerInfo"] = {};
   if (!w["retirementContext"]) w["retirementContext"] = {};
-  if (!w["ScoringEngine"]) {
-    w["ScoringEngine"] = {
-      decisions: [] as unknown[],
-      startingAnswers: [] as unknown[],
-      levelStartTime: null as number | null,
-      reset(this: any) {
-        this.decisions = [];
-        this.startingAnswers = [];
-      },
-      startTimer(this: any) {
-        this.levelStartTime = Date.now();
-      },
-      recordDecision(this: any, level: number, value: unknown, extra?: object) {
-        const elapsed = this.levelStartTime ? Date.now() - this.levelStartTime : null;
-        this.decisions.push({ level, value, elapsed, ...(extra ?? {}) });
-      },
-      recordStartingAnswer(this: any, idx: number, value: unknown) {
-        this.startingAnswers[idx] = value;
-      },
-    };
-  }
+  // ScoringEngine comes from the real scoring.js loaded in SCRIPTS —
+  // no stub here, or the persona/trait scoring would silently no-op.
 }
 
 // The Phaser instance is kept at module scope so React StrictMode's
@@ -72,7 +63,7 @@ let gameInstance: any = null;
 let destroyTimer: ReturnType<typeof setTimeout> | null = null;
 let initPromise: Promise<void> | null = null;
 
-export default function WealthSimGame() {
+export default function WealthSimGame({ onExit }: { onExit?: () => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -124,7 +115,7 @@ export default function WealthSimGame() {
 
         gameInstance = new Phaser.Game({
           type: Phaser.AUTO,
-          backgroundColor: "#0a1420",
+          backgroundColor: "#a7d8de",
           scale: {
             mode: Phaser.Scale.RESIZE,
             autoCenter: Phaser.Scale.NO_CENTER,
@@ -181,8 +172,19 @@ export default function WealthSimGame() {
     };
   }, []);
 
+  useEffect(() => {
+    const w = window as unknown as Record<string, unknown>;
+    w["WS_embedded"] = true;
+    const exit = () => onExit?.();
+    window.addEventListener("wealthsim:home", exit);
+    return () => {
+      w["WS_embedded"] = false;
+      window.removeEventListener("wealthsim:home", exit);
+    };
+  }, [onExit]);
+
   return (
-    <div className="relative h-dvh w-full overflow-hidden bg-[#0a1420]">
+    <div className="relative h-dvh w-full overflow-hidden bg-background">
       <div ref={containerRef} className="h-full w-full" />
       {error && (
         <p className="absolute inset-x-0 top-1/2 text-center text-sm text-destructive">

@@ -30,20 +30,39 @@ const ScoringEngine = {
     this.startingAnswers[questionIndex] = value;
   },
 
+  // assessment.js is the canonical scoring implementation. When it is loaded
+  // (it always is in the game), delegate so the 90/10 blend lives in exactly
+  // one place. The formulas below are a fallback for standalone use only.
+  _delegate(method, ...args) {
+    if (typeof Assessment !== 'undefined' && Assessment.computeScores) {
+      const s = Assessment.computeScores(this.decisions, this.startingAnswers);
+      const map = { riskPreference: 'riskPreference', lossAversion: 'lossAversion', patience: 'patience' };
+      if (map[method]) return s[map[method]] === null ? 50 : s[map[method]];
+    }
+    return null;
+  },
+
   scoreRiskPreference() {
     const d = this.decisions.find(d => d.level === 1);
     if (!d) return 50;
+    const del = this._delegate('riskPreference');
+    if (del !== null) return del;
     const gameScore = { safe: 20, balanced: 50, aggressive: 85 }[d.value] ?? 50;
     const startScore = { safe: 20, balanced: 50, aggressive: 85 }[this.startingAnswers[0]] ?? 50;
-    return Math.round(gameScore * 0.8 + startScore * 0.2);
+    return Math.round(gameScore * 0.9 + startScore * 0.1);
   },
 
   scoreLossAversion() {
-    const d = this.decisions.find(d => d.level === 2);
+    // Level 2 has two beats; loss aversion is measured on the "dip" beat
+    // (a temporary drop with no real information behind it).
+    const d = this.decisions.find(x => x.level === 2 && x.phase === 'dip')
+           || this.decisions.find(x => x.level === 2);
     if (!d) return 50;
+    const del = this._delegate('lossAversion');
+    if (del !== null) return del;
     const gameScore = { cancel: 90, wait: 70, continue: 30, invest_more: 10 }[d.value] ?? 50;
     const startScore = { stop: 90, wait: 60, research: 30 }[this.startingAnswers[2]] ?? 50;
-    return Math.round(gameScore * 0.8 + startScore * 0.2);
+    return Math.round(gameScore * 0.9 + startScore * 0.1);
   },
 
   scoreDiversification(allocation) {
@@ -58,11 +77,14 @@ const ScoringEngine = {
   },
 
   scorePatience() {
-    const d = this.decisions.find(d => d.level === 4);
+    // Only the build choice measures patience; the urgent-repair beat does not.
+    const d = this.decisions.find(d => d.level === 4 && (d.value === 'festival' || d.value === 'university'));
     if (!d) return 50;
+    const del = this._delegate('patience');
+    if (del !== null) return del;
     const gameScore = { festival: 20, university: 85 }[d.value] ?? 50;
     const startScore = { impatient: 20, moderate: 55, patient: 85 }[this.startingAnswers[1]] ?? 50;
-    return Math.round(gameScore * 0.8 + startScore * 0.2);
+    return Math.round(gameScore * 0.9 + startScore * 0.1);
   },
 
   scoreGreedFomo() {
@@ -77,15 +99,27 @@ const ScoringEngine = {
     const baseScore = { research: 85, accept: 65, independent: 55, decline: 40 }[d.value] ?? 50;
     const lossAversion = this.scoreLossAversion();
     const changeBehavior = lossAversion > 60 && d.value === 'research' ? 10 : 0;
-    return Math.min(100, Math.round(baseScore + changeBehavior));
+    // Level 2 "news" beat: did the player respond to clear bad fundamentals?
+    // Acting on real information (cancel/wait) shows signal discrimination;
+    // holding or doubling down on a district with confirmed bad news ignores it.
+    const news = this.decisions.find(x => x.level === 2 && x.phase === 'news');
+    const newsAdjust = !news ? 0
+      : ['cancel', 'wait'].includes(news.value) ? 10
+      : -10;
+    return Math.min(100, Math.max(0, Math.round(baseScore + changeBehavior + newsAdjust)));
   },
 
   scoreReactionToNoise() {
     const d = this.decisions.find(d => d.level === 7);
-    if (!d) return 50;
-    const gameScore = { sell: 90, reduce: 55, hold: 25, research: 10 }[d.value] ?? 50;
-    const speedPenalty = d.elapsed && d.elapsed < 4000 ? 10 : 0;
-    return Math.min(100, Math.round(gameScore * 0.8 + speedPenalty));
+    // Level 2 "dip" beat: reacting to a drop that carried no real
+    // information is the purest noise-reaction signal in the game.
+    const dip = this.decisions.find(x => x.level === 2 && x.phase === 'dip');
+    const dipScore = dip ? ({ cancel: 90, wait: 65, continue: 30, invest_more: 15 }[dip.value] ?? 50) : null;
+    if (!d && dipScore === null) return 50;
+    const gameScore = d ? ({ sell: 90, reduce: 55, hold: 25, research: 10 }[d.value] ?? 50) : 50;
+    const speedPenalty = d && d.elapsed && d.elapsed < 4000 ? 10 : 0;
+    const l7 = Math.min(100, Math.round(gameScore * 0.8 + speedPenalty));
+    return dipScore === null ? l7 : Math.round(l7 * 0.5 + dipScore * 0.5);
   },
 
   scoreEmotionalResilience() {
@@ -102,7 +136,7 @@ const ScoringEngine = {
       if (l1.value === this.startingAnswers[0]) matches++;
       total++;
     }
-    const l4 = this.decisions.find(d => d.level === 4);
+    const l4 = this.decisions.find(d => d.level === 4 && (d.value === 'festival' || d.value === 'university'));
     if (l4 && this.startingAnswers[1]) {
       const patientChose = l4.value === 'university';
       const saidPatient = ['moderate', 'patient'].includes(this.startingAnswers[1]);
