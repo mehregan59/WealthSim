@@ -200,12 +200,21 @@ class GameScene extends Phaser.Scene {
   _introSequence() {
     const fi=this.add.graphics().setDepth(200);
     fi.fillStyle(CityTheme.colors.sky,1); fi.fillRect(0,0,this.W,this.H);
-    this.tweens.add({targets:fi,alpha:0,duration:1600,delay:240,onComplete:()=>{fi.destroy();this._startLevel(1);}});
     const de=(typeof currentLang!=='undefined'&&currentLang==='de');
-    const txt=this.add.text(this.W/2,this.H/2, de ? `${this.cityName} wartet.` : `${this.cityName} awaits.`,{
-      fontFamily:CityTheme.heading, fontSize:this.s(32), color:'#296b72', fontStyle:'700'
-    }).setOrigin(0.5).setDepth(201).setAlpha(0);
-    this.tweens.add({targets:txt,alpha:1,duration:720,delay:560,hold:1280,yoyo:true,onComplete:()=>txt.destroy()});
+    const cx=this.W/2, cy=this.H/2, cardW=Math.min(this.s(520),this.W-this.s(56)), cardH=this.s(142);
+    const card=this.add.graphics().setDepth(201).setAlpha(0);
+    card.fillStyle(0xfffbf1,.98); card.fillRoundedRect(cx-cardW/2,cy-cardH/2,cardW,cardH,this.s(12));
+    card.lineStyle(this.s(2),CityTheme.colors.teal,.72); card.strokeRoundedRect(cx-cardW/2,cy-cardH/2,cardW,cardH,this.s(12));
+    const city=this.add.text(cx,cy-this.s(27),this.cityName,{
+      fontFamily:CityTheme.heading,fontSize:this.s(30),color:'#173b40',fontStyle:'700'
+    }).setOrigin(.5).setDepth(202).setAlpha(0);
+    const level=this.add.text(cx,cy+this.s(25),de?'Die erste Gelegenheit':'The First Opportunity',{
+      fontFamily:CityTheme.body,fontSize:this.s(18),color:'#296b72',fontStyle:'600'
+    }).setOrigin(.5).setDepth(202).setAlpha(0);
+    this.tweens.add({
+      targets:[card,city,level],alpha:1,duration:360,delay:260,hold:900,yoyo:true,
+      onComplete:()=>{ card.destroy(); city.destroy(); level.destroy(); fi.destroy(); this._introLevelTitleShown=true; this._startLevel(1); }
+    });
   }
 
   // Save state so a level can be replayed from scratch
@@ -260,8 +269,10 @@ class GameScene extends Phaser.Scene {
     };
     if (skipTutorial) proceed();
     else {
-      this.hud.showLevelTitle(n,this._levelName(n));
-      this.time.delayedCall(720, ()=> this.tutorial.show(n, proceed));
+      const titleAlreadyShown = n===1 && this._introLevelTitleShown;
+      if(titleAlreadyShown)this._introLevelTitleShown=false;
+      if(!titleAlreadyShown)this.hud.showLevelTitle(n,this._levelName(n));
+      this.time.delayedCall(titleAlreadyShown?180:720, ()=> this.tutorial.show(n, proceed));
     }
   }
 
