@@ -1,0 +1,62 @@
+WealthSim — Proprietary Commercial Licence
+Copyright © 2026 Mehregan Ebrahimi. All rights reserved.
+
+1. Ownership
+   WealthSim, including its source code, game logic, scoring and assessment
+   systems, artwork, graphics, text, educational content, design, layout and
+   all other materials in this repository (the "Software"), is the exclusive
+   property of the copyright holder. It is a commercial product and is NOT
+   open source.
+
+2. Permitted use
+   You are permitted only to access and play the publicly hosted version of
+   the game at https://mehregan59.github.io/WealthSim/ for personal,
+   non-commercial entertainment and educational purposes.
+
+3. Prohibited use
+   Except with prior written permission from the copyright holder, you may NOT:
+   a. copy, clone, fork, download, mirror or reproduce the Software or any
+      part of it;
+   b. use, reuse or incorporate any source code, asset, text, artwork,
+      mechanic, scoring model or design element in any other project,
+      product or service;
+   c. modify, adapt, translate, reverse engineer, decompile or create
+      derivative works of the Software;
+   d. distribute, publish, sublicense, rent, lease, sell, resell or otherwise
+      make the Software available to any third party;
+   e. use the Software or any part of it for any commercial purpose;
+   f. use the Software or its output to train, fine-tune or evaluate any
+      machine learning or artificial intelligence system;
+   g. remove, obscure or alter any copyright, licence or attribution notice.
+
+4. No licence granted
+   No licence, right or interest in the Software is granted by implication,
+   estoppel or otherwise. Viewing this repository does not grant any right to
+   use its contents.
+
+5. Educational disclaimer
+   The Software is an educational simulation. It does not provide financial,
+   investment, tax, legal or pension advice, and does not recommend any
+   financial product. Any decision made on the basis of the Software is the
+   sole responsibility of the user.
+
+6. No warranty
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+
+7. Limitation of liability
+   IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR
+   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+8. Termination
+   Any breach of this licence terminates your permission to use the Software
+   immediately and automatically.
+
+9. Governing law
+   This licence is governed by the laws of the Federal Republic of Germany.
+
+For licensing, partnership or commercial enquiries, contact the copyright
+holder through the GitHub account: https://github.com/mehregan59

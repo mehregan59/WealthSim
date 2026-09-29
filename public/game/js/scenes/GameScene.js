@@ -34,7 +34,7 @@ class GameScene extends Phaser.Scene {
     this.currentLevel = 0;
     this.cubes = []; this.cubeTotal = 0; this.cubeDropped = 0;
     this.decisionPanel = null; this.worldBtn = null; this.worldBtnTimer = null;
-    this.consequencePanel = null; this.persistentMsg = null;
+    this.consequencePanel = null; this.persistentMsg = null; this.dropFeedback = null; this.dropFeedbackTimer = null;
     this.hasUniversity = false; this.siteMarkers = [];
     this.tickerActive = false;
     this.snapshots = {};          // for undo
@@ -463,7 +463,7 @@ class GameScene extends Phaser.Scene {
     // Tapping a district sends the next waiting cube there, so the level
     // is completable with a single tap per cube on touch screens too.
     this.districts.forEach(d=>d.setSelectable(true,(dd)=>this._tapAllocate(dd)));
-    this._showPersistentMessage('The city receives 600 new credits.\nDrag a cube onto a district — or simply tap a district to send the next cube there.\n0 of 6 placed.');
+    this._showPersistentMessage('600 new credits\nDrop each coin on the centre of a district,\nor tap a district to send the next coin.\n0 of 6 placed.',{corner:true});
     this._armLevel3Idle();
   }
 
@@ -508,7 +508,7 @@ class GameScene extends Phaser.Scene {
     ScoringEngine.recordDecision(3,'allocate',{districtId:district.id});
     this._updateStats(2,4,-3);
     if(this.cubeDropped < this.cubeTotal){
-      this._showPersistentMessage('The city receives 600 new credits.\nDrag a cube onto a district — or tap a district to send the next cube there.\n'+this.cubeDropped+' of '+this.cubeTotal+' placed.');
+      this._showPersistentMessage('600 new credits\nDrop each coin on the centre of a district,\nor tap a district to send the next coin.\n'+this.cubeDropped+' of '+this.cubeTotal+' placed.',{corner:true});
       this._armLevel3Idle();
     } else {
       this._level3Resolved = true;
@@ -518,7 +518,7 @@ class GameScene extends Phaser.Scene {
       // the random shock lands, so the outcome is understood, not guessed.
       const c={}; (ScoringEngine.decisions||[]).filter(d=>d.level===3).forEach(d=>{c[d.districtId]=(c[d.districtId]||0)+1;});
       const spread=Object.entries(c).map(([k,n])=>n*100+' in '+k).join(', ');
-      this._showPersistentMessage('All six placed. Your credits now sit: '+spread+'.\nNext year one district will be hit — which one is not known in advance.');
+      this._showPersistentMessage('All six placed.\nYour credits: '+spread+'.\nNext year one unknown district will be hit.',{corner:true});
       this.time.delayedCall(2600,()=>{ this._clearPersistentMessage(); this._level3Outcome(); });
     }
   }
@@ -914,20 +914,42 @@ class GameScene extends Phaser.Scene {
 
   _msgY(){ return this.tickerActive ? this.s(134) : this.s(92); }
 
-  _showPersistentMessage(text){
+  _showPersistentMessage(text,opts){
     this._clearPersistentMessage();
+    opts=opts||{};
     const y=this._msgY();
-    this.persistentMsg=this.add.text(this._cx(),y-this.s(6),text,{
-      fontFamily:CityTheme.heading,fontSize:this.s(18),color:'#173b40',
-      align:'center',wordWrap:{width:Math.min(this.s(760),this._availW())},
+    const corner=!!opts.corner&&!this.isCompact;
+    const msgWidth=corner?Math.min(this.s(390),this.W*.3):Math.min(this.s(760),this._availW());
+    const msgX=corner?this.s(24):this._cx();
+    this.persistentMsg=this.add.text(msgX,y-this.s(6),text,{
+      fontFamily:CityTheme.heading,fontSize:this.s(corner?15:18),color:'#173b40',
+      align:corner?'left':'center',wordWrap:{width:msgWidth},
       backgroundColor:'#fffbf1',padding:{x:this.s(22),y:this.s(13)},lineSpacing:this.s(5),stroke:'#fffbf1',strokeThickness:1
-    }).setOrigin(0.5,0).setDepth(48).setAlpha(0);
+    }).setOrigin(corner?0:0.5,0).setDepth(48).setAlpha(0);
     // Anchor the top edge under the header so multi-line text is never cut off.
     const top=y;
     this.persistentMsg.y=top-this.s(6);
     this.tweens.add({targets:this.persistentMsg,alpha:1,y:top,duration:600});
   }
   _clearPersistentMessage(){ if(this.persistentMsg){this.tweens.killTweensOf(this.persistentMsg);this.persistentMsg.destroy();this.persistentMsg=null;} }
+
+  _showDropRetry(){
+    if(this.dropFeedbackTimer){this.dropFeedbackTimer.remove(false);this.dropFeedbackTimer=null;}
+    if(this.dropFeedback){this.tweens.killTweensOf(this.dropFeedback);this.dropFeedback.destroy();}
+    const de=(typeof currentLang!=='undefined'&&currentLang==='de');
+    this.dropFeedback=this.add.text(this._cx(),this.H-this.s(92),de
+      ? 'Noch einmal versuchen — lege die Münze in die Mitte eines Viertels.'
+      : 'Try again — drop the coin on the centre of a district.',{
+      fontFamily:CityTheme.heading,fontSize:this.s(16),color:'#173b40',align:'center',
+      backgroundColor:'#fffbf1',padding:{x:this.s(18),y:this.s(11)}
+    }).setOrigin(0.5).setDepth(80).setAlpha(0);
+    this.tweens.add({targets:this.dropFeedback,alpha:1,duration:160});
+    this.dropFeedbackTimer=this.time.delayedCall(2600,()=>{
+      if(!this.dropFeedback)return;
+      const m=this.dropFeedback; this.dropFeedback=null; this.dropFeedbackTimer=null;
+      this.tweens.add({targets:m,alpha:0,duration:260,onComplete:()=>m.destroy()});
+    });
+  }
 
   // fadeDur lets specific callers (e.g. the Level 8 university reveal) use a
   // slower, gentler fade than the default so it doesn't visually collide

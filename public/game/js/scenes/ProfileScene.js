@@ -92,7 +92,7 @@ class ProfileScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(100).setAlpha(0);
     this.tweens.add({targets:head,alpha:1,duration:900});
 
-    const cardW=Math.min(this.s(620),W-this.s(90)), cardX=cx-cardW/2;
+    const cardW=Math.min(this.s(820),W-this.s(70)), cardX=cx-cardW/2;
     const cardY=this.s(80), cardH=this.s(116);
     const card=this.add.graphics().setDepth(99).setAlpha(0);
     card.fillStyle(0xf8f2df,0.96); card.fillRoundedRect(cardX,cardY,cardW,cardH,this.s(14));
@@ -111,7 +111,7 @@ class ProfileScene extends Phaser.Scene {
     // Trait rows with hover explanations
     const T = this._traitInfo(de);
     const keys=['riskPreference','lossAversion','patience','diversification','greedFomo','reactionToNoise','learning','resilience','disposition','overconfidence'];
-    const colW=Math.min(this.s(340),(W-this.s(150))/2);
+    const colW=Math.min(this.s(440),(W-this.s(110))/2);
     const startX=cx-colW-this.s(14);
     const startY=cardY+cardH+this.s(34);
     const rowH=this.s(40);
@@ -156,7 +156,7 @@ class ProfileScene extends Phaser.Scene {
 
     // Retirement note (existing context note) + new retirement section
     const noteY=startY+Math.ceil(keys.length/2)*rowH+this.s(14);
-    const nW=Math.min(this.s(760),W-this.s(110));
+    const nW=Math.min(this.s(1040),W-this.s(70));
     const nBg=this.add.graphics().setDepth(99).setAlpha(0);
     nBg.fillStyle(0xf8f2df,0.92); nBg.fillRoundedRect(cx-nW/2,noteY,nW,this.s(78),this.s(12));
     nBg.lineStyle(1,0x7ca5a1,1); nBg.strokeRoundedRect(cx-nW/2,noteY,nW,this.s(78),this.s(12));
@@ -387,6 +387,7 @@ class ProfileScene extends Phaser.Scene {
 
   // ── Hover explanation popup ───────────────────────────────────────
   _showTip(title, body, x, y) {
+    if(this.tip && this.tipTitle===title){ this._hideTip(); return; }
     this._hideTip();
     const longBody=String(body||'').length>420;
     const tw=Math.min(this.s(longBody?560:340),this.W-this.s(60));
@@ -411,11 +412,12 @@ class ProfileScene extends Phaser.Scene {
     tBody.setPosition(tx+pad, ty+pad+tTitle.height+this.s(6));
 
     this.tip=this.add.container(0,0).setDepth(160);
+    this.tipTitle=title;
     this.tip.add([bg,tTitle,tBody]);
     this.tip.setAlpha(0);
     this.tweens.add({targets:this.tip,alpha:1,duration:160});
   }
-  _hideTip(){ if(this.tip){this.tweens.killTweensOf(this.tip);this.tip.destroy();this.tip=null;} }
+  _hideTip(){ if(this.tip){this.tweens.killTweensOf(this.tip);this.tip.destroy();this.tip=null;} this.tipTitle=null; }
 
   // ── Retirement section helpers ──────────────────────────────────
   _weakestTrait() {

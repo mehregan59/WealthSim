@@ -18,3 +18,4 @@
 - [x] Remove the stray Energy solar panel, move the fossil-fuel plant lower-right, and auto-dismiss level guides after six seconds.
 - [x] Make the final Back to home action restore the landing page in both the app and GitHub Pages build.
 - [x] Combine the opening city and first-opportunity titles, and move the station label clear of the instruction card.
+- [x] Enlarge the three starting questions, move Level 3 instructions into the empty corner, show failed-drop guidance, widen results, and make pension details toggle closed.

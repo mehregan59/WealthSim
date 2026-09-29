@@ -80,7 +80,10 @@ class ResourceCube {
       this.isDragging = false;
       const nearest = this._nearestDistrict(ptr.x, ptr.y);
       if (nearest && this._distanceTo(nearest, ptr.x, ptr.y) < 120) this._dropOnDistrict(nearest);
-      else this._returnHome();
+      else {
+        this._returnHome();
+        if (this.scene._showDropRetry) this.scene._showDropRetry();
+      }
     });
   }
 
