@@ -1,6 +1,6 @@
 # WealthSim — Behavioural City Simulator
 
-**▶ Play the game: https://mehregan59.github.io/WealthSim/**
+**▶ Play the game: https://mehregan59.github.io/wealthbuilder-game/**
 
 WealthSim is an educational city-building simulation about everyday investing
 behaviour, set in the context of Germany's three-pillar retirement system.
@@ -13,7 +13,8 @@ choices shaped the outcome.
 
 ## How to play
 
-1. Open **https://mehregan59.github.io/WealthSim/**
+1. Open **https://mehregan59.github.io/wealthbuilder-game/**
+1. Open ****
 2. Press **Start building** on the landing page.
 3. Answer the short intake questions (age group, employment, three preference questions).
 4. Play through the ten city chapters — invest in Housing, Transport, Technology and Energy districts.

@@ -19,7 +19,7 @@ class Metropolis {
     this.roadGfx = scene.add.graphics().setDepth(-10);
     this.blockGfx = scene.add.graphics().setDepth(-9);
     this.anim = scene.add.graphics().setDepth(4);
-    this.dusk = scene.add.graphics().setDepth(5).setAlpha(0);
+    this.dusk = scene.add.graphics().setDepth(3).setAlpha(0);
 
     this._layout();
     this._drawGround();
@@ -299,8 +299,14 @@ class Metropolis {
   }
 
   _drawDusk() {
+    // A single, deep night layer sitting UNDER every animated light
+    // (depth 3, below the anim layer at 4). Real dark-mode night: the
+    // ground and blocks go dark, while windows, headlights, street lamps
+    // and signage stay at full brightness on top instead of being washed
+    // out by a grey film over the whole screen.
     const g = this.dusk;
-    g.fillStyle(0x0d2340, 0.42); g.fillRect(0, 0, this.W, this.H);
+    g.fillStyle(0x050f22, 0.80); g.fillRect(0, 0, this.W, this.H);
+    g.fillStyle(0x0b2038, 0.30); g.fillRect(0, this.H * 0.45, this.W, this.H * 0.55);
   }
 
   // ---- moving city --------------------------------------------------------
@@ -405,6 +411,11 @@ class Metropolis {
       g.fillStyle(0x16302c, 0.18); g.fillEllipse(q.x, q.y + this.s(4), L, h);
       g.fillStyle(0xf4f2e8, 0.97); g.fillRoundedRect(q.x - L / 2, q.y - h / 2, L, h, h * 0.4);
       g.fillStyle(0x9fc3cc, 0.9); g.fillRect(q.x - L * 0.12, q.y - h * 1.3, L * 0.3, h * 0.8);
+      if (this.night > 0.15) {
+        g.fillStyle(0xffe9a8, 0.20 * this.night); g.fillCircle(q.x + L * 0.42, q.y - h * 0.6, this.s(10));
+        g.fillStyle(0xfff3c6, this.night); g.fillCircle(q.x + L * 0.42, q.y - h * 0.6, this.s(2.6));
+        g.fillStyle(0xffd2a0, 0.9 * this.night); g.fillCircle(q.x - L * 0.42, q.y - h * 0.6, this.s(2.0));
+      }
     });
 
     // Turning blades on the hills.
@@ -423,7 +434,9 @@ class Metropolis {
       this.blockWindows.forEach(w => {
         if (!w.on) return;
         const flick = 0.8 + 0.2 * Math.sin(this.t * 1.6 + w.ph);
-        g.fillStyle(0xffe7a8, 0.85 * this.night * flick);
+        g.fillStyle(0xffd980, 0.16 * this.night * flick);
+        g.fillCircle(w.x, w.y, this.s(7));
+        g.fillStyle(0xfff0bc, Math.min(1, 1.15 * this.night) * flick);
         g.fillRect(w.x - this.s(3), w.y - this.s(3), this.s(6), this.s(5));
       });
     }
@@ -446,7 +459,7 @@ class Metropolis {
       g.fillStyle(w.shirt, 0.98); g.fillRoundedRect(q.x - this.s(2.6), y - this.s(9), this.s(5.2), this.s(8), 1);
       g.fillStyle(w.skin, 1); g.fillCircle(q.x, y - this.s(11.6), this.s(2.7));
     });
-    if(this.night>0.05){for(let i=0;i<9;i++){const q=this._at('boulevard',.08+i*.105,this.s(22));g.fillStyle(0xffdda0,.14*this.night);g.fillCircle(q.x,q.y-this.s(10),this.s(15));g.fillStyle(0xffe6a8,.92*this.night);g.fillCircle(q.x,q.y-this.s(10),this.s(2.6));g.fillStyle(0x394b49,.9);g.fillRect(q.x-this.s(1),q.y-this.s(9),this.s(2),this.s(12));}}
+    if(this.night>0.05){for(let i=0;i<9;i++){const q=this._at('boulevard',.08+i*.105,this.s(22));g.fillStyle(0xffdda0,.22*this.night);g.fillCircle(q.x,q.y-this.s(10),this.s(26));g.fillStyle(0xffe6a8,.30*this.night);g.fillCircle(q.x,q.y-this.s(10),this.s(13));g.fillStyle(0xfff4cf,Math.min(1,1.1*this.night));g.fillCircle(q.x,q.y-this.s(10),this.s(3.4));g.fillStyle(0x394b49,.9);g.fillRect(q.x-this.s(1),q.y-this.s(9),this.s(2),this.s(12));}}
   }
 
   _drawCar(g, q, m) {
@@ -458,9 +471,12 @@ class Metropolis {
     g.beginPath(); g.moveTo(b[0].x, b[0].y); b.forEach(pt => g.lineTo(pt.x, pt.y)); g.closePath(); g.fillPath();
     const roof = put(-L * 0.05, 0);
     g.fillStyle(0xcfe8ea, 0.85); g.fillCircle(roof.x, roof.y, this.s(2.6));
-    if (this.night > 0.25) {
-      const hl = put(L / 2, 0);
-      g.fillStyle(0xfff0ad, 0.95 * this.night); g.fillCircle(hl.x, hl.y, this.s(2.8));
+    if (this.night > 0.12) {
+      const hl = put(L / 2, 0), beam = put(L * 1.5, 0), tl = put(-L / 2, 0);
+      g.fillStyle(0xfff3c0, 0.16 * this.night);
+      g.fillTriangle(hl.x, hl.y, beam.x, beam.y + this.s(9), beam.x, beam.y - this.s(9));
+      g.fillStyle(0xfff6d0, Math.min(1, 1.1 * this.night)); g.fillCircle(hl.x, hl.y, this.s(3.0));
+      g.fillStyle(0xff7d63, 0.95 * this.night); g.fillCircle(tl.x, tl.y, this.s(2.2));
     }
   }
 
@@ -472,8 +488,14 @@ class Metropolis {
       const x = q.x + off * d * cos, y = q.y + off * d * sin;
       g.fillStyle(0x16302c, 0.24); g.fillRoundedRect(x - len / 2, y + h * 0.4, len, h * 0.5, h * 0.2);
       g.fillStyle(m.color, 0.98); g.fillRoundedRect(x - len / 2, y - h / 2, len, h, Math.max(2, h * 0.3));
-      g.fillStyle(0x2a4a52, 0.6);
+      const lit = this.night > 0.12;
+      g.fillStyle(lit ? 0xfff0bc : 0x2a4a52, lit ? Math.min(1, 1.1 * this.night) : 0.6);
       for (let k = 0.12; k < 0.9; k += 0.22) g.fillRect(x - len / 2 + len * k, y - h * 0.2, Math.max(2, len * 0.11), Math.max(2, h * 0.36));
+      if (lit && c === 0) {
+        const hx = x + (len / 2) * d * cos, hy = y + (len / 2) * d * sin;
+        g.fillStyle(0xfff3c0, 0.18 * this.night); g.fillCircle(hx, hy, this.s(14));
+        g.fillStyle(0xfff8da, Math.min(1, 1.1 * this.night)); g.fillCircle(hx, hy, this.s(3.4));
+      }
     }
   }
 }

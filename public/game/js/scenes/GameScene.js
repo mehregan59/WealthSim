@@ -256,7 +256,7 @@ class GameScene extends Phaser.Scene {
     const fn=map[n]; if(!fn)return;
     this.hud.setLevel(n,this._levelName(n));
     if(this.ambient)this.ambient.setSimulationLevel(n);
-    const run = () => this.time.delayedCall(400, fn.bind(this));
+    const run = () => this.time.delayedCall(460, fn.bind(this));
     const proceed = () => {
       // The very first time Level 1 starts, point the player at the side
       // panel and explain what it tracks before anything is asked of them.
@@ -272,7 +272,7 @@ class GameScene extends Phaser.Scene {
       const titleAlreadyShown = n===1 && this._introLevelTitleShown;
       if(titleAlreadyShown)this._introLevelTitleShown=false;
       if(!titleAlreadyShown)this.hud.showLevelTitle(n,this._levelName(n));
-      this.time.delayedCall(titleAlreadyShown?180:720, ()=> this.tutorial.show(n, proceed));
+      this.time.delayedCall(titleAlreadyShown?228:911, ()=> this.tutorial.show(n, proceed));
     }
   }
 
@@ -920,7 +920,8 @@ class GameScene extends Phaser.Scene {
     const y=this._msgY();
     const corner=!!opts.corner&&!this.isCompact;
     const msgWidth=corner?Math.min(this.s(390),this.W*.3):Math.min(this.s(760),this._availW());
-    const msgX=corner?this.s(24):this._cx();
+    // Corner messages sit inside the playable area, never under the side panel.
+    const msgX=corner?this.PANEL+this.s(20):this._cx();
     this.persistentMsg=this.add.text(msgX,y-this.s(6),text,{
       fontFamily:CityTheme.heading,fontSize:this.s(corner?15:18),color:'#173b40',
       align:corner?'left':'center',wordWrap:{width:msgWidth},

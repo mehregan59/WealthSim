@@ -169,7 +169,7 @@ class Tutorial {
     this.scene.tweens.add({targets:this.card,alpha:1,duration:420});
     // Per-level guides should help briefly, then reveal the playable city
     // without waiting indefinitely for a click.
-    if(!centred)this.autoCloseTimer=this.scene.time.delayedCall(6000,complete);
+    if(!centred)this.autoCloseTimer=this.scene.time.delayedCall(6900,complete);
   }
 
   hide(){

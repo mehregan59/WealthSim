@@ -86,7 +86,7 @@ class HUD {
     }).setOrigin(0.5).setDepth(81).setAlpha(0);
     ov.setAlpha(0);
     this.scene.tweens.add({
-      targets:[ov,lbl,ttl], alpha:1, duration:224, hold:496, yoyo:true,
+      targets:[ov,lbl,ttl], alpha:1, duration:271, hold:598, yoyo:true,
       onComplete:()=>{ ov.destroy(); lbl.destroy(); ttl.destroy(); }
     });
   }

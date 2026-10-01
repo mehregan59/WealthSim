@@ -236,7 +236,34 @@ class District {
   _cracks(){for(let i=0;i<3;i++){const c=this.scene.add.graphics().setDepth(20),x=this.cx+Phaser.Math.Between(-50,50),y=this.cy+Phaser.Math.Between(-12,30);c.lineStyle(this.s(2),0xc85848,.9);c.beginPath();c.moveTo(x,y);c.lineTo(x+Phaser.Math.Between(-12,12),y+this.s(15));c.strokePath();this.scene.tweens.add({targets:c,alpha:0,duration:2400,delay:500,onComplete:()=>c.destroy()});}}
   celebrate(){this._construction();}
   setStorm(on){this.scene.tweens.add({targets:[this.gfx,this.animGfx],alpha:on?.48:1,duration:1200});this.scene.tweens.add({targets:this.labelContainer,alpha:on?.65:1,duration:1200});}
-  update(time,delta){this.animTime+=delta;this.animGfx.clear();if(!(this.scene.hasMetro&&this.id==='energy')&&(this.scene.nightStrength||0)<.6)this._updateCitizens(delta);if(this.id==='energy')this._blades(delta);}
+  // Night for a district: one soft dark layer between its buildings (depth 8)
+  // and its animation layer (depth 10), then warm windows drawn on top. The
+  // quarter goes properly dark but stays readable and alive.
+  _nightLayer(k){
+    if(!this._nightGfx)this._nightGfx=this.scene.add.graphics().setDepth(9);
+    const g=this._nightGfx;g.clear();
+    if(k<=0.02)return;
+    // Soft falloff so the quarter blends into the night city instead of
+    // showing a hard dark oval on the ground.
+    for(let i=6;i>=1;i--){
+      const f=i/6;
+      g.fillStyle(0x061426,0.17*k);
+      g.fillEllipse(this.cx,this.cy+this.s(6),this.s(190+150*f),this.s(140+110*f));
+    }
+  }
+  _nightWindows(k){
+    if(k<=0.05)return;
+    if(!this._winSeed){this._winSeed=[];for(let i=0;i<26;i++)this._winSeed.push({dx:(Math.random()-0.5)*2.9,dy:(Math.random()-0.5)*2.4,ph:Math.random()*6.28});}
+    const g=this.animGfx,lit=Math.min(26,10+this._stage()*4);
+    this._winSeed.forEach((w,i)=>{
+      if(i>=lit)return;
+      const x=this.ix(0.95+w.dx,0.95+w.dy),y=this.iy(0.95+w.dx,0.95+w.dy,0.55);
+      const fl=0.82+0.18*Math.sin(this.animTime*0.0016+w.ph);
+      g.fillStyle(0xffd980,0.17*k*fl);g.fillCircle(x,y,this.s(9));
+      g.fillStyle(0xfff1c2,Math.min(1,1.1*k)*fl);g.fillRect(x-this.s(2.6),y-this.s(2.6),this.s(5.2),this.s(4.4));
+    });
+  }
+  update(time,delta){this.animTime+=delta;this.animGfx.clear();this._nightLayer(this.scene.nightStrength||0);this._nightWindows(this.scene.nightStrength||0);if(!(this.scene.hasMetro&&this.id==='energy')&&(this.scene.nightStrength||0)<.6)this._updateCitizens(delta);if(this.id==='energy')this._blades(delta);}
   _blades(delta){if(!this.turbinePos)return;this.turbineAngle+=delta*.0026;const g=this.animGfx;this.turbinePos.forEach((t,i)=>{const a0=this.turbineAngle+i*.6;g.fillStyle(0xf4f5ef,1);for(let b=0;b<3;b++){const a=a0+b*Math.PI*2/3;g.beginPath();g.moveTo(t.x,t.y);g.lineTo(t.x+Math.cos(a)*this.s(13),t.y+Math.sin(a)*this.s(13));g.lineTo(t.x+Math.cos(a+.27)*this.s(10),t.y+Math.sin(a+.27)*this.s(10));g.closePath();g.fillPath();}g.fillStyle(0x6f8786,1);g.fillCircle(t.x,t.y,this.s(2.2));});}
   getName(){return (typeof currentLang!=='undefined'&&currentLang==='de')?this.nameDE:this.name;}
   getTooltip(){return (typeof currentLang!=='undefined'&&currentLang==='de')?this.tooltipDE:this.tooltip;}
