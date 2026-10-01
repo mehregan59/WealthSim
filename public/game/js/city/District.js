@@ -242,14 +242,8 @@ class District {
   _nightLayer(k){
     if(!this._nightGfx)this._nightGfx=this.scene.add.graphics().setDepth(9);
     const g=this._nightGfx;g.clear();
-    if(k<=0.02)return;
-    // Soft falloff so the quarter blends into the night city instead of
-    // showing a hard dark oval on the ground.
-    for(let i=6;i>=1;i--){
-      const f=i/6;
-      g.fillStyle(0x061426,0.17*k);
-      g.fillEllipse(this.cx,this.cy+this.s(6),this.s(190+150*f),this.s(140+110*f));
-    }
+    // Whole-city night is drawn once by the city layer; no per-district patches.
+    if(!this.scene.hasMetro&&k>0.02){g.fillStyle(0x061426,0.35*k);g.fillEllipse(this.cx,this.cy+this.s(6),this.s(340),this.s(250));}
   }
   _nightWindows(k){
     if(k<=0.05)return;

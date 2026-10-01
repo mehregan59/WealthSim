@@ -48,12 +48,19 @@ class AmbientSystem {
     this.birds.push({ x:sx, y:sy, vx:Math.cos(ang)*sp, vy:Math.sin(ang)*sp, wing:Math.random()*Math.PI*2, wob:Math.random()*Math.PI*2, wobA:(Math.random()-0.5)*0.28, gfx:this.scene.add.graphics().setDepth(5) });
   }
 
-  getDayProgress(){ return (this.time % this.dayDuration) / this.dayDuration; }
-  getNightStrength(){const t=this.getDayProgress();if(t>=.72)return Math.min(1,(t-.72)/.16);if(t<=.25)return Math.min(1,(.25-t)/.15);return 0;}
+  // Night follows the story: day until Level 6, dusk falls slowly through
+  // Level 7, full night during the Level 8 storm, dawn returns at Level 9.
+  // `phase` is eased gently towards the target so changes are never sudden.
+  getDayProgress(){ const n=this.phase||0; return n<=0 ? 0.5 : 0.70 + n*0.30; }
+  getNightStrength(){ return Math.max(0,Math.min(1,this.phase||0)); }
   isNightTime(){ return this.getNightStrength()>.55; }
-  isDaytime(){ const t=this.getDayProgress(); return t>=0.30 && t<0.70; }
-  // Deliberately inert: day and night no longer snap to the level number.
-  setSimulationLevel(){ }
+  isDaytime(){ return (this.phase||0) < 0.05; }
+  setSimulationLevel(n){
+    this.level=n;
+    if(n===7){ this.phaseTarget=0.55; this.phaseRate=1/45000; }   // slow dusk
+    else if(n===8){ this.phaseTarget=1; this.phaseRate=1/9000; }  // deep night for the storm
+    else { this.phaseTarget=0; this.phaseRate=n===9?1/14000:1/4000; } // dawn after storm
+  }
 
   // Bright sky-blue day, warm dawn/dusk, deep night
   getSkyColor() {
@@ -75,6 +82,10 @@ class AmbientSystem {
     if(this.driftTimer<=0){ this.driftTimer = 16000 + Math.random()*8000; this.speedTarget = 0.9 + Math.random()*0.2; }
     this.speed += (this.speedTarget - this.speed) * Math.min(1, delta/9000);
     this.time += delta * this.speed;
+    if(this.phase===undefined){ this.phase=0; this.phaseTarget=0; this.phaseRate=1/4000; }
+    const step=delta*(this.phaseRate||1/4000);
+    if(this.phase<this.phaseTarget) this.phase=Math.min(this.phaseTarget,this.phase+step);
+    else if(this.phase>this.phaseTarget) this.phase=Math.max(this.phaseTarget,this.phase-step);
     this.W = this.scene.scale.width;
     const t = this.getDayProgress();
     const night = this.isNightTime();

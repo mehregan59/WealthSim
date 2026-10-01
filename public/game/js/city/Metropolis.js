@@ -18,8 +18,10 @@ class Metropolis {
     this.water = scene.add.graphics().setDepth(-11);
     this.roadGfx = scene.add.graphics().setDepth(-10);
     this.blockGfx = scene.add.graphics().setDepth(-9);
-    this.anim = scene.add.graphics().setDepth(4);
-    this.dusk = scene.add.graphics().setDepth(3).setAlpha(0);
+    // Night covers the whole city including district buildings (depth 8);
+    // all moving lights (anim) and district windows (10) draw above it.
+    this.anim = scene.add.graphics().setDepth(9.5);
+    this.dusk = scene.add.graphics().setDepth(9).setAlpha(0);
 
     this._layout();
     this._drawGround();
