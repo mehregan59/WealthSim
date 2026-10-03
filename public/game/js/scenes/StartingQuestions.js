@@ -98,6 +98,8 @@ class StartingQuestions extends Phaser.Scene {
   _renderQuestion() {
     if(this.questionElements){this.questionElements.forEach(e=>{try{e.destroy();}catch(err){}});}
     this.questionElements=[];
+    const lang=typeof currentLang!=='undefined'?currentLang:'en';
+    const de=(lang==='de');
     const cx=this.W/2,q=this.questions[this.currentQ];
     const stepGfx=this.add.graphics(); this._drawStepDots(stepGfx); this.questionElements.push(stepGfx);
     const qNum=this.add.text(cx,45,`${this.currentQ+1} / ${this.questions.length}`,{fontFamily:CityTheme.body,fontSize:15,color:'#55777a'}).setOrigin(0.5).setAlpha(0);
@@ -132,8 +134,8 @@ class StartingQuestions extends Phaser.Scene {
       });
     });
     if(this.currentQ>0){
-      const back=this.add.text(cx-220,this.H-55,'← Back',{fontFamily:CityTheme.body,fontSize:16,color:'#55777a'}).setOrigin(0.5).setInteractive({useHandCursor:true});
-      back.on('pointerover',()=>back.setColor('#55777a')); back.on('pointerout',()=>back.setColor('#55777a'));
+      const back=this.add.text(cx-220,this.H-55,de?'← Zurück':'← Back',{fontFamily:CityTheme.body,fontSize:16,color:'#55777a'}).setOrigin(0.5).setInteractive({useHandCursor:true});
+      back.on('pointerover',()=>back.setColor('#365d60')); back.on('pointerout',()=>back.setColor('#55777a'));
       back.on('pointerdown',()=>{this.currentQ--;this._renderQuestion();});
       this.questionElements.push(back);
     }

@@ -27,10 +27,21 @@ class PlayerSetup extends Phaser.Scene {
     // Intake disclosure: the session observes decision patterns and explains
     // them at the end — without revealing which level measures which trait.
     this.add.text(cx,compact?118:142,de?'Hinweis: Das Spiel beobachtet deine Entscheidungsmuster und erklärt sie dir am Ende in den Ergebnissen.':'Note: this session observes your decision patterns and explains them to you in the final results.',{fontFamily:CityTheme.body,fontSize:compact?11:15,color:'#55777a',fontStyle:'italic',align:'center',wordWrap:{width:this.W-36}}).setOrigin(0.5);
-    this._buildSection(compact?150:180,'Your age group','age',[{label:'18\u201327',value:'18-27'},{label:'28\u201337',value:'28-37'},{label:'38\u201347',value:'38-47'},{label:'48\u201357',value:'48-57'},{label:'58\u201365',value:'58-65'}],compact?3:5);
-    this._buildSection(compact?300:345,'Your employment situation','employment',[{label:'Employed',value:'employed'},{label:'Self-employed',value:'self-employed'},{label:'Student',value:'student'},{label:'Retired',value:'retired'},{label:'Other',value:'other'}],compact?3:5);
-    this._buildSection(compact?450:510,'Previous investment experience','experience',[{label:'None',value:'none'},{label:'Some basics',value:'basic'},{label:'Experienced',value:'experienced'}],3);
-    this._buildContinueBtn(compact?560:640);
+
+    const ageOptions = de
+      ? [{label:'18–27',value:'18-27'},{label:'28–37',value:'28-37'},{label:'38–47',value:'38-47'},{label:'48–57',value:'48-57'},{label:'58–65',value:'58-65'}]
+      : [{label:'18–27',value:'18-27'},{label:'28–37',value:'28-37'},{label:'38–47',value:'38-47'},{label:'48–57',value:'48-57'},{label:'58–65',value:'58-65'}];
+    const empOptions = de
+      ? [{label:'Angestellt',value:'employed'},{label:'Selbstständig',value:'self-employed'},{label:'Student/in',value:'student'},{label:'Rentner/in',value:'retired'},{label:'Sonstiges',value:'other'}]
+      : [{label:'Employed',value:'employed'},{label:'Self-employed',value:'self-employed'},{label:'Student',value:'student'},{label:'Retired',value:'retired'},{label:'Other',value:'other'}];
+    const expOptions = de
+      ? [{label:'Keine',value:'none'},{label:'Grundlagen',value:'basic'},{label:'Erfahren',value:'experienced'}]
+      : [{label:'None',value:'none'},{label:'Some basics',value:'basic'},{label:'Experienced',value:'experienced'}];
+
+    this._buildSection(compact?150:180, de?'Deine Altersgruppe':'Your age group', 'age', ageOptions, compact?3:5);
+    this._buildSection(compact?300:345, de?'Deine Beschäftigungssituation':'Your employment situation', 'employment', empOptions, compact?3:5);
+    this._buildSection(compact?450:510, de?'Frühere Anlageerfahrung':'Previous investment experience', 'experience', expOptions, 3);
+    this._buildContinueBtn(compact?560:640, de);
     this._buildSkipLink(compact?630:710, de);
   }
 
@@ -38,7 +49,7 @@ class PlayerSetup extends Phaser.Scene {
   // to start playing immediately can skip them without losing anything
   // that affects the game or the behavioural result.
   _buildSkipLink(y, de) {
-    const t=this.add.text(this.W/2,y,de?'Überspringen und direkt bauen \u2192':'Skip and start building \u2192',
+    const t=this.add.text(this.W/2,y,de?'Überspringen und direkt bauen →':'Skip and start building →',
       {fontFamily:CityTheme.body,fontSize:15,color:'#55777a'}).setOrigin(0.5).setInteractive({useHandCursor:true});
     t.on('pointerover',()=>t.setColor('#365d60'));
     t.on('pointerout',()=>t.setColor('#55777a'));
@@ -71,10 +82,11 @@ class PlayerSetup extends Phaser.Scene {
     });
   }
 
-  _buildContinueBtn(y) {
+  _buildContinueBtn(y, de) {
     const cx=this.W/2,bw=280,bh=58;
     this.continueBtnGfx=this.add.graphics();
-    this.continueBtnTxt=this.add.text(cx,y+bh/2,'Continue \u2192',{fontFamily:CityTheme.heading,fontSize:20,color:'#688486'}).setOrigin(0.5);
+    this._continueBtnLabel = de ? 'Weiter →' : 'Continue →';
+    this.continueBtnTxt=this.add.text(cx,y+bh/2,this._continueBtnLabel,{fontFamily:CityTheme.heading,fontSize:20,color:'#688486'}).setOrigin(0.5);
     this._continueBtnY=y;
     this._drawBtn(false);
     this.continueBtnHit=this.add.rectangle(cx,y+bh/2,bw,bh,0xffffff,0);
