@@ -4,314 +4,391 @@ class GameScene extends Phaser.Scene {
   create() {
     this.W = this.scale.width;
     this.H = this.scale.height;
-    this.isCompact = this.W < 700;
-    this.S = this.isCompact
-      ? Math.max(0.54, Math.min(0.72, this.W / 620))
-      : Math.max(0.85, Math.min(1.35, Math.min(this.H / 720, this.W / 1080)));
-    this.PANEL = this.isCompact ? 0 : Math.round(Math.min(286, Math.max(244, this.W * 0.18)));
-    this.cityName = (window.cityName && String(window.cityName).trim()) ||
-      (window.cityName = ['Lindenfeld','Auenstadt','Sonnenberg','Rheinhafen','Wiesental','Neuhafen'][Math.floor(Math.random()*6)]);
+    this.currentLevel = 1;
+    this.score = { happiness: 50, development: 50, resources: 100, year: 2024 };
+    this._decisions = [];
+    this._persistent = [];
+    this._panel = null;
+    this._panelOpen = false;
+    this._levelStarted = false;
 
-    // Honoured across the scene: decorative motion is reduced, but every
-    // consequence still shows as text, so no information is lost.
-    this.reducedMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-
-    const groundY = this.isCompact ? Math.round(this.H * 0.29) : this.s(352);
-    this.groundY = groundY; // used to clamp the city boundary so it never rises into the sky
-    // One continuous drawn metropolis fills the whole canvas: river, bridges,
-    // boulevards, rail line and city blocks. Every quarter is part of it.
-    this.hasPanorama = false;
-    this.hasMetro = true;
-
-
-
-    this.ambient = new AmbientSystem(this);
-    this.weather = new WeatherSystem(this);
-    this.tooltipManager = new TooltipManager(this);
-    this.tutorial = new Tutorial(this);
-
-    this.cityStats = { happiness:60, development:40, resources:80 };
-    this.currentLevel = 0;
-    this.cubes = []; this.cubeTotal = 0; this.cubeDropped = 0;
-    this.decisionPanel = null; this.worldBtn = null; this.worldBtnTimer = null;
-    this.consequencePanel = null; this.persistentMsg = null; this.dropFeedback = null; this.dropFeedbackTimer = null;
-    this.hasUniversity = false; this.siteMarkers = [];
-    this.tickerActive = false;
-    this.snapshots = {};          // for undo
-    this._panelIntroShown = false;
-    this._level3IdleTimer = null;
-
-    this.metro = new Metropolis(this);
-    this._buildDistricts();
-
-    this.roads = new RoadNetwork(this, this.districts);
-    this.hud = new HUD(this);
-    this.statsPanel = new StatsPanel(this);
-    if(this.isCompact) this.statsPanel.container.setVisible(false);
-    this.statsPanel.updateStats(this.cityStats.happiness,this.cityStats.development,this.cityStats.resources);
-    this.statsPanel.recordSnapshot(this.cityStats.happiness,this.cityStats.development,this.cityStats.resources,0);
-
-    this.input.keyboard.on('keydown-P', () => this._toProfile());
-    // A restarted scene can retain its local emitter. Replace this listener
-    // rather than stacking another copy, otherwise one cube can be counted
-    // several times and Level 3 appears to skip straight to its outcome.
-    this.events.removeAllListeners('resourceDropped');
-    this.events.on('resourceDropped', ({district,value,cube}) => this._onResourceDropped(district,value,cube));
-    this._introSequence();
-  }
-
-  s(v){ return Math.round(v * this.S); }
-  // Camera shake is decoration: skipped entirely when the player's system
-  // asks for reduced motion. The text of every consequence is unaffected.
-  _shake(d,i){ if(!this.reducedMotion && this.cameras && this.cameras.main) this.cameras.main.shake(d,i); }
-  _cx(){ return this.PANEL + (this.W - this.PANEL)/2; }
-  _availW(){ return this.W - this.PANEL - this.s(60); }
-
-  // Helper to safely get a translation string
-  _tr(keyPath, fallback) {
+    // Read lang
     const lang = (typeof currentLang !== 'undefined') ? currentLang : 'en';
-    const keys = keyPath.split('.');
-    let obj = (typeof TRANSLATIONS !== 'undefined') ? TRANSLATIONS[lang] : undefined;
-    for (const k of keys) {
-      if (obj === undefined || obj === null) return fallback !== undefined ? fallback : keyPath;
-      obj = obj[k];
-    }
-    return (obj !== undefined && obj !== null) ? obj : (fallback !== undefined ? fallback : keyPath);
+    const de = lang === 'de';
+
+    this._buildCity();
+    this._buildHUD();
+    this._startTutorial();
   }
 
-  // Get level data from TRANSLATIONS
-  _levelData(n) {
-    const lang = (typeof currentLang !== 'undefined') ? currentLang : 'en';
-    return (typeof TRANSLATIONS !== 'undefined' && TRANSLATIONS[lang] && TRANSLATIONS[lang].levels)
-      ? (TRANSLATIONS[lang].levels[n-1] || null) : null;
-  }
-
-  _buildDistricts() {
-    // Extra margin off both the panel and the right edge of the screen,
-    // and Housing/Energy pulled ~20% closer to their inner neighbours
-    // (Transport/Technology) instead of sitting right at the outer bounds.
-    const L = this.PANEL + this.s(132);
-    const R = this.W - this.s(128);
-    const span = R - L;
-    const px = f => Math.round(L + span * f);
-    const baseY = this.isCompact ? Math.round(this.H*0.53) : Math.round(Math.max(this.s(482),Math.min(this.H*0.46,this.H-this.s(420))));
-    const compactPoints = this.isCompact ? [
-      {x:this.W*.27,y:baseY}, {x:this.W*.72,y:baseY-this.s(22)},
-      {x:this.W*.28,y:baseY+this.s(225)}, {x:this.W*.72,y:baseY+this.s(203)}
-    ] : null;
-    const pts = compactPoints || [
-      {x:px(0.08), y:baseY},
-      {x:px(0.34), y:baseY - this.s(30)},
-      {x:px(0.66), y:baseY - this.s(30)},
-      {x:px(0.92), y:baseY}
+  _buildCity() {
+    this._districts = [];
+    const configs = [
+      { id:'housing',  name:'Housing',   nameDE:'Wohnviertel',  x:0.22, y:0.42, color:0x5c8a5c },
+      { id:'finance',  name:'Finance',   nameDE:'Finanzen',     x:0.50, y:0.35, color:0x4a7a9b },
+      { id:'industry', name:'Industry',  nameDE:'Industrie',    x:0.78, y:0.42, color:0x8a6a4a },
+      { id:'park',     name:'Park',      nameDE:'Park',         x:0.35, y:0.65, color:0x3a8a3a },
+      { id:'port',     name:'Port',      nameDE:'Hafen',        x:0.65, y:0.65, color:0x3a6a8a },
     ];
-    const labels = ['Housing','Transport','Technology','Energy'];
-    const colors = [0x7eab6e, 0x7da5c8, 0xa87bc4, 0xe8a838];
-    this.districts = pts.map((p,i) => new District(this, p.x, p.y, labels[i], colors[i]));
+    const de = (typeof currentLang !== 'undefined' && currentLang === 'de');
+    configs.forEach(cfg => {
+      const d = new District(this, {
+        id: cfg.id,
+        name: de ? cfg.nameDE : cfg.name,
+        x: cfg.x * this.W,
+        y: cfg.y * this.H,
+        color: cfg.color,
+        health: 50
+      });
+      this._districts.push(d);
+    });
   }
 
-  _introSequence() {
-    this._startLevel(1);
+  _buildHUD() {
+    this.hud = new HUD(this);
+    this.hud.setLevel(1, this._levelName());
+    this.hud.update(this.score);
   }
 
-  _restoreSnapshot(n) {
-    if (!this.snapshots[n]) return;
-    const snap = this.snapshots[n];
-    this.cityStats = Object.assign({}, snap.cityStats);
-    this.statsPanel.updateStats(this.cityStats.happiness, this.cityStats.development, this.cityStats.resources);
-    this._decisions = snap.decisions.slice();
-    this._choicesMade = snap.choicesMade.slice();
-  }
-
-  _saveSnapshot(n) {
-    this.snapshots[n] = {
-      cityStats: Object.assign({}, this.cityStats),
-      decisions: this._decisions.slice(),
-      choicesMade: this._choicesMade ? this._choicesMade.slice() : []
-    };
+  _startTutorial() {
+    const de = (typeof currentLang !== 'undefined' && currentLang === 'de');
+    if (window.Tutorial) {
+      this._tutorial = new Tutorial(this, de);
+      this._tutorial.onDone(() => this._startLevel(1));
+      this._tutorial.start();
+    } else {
+      this._startLevel(1);
+    }
   }
 
   _startLevel(n) {
     this.currentLevel = n;
-    this._saveSnapshot(n);
-    const ld = this._levelData(n);
-    this._clearDecisionPanel();
-    this._clearConsequence();
-    this._clearWorldBtn();
-    if (!ld) {
-      if (n > this.totalLevels || !this.totalLevels) this._toProfile();
-      return;
-    }
-    this._panelIntroShown = this._panelIntroShown || false;
-    const showPanel = () => {
-      if (!this._panelIntroShown && this.statsPanel && !this.isCompact) {
-        this._panelIntroShown = true;
-        this.statsPanel.container.setVisible(true);
-        this.statsPanel.animateIn && this.statsPanel.animateIn();
-      }
-      this._showLevelIntro(n, ld);
-    };
-    if (n === 1) {
-      this.time.delayedCall(600, showPanel);
-    } else {
-      showPanel();
-    }
-  }
-
-  get totalLevels() { return 10; }
-
-  _showLevelIntro(n, ld) {
-    this.hud.showLevelBanner(n, this._levelName(), ld.situation || '', () => {
-      this._showDecisionPanel(n, ld);
-    });
-  }
-
-  _showDecisionPanel(n, ld) {
-    if (!ld) ld = this._levelData(n);
-    if (!ld) { this._toProfile(); return; }
-    const choices = ld.choices || [];
-    if (!choices.length) { this._applyOutcome(n, ld, null); return; }
-    this.decisionPanel = new DecisionPanel(this, n, ld, this.isCompact, (chosen) => {
-      this._clearDecisionPanel();
-      this._applyOutcome(n, ld, chosen);
-    });
-  }
-
-  _clearDecisionPanel() {
-    if (this.decisionPanel) { this.decisionPanel.destroy(); this.decisionPanel = null; }
-  }
-
-  _applyOutcome(n, ld, chosen) {
-    const outcomes = ld.outcomes || {};
-    const out = (chosen !== null && outcomes[chosen]) ? outcomes[chosen] : (outcomes['*'] || {});
-    this._recordChoice(n, chosen, out);
-    const delta = out.delta || {};
-    if (delta.happiness) this.cityStats.happiness = Math.max(0, Math.min(100, this.cityStats.happiness + delta.happiness));
-    if (delta.development) this.cityStats.development = Math.max(0, Math.min(100, this.cityStats.development + delta.development));
-    if (delta.resources) this.cityStats.resources = Math.max(0, Math.min(100, this.cityStats.resources + delta.resources));
-    this.statsPanel.updateStats(this.cityStats.happiness, this.cityStats.development, this.cityStats.resources);
-    this.statsPanel.recordSnapshot(this.cityStats.happiness, this.cityStats.development, this.cityStats.resources, n);
-    this.cityscape && this.cityscape.growCity(n);
-    this._showConsequence(n, ld, chosen, out);
-  }
-
-  _recordChoice(n, chosen, out) {
-    if (!this._choicesMade) this._choicesMade = [];
-    this._choicesMade.push({ level: n, choice: chosen, outcome: out });
-    if (typeof recordDecision === 'function') recordDecision(n, chosen, out);
-  }
-
-  _showConsequence(n, ld, chosen, out) {
-    const text = out.consequence || out.text || '';
-    if (!text) { this._afterConsequence(n); return; }
-    this.consequencePanel = new AskResults(this, text, this.isCompact, () => {
-      this._clearConsequence();
-      this._afterConsequence(n);
-    });
-  }
-
-  _clearConsequence() {
-    if (this.consequencePanel) { this.consequencePanel.destroy(); this.consequencePanel = null; }
-  }
-
-  _afterConsequence(n) {
-    if (n >= this.totalLevels) {
-      this.time.delayedCall(400, () => this._toProfile());
-    } else {
-      this.time.delayedCall(300, () => {
-        this.cityscape && this.cityscape.transitionToLevel(n + 1);
-        this._startLevel(n + 1);
-      });
-    }
-  }
-
-  _toProfile() {
-    const data = {
-      choices: this._choicesMade || [],
-      cityStats: this.cityStats,
-      cityName: this.cityName
-    };
-    this.scene.start('ProfileScene', data);
-  }
-
-  _clearWorldBtn() {
-    if (this.worldBtn) { this.worldBtn.destroy(); this.worldBtn = null; }
-    if (this.worldBtnTimer) { this.worldBtnTimer.remove(); this.worldBtnTimer = null; }
-  }
-
-  _onResourceDropped(district, value, cube) {
-    const n = this.currentLevel;
-    if (n === 3) {
-      this.cubeDropped++;
-      const ld = this._levelData(n);
-      const threshold = (ld && ld.dropThreshold) ? ld.dropThreshold : 3;
-      if (this.cubeDropped >= threshold && !this._level3complete) {
-        this._level3complete = true;
-        if (this._level3IdleTimer) { this._level3IdleTimer.remove(); this._level3IdleTimer = null; }
-        this._clearWorldBtn();
-        const ld3 = this._levelData(3);
-        this._applyOutcome(3, ld3, 'drop');
-      }
-    }
-    this.cityStats.resources = Math.max(0, Math.min(100, this.cityStats.resources + value * 2));
-    this.statsPanel.updateStats(this.cityStats.happiness, this.cityStats.development, this.cityStats.resources);
-    const fb = this.add.text(cube.x, cube.y - 20, '+' + value,
-      { fontSize: this.s(18) + 'px', color: '#e0a82e', fontFamily: 'Space Grotesk', fontStyle: 'bold' })
-      .setDepth(120).setAlpha(0.92);
-    this.tweens.add({ targets: fb, y: fb.y - this.s(40), alpha: 0, duration: 900, ease: 'Power2',
-      onComplete: () => fb.destroy() });
+    this._levelStarted = true;
+    const titleAlreadyShown = false;
+    this.hud.setLevel(n,this._levelName(n));
+      if(!titleAlreadyShown)this.hud.showLevelTitle(n,this._levelName(n));
+    this[`_level${n}`] && this[`_level${n}`]();
   }
 
   _levelName(){const lvl=this.currentLevel;const tr=typeof TRANSLATIONS!=='undefined'&&TRANSLATIONS[typeof currentLang!=='undefined'?currentLang:'en'];return (tr&&tr.levels&&tr.levels[lvl-1]&&tr.levels[lvl-1].title)||{1:'The First Opportunity',2:'The Unexpected Setback',3:'The Regulatory Shift',4:'Community Investment',5:'The Boom',6:'The New Competitor',7:'Market Turbulence',8:'The Crash',9:'The Recovery',10:'The Harvest'}[lvl]||'Level '+lvl}
 
-  _tickerLoop(strings, color) {
-    if (!this.tickerActive) return;
-    const s = strings[Math.floor(Math.random() * strings.length)];
-    if (this.persistentMsg) { this.persistentMsg.destroy(); this.persistentMsg = null; }
-    const x0 = this.PANEL + this.s(18);
-    const maxW = this.W - x0 - this.s(18);
-    const fs = this.isCompact ? this.s(13) : this.s(15);
-    this.persistentMsg = this.add.text(x0, this.H - this.s(36), s,
-      { fontSize: fs + 'px', color: color || '#e0a82e', fontFamily: 'DM Sans', wordWrap: { width: maxW } })
-      .setDepth(60).setAlpha(0.78);
-    this.time.delayedCall(4200, () => {
-      if (this.persistentMsg) {
-        this.tweens.add({ targets: this.persistentMsg, alpha: 0, duration: 600,
-          onComplete: () => { if (this.persistentMsg) { this.persistentMsg.destroy(); this.persistentMsg = null; } } });
+  _tr(levelIdx, field, fallback) {
+    try {
+      const lang = (typeof currentLang !== 'undefined') ? currentLang : 'en';
+      const tr = typeof TRANSLATIONS !== 'undefined' ? TRANSLATIONS[lang] : null;
+      if (tr && tr.levels && tr.levels[levelIdx]) {
+        return tr.levels[levelIdx][field] || fallback;
       }
-      this.time.delayedCall(700, () => this._tickerLoop(strings, color));
+    } catch(e) {}
+    return fallback;
+  }
+
+  _trOpt(levelIdx, optIdx, field, fallback) {
+    try {
+      const lang = (typeof currentLang !== 'undefined') ? currentLang : 'en';
+      const tr = typeof TRANSLATIONS !== 'undefined' ? TRANSLATIONS[lang] : null;
+      if (tr && tr.levels && tr.levels[levelIdx] && tr.levels[levelIdx].options) {
+        return tr.levels[levelIdx].options[optIdx][field] || fallback;
+      }
+    } catch(e) {}
+    return fallback;
+  }
+
+  // ── Levels ────────────────────────────────────────────────────────────
+
+  _level1() {
+    const de = (typeof currentLang !== 'undefined' && currentLang === 'de');
+    const story = this._tr(0, 'story', de
+      ? 'Deine Stadt braucht frisches Kapital. Wie investierst du?'
+      : 'Your city needs fresh capital. How do you invest?');
+    this._showStory(story, () => {
+      this._showDecisionPanel([
+        { icon:'🏦', label: this._trOpt(0,0,'label', de?'Sicher & Stabil':'Safe & Stable'),    desc: this._trOpt(0,0,'description', de?'Niedrigere Renditen, stabiles Wachstum.':'Lower returns, stable growth.'),    value:'safe',           color:0x4a9b4a },
+        { icon:'⚖️', label: this._trOpt(0,1,'label', de?'Ausgewogen':'Balanced'),              desc: this._trOpt(0,1,'description', de?'Mittleres Risiko, mittlere Rendite.':'Medium risk, medium return.'),          value:'balanced',       color:0x4a7a9b },
+        { icon:'🚀', label: this._trOpt(0,2,'label', de?'Wachstum':'Growth'),                  desc: this._trOpt(0,2,'description', de?'Höheres Risiko, höheres Potenzial.':'Higher risk, higher potential.'),       value:'growth',         color:0x9b4a4a },
+        { icon:'🏗️', label: this._trOpt(0,3,'label', de?'Infrastruktur':'Infrastructure'),     desc: this._trOpt(0,3,'description', de?'Investition in die Stadt selbst.':'Invest in the city itself.'),            value:'infrastructure',  color:0x8a6a2a },
+      ], (choice) => {
+        this._decisions.push({ level:1, choice });
+        const effects = {
+          safe:          { happiness:+5,  development:+3,  resources:-10 },
+          balanced:      { happiness:+8,  development:+8,  resources:-15 },
+          growth:        { happiness:+3,  development:+15, resources:-20 },
+          infrastructure:{ happiness:+12, development:+5,  resources:-12 },
+        };
+        this._applyEffects(effects[choice] || {});
+        this._startLevel(2);
+      });
     });
   }
 
-  _showDropFeedback(text, color) {
-    if (this.dropFeedbackTimer) { this.dropFeedbackTimer.remove(); this.dropFeedbackTimer = null; }
-    if (this.dropFeedback) { this.dropFeedback.destroy(); this.dropFeedback = null; }
-    const x0 = this.PANEL + this.s(18);
-    const maxW = this.W - x0 - this.s(18);
-    const fs = this.isCompact ? this.s(13) : this.s(15);
-    this.dropFeedback = this.add.text(x0, this.H - this.s(36), text,
-      { fontSize: fs + 'px', color: color || '#ffffff', fontFamily: 'DM Sans', wordWrap: { width: maxW } })
-      .setDepth(60).setAlpha(0.88);
-    this.dropFeedbackTimer = this.time.delayedCall(3000, () => {
-      if (this.dropFeedback) {
-        this.tweens.add({ targets: this.dropFeedback, alpha: 0, duration: 500,
-          onComplete: () => { if (this.dropFeedback) { this.dropFeedback.destroy(); this.dropFeedback = null; } } });
-      }
-      this.dropFeedbackTimer = null;
+  _level2() {
+    const de = (typeof currentLang !== 'undefined' && currentLang === 'de');
+    const story = this._tr(1, 'story', de
+      ? 'Ein unerwarteter Rückschlag erschüttert den Markt. Was tust du?'
+      : 'An unexpected setback shakes the market. What do you do?');
+    this._showStory(story, () => {
+      this._showDecisionPanel([
+        { icon:'❌', label: this._trOpt(1,0,'label', de?'Stopp-Loss':'Cancel'),   desc: this._trOpt(1,0,'description', de?'Verluste begrenzen.':'Limit losses.'),              value:'cancel',     color:0x9b4a4a },
+        { icon:'⏳', label: this._trOpt(1,1,'label', de?'Abwarten':'Wait'),       desc: this._trOpt(1,1,'description', de?'Den Sturm aussitzen.':'Wait out the storm.'),       value:'push',       color:0x4a7a9b },
+        { icon:'💰', label: this._trOpt(1,2,'label', de?'Mehr investieren':'Invest More'), desc: this._trOpt(1,2,'description', de?'Günstiger Einstieg.':'Buy the dip.'),         value:'invest_more', color:0x4a9b4a },
+        { icon:'⏸️', label: this._trOpt(1,3,'label', de?'Pausieren':'Pause'),      desc: this._trOpt(1,3,'description', de?'Strategie überdenken.':'Rethink strategy.'),      value:'pause',      color:0x8a8a4a },
+      ], (choice) => {
+        this._decisions.push({ level:2, choice });
+        const effects = {
+          cancel:      { happiness:-5,  development:-5,  resources:+10 },
+          push:        { happiness:+2,  development:+2,  resources:-5  },
+          invest_more: { happiness:+5,  development:+10, resources:-20 },
+          pause:       { happiness:0,   development:0,   resources:0   },
+        };
+        this._applyEffects(effects[choice] || {});
+        this._startLevel(3);
+      });
     });
   }
 
-  update(time, delta) {
-    if (this.metro) this.metro.update(time, delta);
-    if (this.roads) {
-      const night = this.ambient ? this.ambient.isNight() : false;
-      const quiet = this.ambient ? this.ambient.isQuiet() : false;
-      if (!quiet || this.roads.visitor) this.roads.update(delta, night);
-    }
-    if (this.districts) this.districts.forEach(d => d.update(time, delta));
-    if (this.ambient) this.ambient.update(time, delta);
-    if (this.weather) this.weather.update(delta);
-    if (this.cubes) this.cubes.forEach(c => c && c.active && c.update && c.update(delta));
-    if (this.hud) this.hud.update(time, delta);
+  _level3() {
+    const de = (typeof currentLang !== 'undefined' && currentLang === 'de');
+    const story = this._tr(2, 'story', de
+      ? 'Neue Vorschriften treffen deine Branche. Wie reagierst du?'
+      : 'New regulations hit your sector. How do you respond?');
+    this._showStory(story, () => {
+      this._showDecisionPanel([
+        { icon:'✅', label: this._trOpt(2,0,'label', de?'Einhalten':'Comply'),         desc: this._trOpt(2,0,'description', de?'Regelkonform bleiben.':'Stay compliant.'),           value:'confirm',    color:0x4a9b4a },
+        { icon:'🏗️', label: this._trOpt(2,1,'label', de?'Anpassen':'Adapt'),           desc: this._trOpt(2,1,'description', de?'Geschäftsmodell anpassen.':'Adapt business model.'),  value:'adapt',      color:0x4a7a9b },
+        { icon:'⚖️', label: this._trOpt(2,2,'label', de?'Anfechten':'Challenge'),      desc: this._trOpt(2,2,'description', de?'Rechtlichen Weg gehen.':'Take legal route.'),        value:'challenge',  color:0x9b8a4a },
+        { icon:'🚪', label: this._trOpt(2,3,'label', de?'Aussteigen':'Exit'),           desc: this._trOpt(2,3,'description', de?'Aus diesem Sektor aussteigen.':'Exit this sector.'), value:'exit',       color:0x9b4a4a },
+      ], (choice) => {
+        this._decisions.push({ level:3, choice });
+        const effects = {
+          confirm:   { happiness:+5,  development:+3,  resources:-8  },
+          adapt:     { happiness:+8,  development:+8,  resources:-15 },
+          challenge: { happiness:-3,  development:+5,  resources:-12 },
+          exit:      { happiness:-5,  development:-8,  resources:+15 },
+        };
+        this._applyEffects(effects[choice] || {});
+        this._startLevel(4);
+      });
+    });
+  }
+
+  _level4() {
+    const de = (typeof currentLang !== 'undefined' && currentLang === 'de');
+    const story = this._tr(3, 'story', de
+      ? 'Die Gemeinschaft braucht Unterstützung. Wo investierst du?'
+      : 'The community needs support. Where do you invest?');
+    this._showStory(story, () => {
+      this._showDecisionPanel([
+        { icon:'🎪', label: this._trOpt(3,0,'label', de?'Festival':'Festival'),         desc: this._trOpt(3,0,'description', de?'Kulturelles Event für alle.':'Cultural event for all.'),       value:'festival',    color:0x9b6a4a },
+        { icon:'🎓', label: this._trOpt(3,1,'label', de?'Universität':'University'),    desc: this._trOpt(3,1,'description', de?'Langfristige Bildung.':'Long-term education.'),            value:'university',  color:0x4a7a9b },
+        { icon:'🏥', label: this._trOpt(3,2,'label', de?'Gesundheit':'Health'),         desc: this._trOpt(3,2,'description', de?'Medizinische Einrichtungen.':'Medical facilities.'),        value:'health',      color:0x4a9b6a },
+        { icon:'🌿', label: this._trOpt(3,3,'label', de?'Natur':'Nature'),              desc: this._trOpt(3,3,'description', de?'Grünflächen und Parks.':'Green spaces and parks.'),         value:'nature',      color:0x3a8a3a },
+      ], (choice) => {
+        this._decisions.push({ level:4, choice });
+        const effects = {
+          festival:   { happiness:+15, development:+2,  resources:-10 },
+          university: { happiness:+5,  development:+15, resources:-18 },
+          health:     { happiness:+12, development:+5,  resources:-14 },
+          nature:     { happiness:+10, development:+3,  resources:-8  },
+        };
+        this._applyEffects(effects[choice] || {});
+        this._startLevel(5);
+      });
+    });
+  }
+
+  _level5() {
+    const de = (typeof currentLang !== 'undefined' && currentLang === 'de');
+    const story = this._tr(4, 'story', de
+      ? 'Ein Boom! Märkte explodieren. Was ist deine Strategie?'
+      : 'A boom! Markets are surging. What\'s your strategy?');
+    this._showStory(story, () => {
+      this._showDecisionPanel([
+        { icon:'💎', label: this._trOpt(4,0,'label', de?'Alles rein':'All-in'),          desc: this._trOpt(4,0,'description', de?'Maximales Risiko, maximale Chance.':'Maximum risk, maximum reward.'),  value:'allin',        color:0x9b4a4a },
+        { icon:'📈', label: this._trOpt(4,1,'label', de?'Mehr investieren':'Invest More'),desc: this._trOpt(4,1,'description', de?'Moderates Wachstum.':'Moderate growth.'),                              value:'invest_more',  color:0x4a9b4a },
+        { icon:'⚖️', label: this._trOpt(4,2,'label', de?'Diversifizieren':'Diversify'),  desc: this._trOpt(4,2,'description', de?'Risiko streuen.':'Spread the risk.'),                                   value:'diversify',    color:0x4a7a9b },
+        { icon:'💰', label: this._trOpt(4,3,'label', de?'Gewinne mitnehmen':'Take Profits'),desc: this._trOpt(4,3,'description', de?'Jetzt Gewinne realisieren.':'Lock in gains now.'),                  value:'take_profits', color:0x8a8a4a },
+      ], (choice) => {
+        this._decisions.push({ level:5, choice });
+        const effects = {
+          allin:        { happiness:+5,  development:+20, resources:-25 },
+          invest_more:  { happiness:+8,  development:+12, resources:-18 },
+          diversify:    { happiness:+10, development:+8,  resources:-12 },
+          take_profits: { happiness:+12, development:+3,  resources:+15 },
+        };
+        this._applyEffects(effects[choice] || {});
+        this._startLevel(6);
+      });
+    });
+  }
+
+  _level6() {
+    const de = (typeof currentLang !== 'undefined' && currentLang === 'de');
+    const story = this._tr(5, 'story', de
+      ? 'Ein Wettbewerber betritt den Markt. Wie reagierst du?'
+      : 'A competitor enters the market. How do you respond?');
+    this._showStory(story, () => {
+      this._showDecisionPanel([
+        { icon:'🤝', label: this._trOpt(5,0,'label', de?'Akzeptieren':'Accept'),          desc: this._trOpt(5,0,'description', de?'Marktbegleiter willkommen heißen.':'Welcome the market companion.'), value:'accept',     color:0x4a9b4a },
+        { icon:'🏗️', label: this._trOpt(5,1,'label', de?'Eigenes bauen':'Build Own'),    desc: this._trOpt(5,1,'description', de?'Eigene Alternative entwickeln.':'Develop own alternative.'),     value:'build_own',  color:0x4a7a9b },
+        { icon:'❌', label: this._trOpt(5,2,'label', de?'Ablehnen':'Decline'),            desc: this._trOpt(5,2,'description', de?'Marktanteile schützen.':'Protect market share.'),                 value:'decline',    color:0x9b4a4a },
+        { icon:'🔍', label: this._trOpt(5,3,'label', de?'Analysieren':'Research'),        desc: this._trOpt(5,3,'description', de?'Daten sammeln, bevor man handelt.':'Gather data before acting.'), value:'research',   color:0x8a6a4a },
+      ], (choice) => {
+        this._decisions.push({ level:6, choice });
+        const effects = {
+          accept:    { happiness:+8,  development:+5,  resources:-5  },
+          build_own: { happiness:+5,  development:+12, resources:-20 },
+          decline:   { happiness:-3,  development:+3,  resources:+5  },
+          research:  { happiness:+3,  development:+8,  resources:-8  },
+        };
+        this._applyEffects(effects[choice] || {});
+        this._startLevel(7);
+      });
+    });
+  }
+
+  _level7() {
+    const de = (typeof currentLang !== 'undefined' && currentLang === 'de');
+    const story = this._tr(6, 'story', de
+      ? 'Marktturbulenzen erschüttern dein Portfolio. Was tust du?'
+      : 'Market turbulence shakes your portfolio. What do you do?');
+    this._showStory(story, () => {
+      this._showDecisionPanel([
+        { icon:'🚨', label: this._trOpt(6,0,'label', de?'Verkaufen':'Sell'),              desc: this._trOpt(6,0,'description', de?'Verluste begrenzen.':'Cut losses.'),                value:'sell',        color:0x9b4a4a },
+        { icon:'⬇️', label: this._trOpt(6,1,'label', de?'Reduzieren':'Reduce'),          desc: this._trOpt(6,1,'description', de?'Teilweise aussteigen.':'Partially exit.'),        value:'reduce',      color:0x9b7a4a },
+        { icon:'⏳', label: this._trOpt(6,2,'label', de?'Halten':'Hold'),                 desc: this._trOpt(6,2,'description', de?'Ruhig bleiben.':'Stay calm.'),                     value:'hold',        color:0x4a7a9b },
+        { icon:'💰', label: this._trOpt(6,3,'label', de?'Mehr kaufen':'Invest More'),     desc: this._trOpt(6,3,'description', de?'Tiefkauf nutzen.':'Use the dip.'),                value:'invest_more', color:0x4a9b4a },
+      ], (choice) => {
+        this._decisions.push({ level:7, choice });
+        const effects = {
+          sell:        { happiness:-5,  development:-8,  resources:+12 },
+          reduce:      { happiness:-2,  development:-3,  resources:+6  },
+          hold:        { happiness:+3,  development:+2,  resources:-2  },
+          invest_more: { happiness:+5,  development:+10, resources:-18 },
+        };
+        this._applyEffects(effects[choice] || {});
+        this._startLevel(8);
+      });
+    });
+  }
+
+  _level8() {
+    const de = (typeof currentLang !== 'undefined' && currentLang === 'de');
+    const story = this._tr(7, 'story', de
+      ? 'Der große Crash. Märkte brechen ein. Wie hältst du durch?'
+      : 'The big crash. Markets collapse. How do you endure?');
+    this._showStory(story, () => {
+      this._showDecisionPanel([
+        { icon:'🚨', label: this._trOpt(7,0,'label', de?'Alles verkaufen':'Sell All'),    desc: this._trOpt(7,0,'description', de?'Kapital sichern.':'Secure capital.'),             value:'sell_all',   color:0x9b4a4a },
+        { icon:'⏳', label: this._trOpt(7,1,'label', de?'Halten':'Hold'),                 desc: this._trOpt(7,1,'description', de?'Ausharren und warten.':'Stay and wait.'),         value:'hold',       color:0x4a7a9b },
+        { icon:'⚖️', label: this._trOpt(7,2,'label', de?'Umschichten':'Rebalance'),       desc: this._trOpt(7,2,'description', de?'Portfolio neu ausrichten.':'Rebalance portfolio.'),value:'rebalance',  color:0x4a9b6a },
+        { icon:'💰', label: this._trOpt(7,3,'label', de?'Nachkaufen':'Buy Dip'),          desc: this._trOpt(7,3,'description', de?'Langfristig denken.':'Think long-term.'),          value:'buy_dip',    color:0x4a9b4a },
+      ], (choice) => {
+        this._decisions.push({ level:8, choice });
+        const effects = {
+          sell_all:  { happiness:-10, development:-15, resources:+20 },
+          hold:      { happiness:+2,  development:+2,  resources:-5  },
+          rebalance: { happiness:+5,  development:+5,  resources:-10 },
+          buy_dip:   { happiness:+3,  development:+15, resources:-22 },
+        };
+        this._applyEffects(effects[choice] || {});
+        this._endGame();
+      });
+    });
+  }
+
+  // ── Utilities ─────────────────────────────────────────────────────────
+
+  _showStory(text, cb) {
+    const de = (typeof currentLang !== 'undefined' && currentLang === 'de');
+    const cx = this.W / 2;
+    const cy = this.H * 0.3;
+    const panel = this.add.rectangle(cx, cy, this.W * 0.75, 120, 0x0d1f12, 0.92)
+      .setStrokeStyle(1, 0x2e7d32);
+    const txt = this.add.text(cx, cy, text, {
+      fontFamily: 'Segoe UI, system-ui, sans-serif',
+      fontSize: '18px',
+      color: '#e8f5e9',
+      wordWrap: { width: this.W * 0.68 },
+      align: 'center',
+    }).setOrigin(0.5);
+    const btnLabel = de ? 'Entscheiden →' : 'Decide →';
+    const btn = this.add.text(cx, cy + 55, btnLabel, {
+      fontFamily: 'Segoe UI, system-ui, sans-serif',
+      fontSize: '16px',
+      color: '#66bb6a',
+      backgroundColor: '#1b5e20',
+      padding: { x: 18, y: 8 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    btn.on('pointerover',  () => btn.setStyle({ color: '#e8f5e9' }));
+    btn.on('pointerout',   () => btn.setStyle({ color: '#66bb6a' }));
+    btn.on('pointerdown',  () => {
+      panel.destroy(); txt.destroy(); btn.destroy();
+      if (cb) cb();
+    });
+  }
+
+  _showDecisionPanel(options, cb) {
+    const cx = this.W / 2;
+    const startY = this.H * 0.48;
+    const btnW = Math.min(520, this.W * 0.65);
+    const btnH = 68;
+    const gap = 12;
+    const objs = [];
+
+    options.forEach((opt, i) => {
+      const by = startY + i * (btnH + gap);
+      const bg = this.add.rectangle(cx, by, btnW, btnH, opt.color || 0x1b5e20, 0.85)
+        .setStrokeStyle(1.5, 0x388e3c)
+        .setInteractive({ useHandCursor: true });
+      const iconTxt = this.add.text(cx - btnW/2 + 32, by, opt.icon || '', {
+        fontSize: '22px',
+      }).setOrigin(0.5);
+      const labelTxt = this.add.text(cx - btnW/2 + 72, by - 10, opt.label, {
+        fontFamily: 'Segoe UI, system-ui, sans-serif',
+        fontSize: '16px',
+        fontStyle: 'bold',
+        color: '#e8f5e9',
+      }).setOrigin(0, 0.5);
+      const descTxt = this.add.text(cx - btnW/2 + 72, by + 12, opt.desc, {
+        fontFamily: 'Segoe UI, system-ui, sans-serif',
+        fontSize: '13px',
+        color: '#a5d6a7',
+        wordWrap: { width: btnW - 90 },
+      }).setOrigin(0, 0.5);
+
+      bg.on('pointerover',  () => { bg.setAlpha(1); labelTxt.setStyle({ color: '#ffffff' }); });
+      bg.on('pointerout',   () => { bg.setAlpha(0.85); labelTxt.setStyle({ color: '#e8f5e9' }); });
+      bg.on('pointerdown',  () => {
+        objs.forEach(o => o.destroy());
+        if (cb) cb(opt.value);
+      });
+      objs.push(bg, iconTxt, labelTxt, descTxt);
+    });
+  }
+
+  _applyEffects(effects) {
+    Object.keys(effects).forEach(k => {
+      if (this.score[k] !== undefined) {
+        this.score[k] = Math.max(0, Math.min(k === 'resources' ? 200 : 100, this.score[k] + effects[k]));
+      }
+    });
+    this.score.year += 1;
+    this.hud.update(this.score);
+    this._districts.forEach(d => {
+      d.setHealth(d.health + (effects.happiness || 0) * 0.3);
+    });
+  }
+
+  _endGame() {
+    this.cameras.main.fadeOut(600, 13, 31, 18);
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+      this.registry.set('decisions', this._decisions);
+      this.registry.set('score', this.score);
+      this.scene.start('ProfileScene');
+    });
+  }
+
+  shutdown() {
+    // clean up
   }
 }
