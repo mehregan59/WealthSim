@@ -1,7 +1,35 @@
 const TRANSLATIONS = {
   en: {
     opening: { tagline: "A behavioral simulation", title: "Build Your Future", sub: "Every city begins with a single decision.\nThere are no right answers.\nBuild the future you believe in.", btn: "Start Building" },
-    info: { title: "Tell us about your city", sub: "This helps personalize your experience. It never changes the game.", age: "Your age group", employment: "Your employment situation", employed: "Employed", selfEmployed: "Self-employed", student: "Student", retired: "Retired", other: "Other", experience: "Previous investment experience", expNone: "None", expBasic: "Some basics", expExperienced: "Experienced" },
+    info: {
+      title: "Tell us about your city",
+      sub: "This helps personalize your experience. It never changes the game.",
+      age: "Your age group",
+      employment: "Your employment situation",
+      employed: "Employed",
+      selfEmployed: "Self-employed",
+      student: "Student",
+      retired: "Retired",
+      other: "Other",
+      experience: "Previous investment experience",
+      expNone: "None",
+      expBasic: "Some basics",
+      expExperienced: "Experienced",
+      heroText: "Make decisions that shape your city's future. Discover your financial instincts through pivotal choices.",
+      startBtn: "Start Building",
+      features: {
+        f1: { title: "Behavioral Economics", desc: "Experience loss aversion, anchoring, and overconfidence through real scenarios." },
+        f2: { title: "City Building", desc: "Watch your decisions reshape the city's skyline, districts, and infrastructure." },
+        f3: { title: "Personal Profile", desc: "Receive a detailed analysis of your decision-making style and financial biases." },
+        f4: { title: "No Wrong Answers", desc: "Every choice is valid — the game reveals patterns, not right or wrong answers." }
+      },
+      about: {
+        title: "ℹ️ About WealthSim",
+        p1: "WealthSim is an interactive simulation that teaches behavioral finance by putting you in the role of a city mayor. Over eight levels, you face realistic economic dilemmas — from housing crises and infrastructure investments to market crashes and technology bets.",
+        p2: "Each decision is designed to surface a specific cognitive bias: loss aversion, present bias, overconfidence, anchoring, and more. After completing the game, you receive a personalized financial personality profile.",
+        p3: "The game takes approximately 15–20 minutes to complete. There are no correct answers — only your instincts, and what they reveal about how you think about risk, time, and value."
+      }
+    },
     context: { title: "Your city's support system", sub: "Help us understand which infrastructure is already in place.", q1: "Which best describes your city's main support system?", grv: "Mainly national infrastructure network (GRV — state pension)", bav: "Also has employer-supported building programs (bAV)", s3: "Also has private construction reserves (Säule 3 — Riester, Rürup)", unsure: "Not sure yet", q2: "How many building years does your city have remaining?", y30plus: "More than 30 years", y1530: "15 to 30 years", yUnder15: "Fewer than 15 years", q3: "Has your city completed any independent building before?", bNone: "No experience", bBasic: "Some basics", bExperienced: "Experienced builder" },
     questions: {
       title: "Before you build",
@@ -38,12 +66,40 @@ const TRANSLATIONS = {
       s3: { under15: "Your city has private construction reserves in addition to other support systems. This gives you flexibility that many cities lack. With limited time remaining, the focus should be on protecting what has been built while maintaining some growth.", y1530: "Your city has private reserves and a moderate horizon. Your behavioral profile shows how you respond under pressure — use this insight to decide when to protect and when to continue building.", y30plus: "Your city has private reserves and significant building years ahead. Your behavioral profile here is especially valuable — you have the time to adjust your approach based on what you learned today." },
       unsure: { under15: "Your retirement support structure is still unclear. With limited building time remaining, understanding which infrastructure systems your city has access to is an important next step.", y1530: "Understanding your retirement support structure will help you use your remaining building years effectively. Your behavioral profile gives you a starting point for that conversation.", y30plus: "With many building years ahead, there is time to understand and improve your retirement support structure. Your behavioral profile today is a useful first step." }
     },
-    common: { next: "Continue", continue: "Continue", back: "Back" }
+    common: { next: "Continue", continue: "Continue", back: "Back", skip: "Skip", mute: "Mute", unmute: "Unmute", year: "Year", level: "Level" }
   },
 
   de: {
     opening: { tagline: "Eine Verhaltenssimulation", title: "Bau deine Zukunft", sub: "Jede Stadt beginnt mit einer einzigen Entscheidung.\nEs gibt keine richtigen Antworten.\nBaue die Zukunft, an die du glaubst.", btn: "Jetzt bauen" },
-    info: { title: "Erzähl uns von deiner Stadt", sub: "Das hilft, dein Erlebnis zu personalisieren. Es ändert das Spiel nicht.", age: "Deine Altersgruppe", employment: "Deine Beschäftigungssituation", employed: "Angestellt", selfEmployed: "Selbstständig", student: "Student/in", retired: "Im Ruhestand", other: "Sonstiges", experience: "Bisherige Anlageerfahrung", expNone: "Keine", expBasic: "Grundkenntnisse", expExperienced: "Erfahren" },
+    info: {
+      title: "Erzähl uns von deiner Stadt",
+      sub: "Das hilft, dein Erlebnis zu personalisieren. Es ändert das Spiel nicht.",
+      age: "Deine Altersgruppe",
+      employment: "Deine Beschäftigungssituation",
+      employed: "Angestellt",
+      selfEmployed: "Selbstständig",
+      student: "Student/in",
+      retired: "Im Ruhestand",
+      other: "Sonstiges",
+      experience: "Bisherige Anlageerfahrung",
+      expNone: "Keine",
+      expBasic: "Grundkenntnisse",
+      expExperienced: "Erfahren",
+      heroText: "Triff Entscheidungen, die die Zukunft deiner Stadt prägen. Entdecke deine finanziellen Instinkte durch weichenstellende Entscheidungen.",
+      startBtn: "Jetzt bauen",
+      features: {
+        f1: { title: "Verhaltensökonomie", desc: "Erlebe Verlustaversion, Verankerung und Überkonfidenz anhand realer Szenarien." },
+        f2: { title: "Stadtentwicklung", desc: "Beobachte, wie deine Entscheidungen die Skyline, Stadtteile und Infrastruktur deiner Stadt umgestalten." },
+        f3: { title: "Persönliches Profil", desc: "Erhalte eine detaillierte Analyse deines Entscheidungsstils und deiner finanziellen Verzerrungen." },
+        f4: { title: "Keine falschen Antworten", desc: "Jede Entscheidung ist gültig — das Spiel deckt Muster auf, keine richtigen oder falschen Antworten." }
+      },
+      about: {
+        title: "ℹ️ Über WealthSim",
+        p1: "WealthSim ist eine interaktive Simulation, die Verhaltensfinanzierung lehrt, indem sie dich in die Rolle eines Stadtbürgermeisters versetzt. In acht Leveln begegnest du realistischen wirtschaftlichen Dilemmas — von Wohnungskrisen und Infrastrukturinvestitionen bis hin zu Markteinbrüchen und Technologiewetten.",
+        p2: "Jede Entscheidung ist darauf ausgelegt, eine spezifische kognitive Verzerrung aufzudecken: Verlustaversion, Gegenwartsverzerrung, Überkonfidenz, Verankerung und mehr. Nach Abschluss des Spiels erhältst du ein personalisiertes Finanzpersönlichkeitsprofil.",
+        p3: "Das Spiel dauert ungefähr 15–20 Minuten. Es gibt keine richtigen Antworten — nur deine Instinkte und was sie darüber verraten, wie du über Risiko, Zeit und Wert denkst."
+      }
+    },
     context: { title: "Das Unterstützungssystem deiner Stadt", sub: "Hilf uns zu verstehen, welche Infrastruktur bereits vorhanden ist.", q1: "Was beschreibt das Hauptunterstützungssystem deiner Stadt am besten?", grv: "Hauptsächlich nationales Infrastrukturnetz (GRV — gesetzliche Rente)", bav: "Auch arbeitgebergestützte Bauprogramme (bAV)", s3: "Auch private Baureserven (Säule 3 — Riester, Rürup)", unsure: "Noch nicht sicher", q2: "Wie viele Baujahre verbleiben deiner Stadt noch?", y30plus: "Mehr als 30 Jahre", y1530: "15 bis 30 Jahre", yUnder15: "Weniger als 15 Jahre", q3: "Hat deine Stadt bereits unabhängige Bauprojekte abgeschlossen?", bNone: "Keine Erfahrung", bBasic: "Grundlegende Projekte", bExperienced: "Erfahrener Baumeister" },
     questions: {
       title: "Bevor du baust",
@@ -80,7 +136,7 @@ const TRANSLATIONS = {
       s3: { under15: "Deine Stadt verfügt über private Baureserven zusätzlich zu anderen Unterstützungssystemen. Mit begrenzter verbleibender Zeit sollte der Fokus darauf liegen, das Aufgebaute zu schützen.", y1530: "Deine Stadt hat private Reserven und einen moderaten Horizont. Dein Verhaltensprofil zeigt, wie du unter Druck reagierst.", y30plus: "Deine Stadt hat private Reserven und erhebliche Baujahre voraus. Du hast die Zeit, deinen Ansatz basierend auf dem, was du heute gelernt hast, anzupassen." },
       unsure: { under15: "Deine Rentenunterstützungsstruktur ist noch unklar. Mit begrenzter verbleibender Bauzeit ist das Verstehen deiner verfügbaren Infrastruktursysteme ein wichtiger nächster Schritt.", y1530: "Das Verstehen deiner Rentenunterstützungsstruktur hilft dir, deine verbleibenden Baujahre effektiv zu nutzen.", y30plus: "Mit vielen Baujahren voraus ist Zeit, deine Rentenunterstützungsstruktur zu verstehen und zu verbessern." }
     },
-    common: { next: "Weiter", continue: "Weiter", back: "Zurück" }
+    common: { next: "Weiter", continue: "Weiter", back: "Zurück", skip: "Überspringen", mute: "Stummschalten", unmute: "Ton an", year: "Jahr", level: "Level" }
   }
 };
 
