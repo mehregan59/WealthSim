@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -13,6 +13,11 @@
     html,body{margin:0;height:100%;background:var(--paper);color:var(--ink);font-family:"DM Sans",sans-serif}
     body{overflow:auto}
     button{font:inherit}
+
+    /* ── RTL support ── */
+    html[dir="rtl"] .hero-copy{text-align:right}
+    html[dir="rtl"] .feature{border-top:none;border-right:3px solid var(--accent);padding-top:0;padding-right:1.1rem}
+    html[dir="rtl"] .landing-header{flex-direction:row-reverse}
 
     /* ── Landing ── */
     #landing{min-height:100dvh;background:var(--paper)}
@@ -33,14 +38,14 @@
       color:#81c784;
       letter-spacing:.04em;
     }
-    .lang-switcher{display:flex;gap:.4rem;}
+    .lang-switcher{display:flex;gap:.4rem;flex-wrap:wrap;}
     .lang-btn{
-      padding:.3rem .75rem;
+      padding:.3rem .65rem;
       border-radius:6px;
       border:1.5px solid #388e3c;
       background:transparent;
       color:#81c784;
-      font-size:.82rem;
+      font-size:.8rem;
       font-weight:600;
       cursor:pointer;
       transition:background .18s,color .18s,border-color .18s;
@@ -120,6 +125,10 @@
       <div class="lang-switcher" role="group" aria-label="Language selection">
         <button class="lang-btn active" id="btn-en" lang="en" data-lang="en">EN</button>
         <button class="lang-btn" id="btn-de" lang="de" data-lang="de">DE</button>
+        <button class="lang-btn" id="btn-fr" lang="fr" data-lang="fr">FR</button>
+        <button class="lang-btn" id="btn-es" lang="es" data-lang="es">ES</button>
+        <button class="lang-btn" id="btn-tr" lang="tr" data-lang="tr">TR</button>
+        <button class="lang-btn" id="btn-fa" lang="fa" data-lang="fa">فا</button>
       </div>
     </div>
 
@@ -181,6 +190,7 @@
       const activeBtn = document.getElementById('btn-' + code);
       if (activeBtn) activeBtn.classList.add('active');
       document.documentElement.lang = code;
+      document.documentElement.dir = (code === 'fa') ? 'rtl' : 'ltr';
 
       // Apply translations to all data-i18n elements
       if (typeof applyTranslations === 'function') applyTranslations();
@@ -204,6 +214,42 @@
           f3t: 'Bildung, keine Beratung',
           f3d: 'Lerne im Kontext des deutschen Drei-Säulen-Rentensystems – ohne Produktempfehlungen.',
           startBtn: 'Jetzt bauen'
+        },
+        fr: {
+          f1t: 'Dix chapitres de ville',
+          f1d: 'Prends des décisions pendant que tes quartiers grandissent et évoluent.',
+          f2t: 'Découvre tes schémas',
+          f2d: 'Ton profil final explique comment tes décisions ont façonné le résultat.',
+          f3t: 'Éducation, pas conseil',
+          f3d: 'Apprends sans recommandations de produits financiers.',
+          startBtn: 'Commencer à construire'
+        },
+        es: {
+          f1t: 'Diez capítulos de ciudad',
+          f1d: 'Toma decisiones mientras tus distritos crecen y cambian.',
+          f2t: 'Descubre tus patrones',
+          f2d: 'Tu perfil final explica cómo tus decisiones moldearon el resultado.',
+          f3t: 'Educación, no consejo',
+          f3d: 'Aprende sin recomendaciones de productos financieros.',
+          startBtn: 'Empezar a construir'
+        },
+        tr: {
+          f1t: 'On şehir bölümü',
+          f1d: 'Bölgeleriniz büyürken ve değişirken kararlar alın.',
+          f2t: 'Kalıplarını keşfet',
+          f2d: 'Son profilin kararlarının sonucu nasıl şekillendirdiğini açıklar.',
+          f3t: 'Eğitim, tavsiye değil',
+          f3d: 'Finansal ürün önerileri olmadan öğren.',
+          startBtn: 'İnşa etmeye başla'
+        },
+        fa: {
+          f1t: 'ده فصل شهری',
+          f1d: 'در حالی که مناطق شما رشد می‌کنند تصمیم بگیرید.',
+          f2t: 'الگوهایت را کشف کن',
+          f2d: 'پروفایل نهایی توضیح می‌دهد چگونه تصمیماتت نتیجه را شکل دادند.',
+          f3t: 'آموزش، نه مشاوره',
+          f3d: 'بدون توصیه‌های محصول مالی یاد بگیر.',
+          startBtn: 'شروع به ساختن'
         }
       };
       const s = landingStrings[code] || landingStrings.en;
@@ -219,8 +265,10 @@
     }
 
     // Wire lang buttons
-    document.getElementById('btn-en').addEventListener('click', () => selectLang('en'));
-    document.getElementById('btn-de').addEventListener('click', () => selectLang('de'));
+    ['en','de','fr','es','tr','fa'].forEach(code => {
+      const btn = document.getElementById('btn-' + code);
+      if (btn) btn.addEventListener('click', () => selectLang(code));
+    });
   </script>
 
   <script>
