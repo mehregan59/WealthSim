@@ -95,9 +95,7 @@ class GameScene extends Phaser.Scene {
 
     const at=(index,f,y)=>pts ? {cx:pts[index].x,cy:pts[index].y} : {cx:px(f),cy:y};
     const p0=at(0,.12,baseY+this.s(18)),p1=at(1,.38,baseY-this.s(34));
-    // Bug #6: Technology district moved to far right corner
-    const p2raw=at(2,.62,baseY-this.s(34));
-    const p2={cx: pts ? this.W - this.s(80) : Math.round(this.W - this.s(80)), cy: p2raw.cy};
+    const p2=at(2,.375,baseY-this.s(34));
     const p3=at(3,.88,baseY+this.s(18));
 
     this.districts = [
@@ -212,7 +210,7 @@ class GameScene extends Phaser.Scene {
       // The very first time Level 1 starts, show city tour (Bug #4), then panel intro
       if (n===1 && !this._panelIntroShown) {
         this._panelIntroShown = true;
-        this._cityTour(() => { this.statsPanel.introHighlight(run); }); // tour done → show panel intro
+        this._cityTour(() => { run(); }); // tour done → start level 1 directly
       } else {
         run();
       }
