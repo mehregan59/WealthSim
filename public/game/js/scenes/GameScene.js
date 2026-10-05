@@ -821,22 +821,44 @@ class GameScene extends Phaser.Scene {
   _showGuide(text, onContinue) {
     this._clearPersistentMessage();
     const cx = this._cx();
-    const msgWidth = Math.min(this.s(760), this._availW());
-    const y = this._msgY();
-    const guideBox = this.add.text(cx, y, text, {
-      fontFamily: CityTheme.heading, fontSize: this.s(22), color: '#173b40',
-      align: 'center', wordWrap: { width: msgWidth },
-      backgroundColor: '#e8f6f8', padding: { x: this.s(24), y: this.s(15) },
-      lineSpacing: this.s(6), stroke: '#e8f6f8', strokeThickness: 1
-    }).setOrigin(0.5, 0).setDepth(48).setAlpha(0);
-    this.tweens.add({ targets: guideBox, alpha: 1, duration: 500 });
-    const contBtn = new WorldButton(this, cx, y + this.s(80), this._tr('guide.continue', 'Continue →'), () => {
-      guideBox.destroy();
-      contBtn.destroy();
+    const msgWidth = Math.min(this.s(560), this._availW());
+    const cy = this.H / 2;
+    const ph = this.s(220);
+    const py = cy - ph / 2;
+
+    // Dim overlay
+    const overlay = this.add.graphics().setDepth(190);
+    overlay.fillStyle(0x000000, 0.45);
+    overlay.fillRect(0, 0, this.W, this.H);
+
+    // Card background
+    const cardBg = this.add.graphics().setDepth(191);
+    cardBg.fillStyle(0xfffbf1, 0.97);
+    cardBg.fillRoundedRect(cx - msgWidth/2, py, msgWidth, ph, this.s(14));
+    cardBg.lineStyle(this.s(2), 0x296b72, 0.8);
+    cardBg.strokeRoundedRect(cx - msgWidth/2, py, msgWidth, ph, this.s(14));
+
+    const guideBox = this.add.text(cx, py + this.s(30), text, {
+      fontFamily: CityTheme.heading, fontSize: this.s(20), color: '#173b40',
+      align: 'center', wordWrap: { width: msgWidth - this.s(48) },
+      lineSpacing: this.s(6)
+    }).setOrigin(0.5, 0).setDepth(192).setAlpha(0);
+    this.tweens.add({ targets: [overlay, cardBg, guideBox], alpha: 1, duration: 300 });
+
+    const btnY = py + ph - this.s(20);
+    const contBtn = this.add.text(cx, btnY, this._tr('guide.continue', 'Continue →'), {
+      fontFamily: CityTheme.body, fontSize: this.s(17), color: '#fffbf1',
+      backgroundColor: '#296b72', padding: { x: this.s(24), y: this.s(12) }
+    }).setOrigin(0.5, 1).setDepth(192).setInteractive({ useHandCursor: true });
+
+    const dismiss = () => {
+      [overlay, cardBg, guideBox, contBtn].forEach(el => { try { el.destroy(); } catch(e) {} });
       if (onContinue) onContinue();
-    });
+    };
+    contBtn.on('pointerdown', dismiss);
+
     this._guideBox = guideBox;
-    this._guideBtn = contBtn;
+    this._guideBtn = { destroy: () => { try { overlay.destroy(); cardBg.destroy(); guideBox.destroy(); contBtn.destroy(); } catch(e) {} } };
   }
 
   _showPersistentMessage(text,opts){
