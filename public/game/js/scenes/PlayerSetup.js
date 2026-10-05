@@ -17,46 +17,66 @@ class PlayerSetup extends Phaser.Scene {
     this.backdrop = CityTheme.drawBackdrop(this, { depth:-2 });
   }
 
+  _tr(key, fallback) {
+    if (typeof t === 'function') {
+      const v = t(key);
+      if (v && v !== key) return v;
+    }
+    return fallback;
+  }
+
   _buildUI() {
     const cx = this.W/2;
     const compact=this.W<700;
     this._drawStepDots(1);
-    const de=(typeof currentLang!=='undefined'&&currentLang==='de');
-    this.add.text(cx,compact?55:62,de?'Erzähl uns von deiner Stadt':'Tell us about your city',{fontFamily:CityTheme.heading,fontSize:compact?28:40,color:'#296b72'}).setOrigin(0.5);
-    this.add.text(cx,compact?92:112,de?'Dies hilft, dein Erlebnis zu personalisieren. Es ändert nie das Spiel.':'This helps personalize your experience. It never changes the game.',{fontFamily:CityTheme.body,fontSize:compact?14:19,color:'#55777a',align:'center',wordWrap:{width:this.W-36}}).setOrigin(0.5);
-    // Intake disclosure: the session observes decision patterns and explains
-    // them at the end — without revealing which level measures which trait.
-    this.add.text(cx,compact?118:142,de?'Hinweis: Das Spiel beobachtet deine Entscheidungsmuster und erklärt sie dir am Ende in den Ergebnissen.':'Note: this session observes your decision patterns and explains them to you in the final results.',{fontFamily:CityTheme.body,fontSize:compact?11:15,color:'#55777a',fontStyle:'italic',align:'center',wordWrap:{width:this.W-36}}).setOrigin(0.5);
 
-    const ageOptions = de
-      ? [{label:'18–27',value:'18-27'},{label:'28–37',value:'28-37'},{label:'38–47',value:'38-47'},{label:'48–57',value:'48-57'},{label:'58–65',value:'58-65'}]
-      : [{label:'18–27',value:'18-27'},{label:'28–37',value:'28-37'},{label:'38–47',value:'38-47'},{label:'48–57',value:'48-57'},{label:'58–65',value:'58-65'}];
-    const empOptions = de
-      ? [{label:'Angestellt',value:'employed'},{label:'Selbstständig',value:'self-employed'},{label:'Student/in',value:'student'},{label:'Rentner/in',value:'retired'},{label:'Sonstiges',value:'other'}]
-      : [{label:'Employed',value:'employed'},{label:'Self-employed',value:'self-employed'},{label:'Student',value:'student'},{label:'Retired',value:'retired'},{label:'Other',value:'other'}];
-    const expOptions = de
-      ? [{label:'Keine',value:'none'},{label:'Grundlagen',value:'basic'},{label:'Erfahren',value:'experienced'}]
-      : [{label:'None',value:'none'},{label:'Some basics',value:'basic'},{label:'Experienced',value:'experienced'}];
+    this.add.text(cx,compact?55:62,
+      this._tr('ui.playerSetup.title','Tell us about your city'),
+      {fontFamily:CityTheme.heading,fontSize:compact?28:40,color:'#296b72'}).setOrigin(0.5);
+    this.add.text(cx,compact?92:112,
+      this._tr('ui.playerSetup.subtitle','This helps personalize your experience. It never changes the game.'),
+      {fontFamily:CityTheme.body,fontSize:compact?14:19,color:'#55777a',align:'center',wordWrap:{width:this.W-36}}).setOrigin(0.5);
+    this.add.text(cx,compact?118:142,
+      this._tr('ui.playerSetup.disclosure','Note: this session observes your decision patterns and explains them to you in the final results.'),
+      {fontFamily:CityTheme.body,fontSize:compact?11:15,color:'#55777a',fontStyle:'italic',align:'center',wordWrap:{width:this.W-36}}).setOrigin(0.5);
 
-    this._buildSection(compact?150:180, de?'Deine Altersgruppe':'Your age group', 'age', ageOptions, compact?3:5);
-    this._buildSection(compact?300:345, de?'Deine Beschäftigungssituation':'Your employment situation', 'employment', empOptions, compact?3:5);
-    this._buildSection(compact?450:510, de?'Frühere Anlageerfahrung':'Previous investment experience', 'experience', expOptions, 3);
-    this._buildContinueBtn(compact?560:640, de);
-    this._buildSkipLink(compact?630:710, de);
+    const ageOptions = [
+      {label:'18–27',value:'18-27'},{label:'28–37',value:'28-37'},
+      {label:'38–47',value:'38-47'},{label:'48–57',value:'48-57'},{label:'58–65',value:'58-65'}
+    ];
+
+    const rawEmp = this._tr('ui.playerSetup.employmentOptions', null);
+    const empOptions = (rawEmp && Array.isArray(rawEmp)) ? rawEmp : [
+      {label:'Employed',value:'employed'},{label:'Self-employed',value:'self-employed'},
+      {label:'Student',value:'student'},{label:'Retired',value:'retired'},{label:'Other',value:'other'}
+    ];
+
+    const rawExp = this._tr('ui.playerSetup.experienceOptions', null);
+    const expOptions = (rawExp && Array.isArray(rawExp)) ? rawExp : [
+      {label:'None',value:'none'},{label:'Some basics',value:'basic'},{label:'Experienced',value:'experienced'}
+    ];
+
+    this._buildSection(compact?150:180,
+      this._tr('ui.playerSetup.ageLabel','Your age group'),
+      'age', ageOptions, compact?3:5);
+    this._buildSection(compact?300:345,
+      this._tr('ui.playerSetup.employmentLabel','Your employment situation'),
+      'employment', empOptions, compact?3:5);
+    this._buildSection(compact?450:510,
+      this._tr('ui.playerSetup.experienceLabel','Previous investment experience'),
+      'experience', expOptions, 3);
+    this._buildContinueBtn(compact?560:640);
+    this._buildSkipLink(compact?630:710);
   }
 
-  // These answers only personalise the closing text, so a player who wants
-  // to start playing immediately can skip them without losing anything
-  // that affects the game or the behavioural result.
-  _buildSkipLink(y, de) {
-    const t=this.add.text(this.W/2,y,de?'Überspringen und direkt bauen →':'Skip and start building →',
+  _buildSkipLink(y) {
+    const lbl = this._tr('ui.playerSetup.skip','Skip and start building →');
+    const t=this.add.text(this.W/2,y,lbl,
       {fontFamily:CityTheme.body,fontSize:15,color:'#55777a'}).setOrigin(0.5).setInteractive({useHandCursor:true});
     t.on('pointerover',()=>t.setColor('#365d60'));
     t.on('pointerout',()=>t.setColor('#55777a'));
     t.on('pointerdown',()=>{ this._skipped=true; this._goNext(); });
   }
-
-
 
   _drawStepDots(active) {
     const cx=this.W/2,steps=3,spacing=28;
@@ -82,10 +102,10 @@ class PlayerSetup extends Phaser.Scene {
     });
   }
 
-  _buildContinueBtn(y, de) {
+  _buildContinueBtn(y) {
     const cx=this.W/2,bw=280,bh=58;
     this.continueBtnGfx=this.add.graphics();
-    this._continueBtnLabel = de ? 'Weiter →' : 'Continue →';
+    this._continueBtnLabel = this._tr('ui.playerSetup.continue','Continue →');
     this.continueBtnTxt=this.add.text(cx,y+bh/2,this._continueBtnLabel,{fontFamily:CityTheme.heading,fontSize:20,color:'#688486'}).setOrigin(0.5);
     this._continueBtnY=y;
     this._drawBtn(false);

@@ -5,9 +5,6 @@ class RetirementContext extends Phaser.Scene {
     this.W = this.scale.width;
     this.H = this.scale.height;
     this._yearsFromAge = this._deriveYears();
-    // saule is now multi-select: a person can genuinely have GRV + bAV +
-    // private provision at the same time, so this is an array, not a
-    // single value. "Not sure" is exclusive with everything else.
     this.selections = { saule: [], buildexp: null, years: this._yearsFromAge.value };
     this._sectionCards = {};
     this._activeTooltip = null;
@@ -17,14 +14,24 @@ class RetirementContext extends Phaser.Scene {
     this._fadeIn();
   }
 
+  _tr(key, fallback) {
+    if (typeof t === 'function') {
+      const v = t(key);
+      if (v && v !== key) return v;
+    }
+    return fallback;
+  }
+
   _deriveYears() {
     const age = window.playerInfo?.age || '28-37';
     const midpoints = {'18-27':22,'28-37':32,'38-47':42,'48-57':52,'58-65':61};
     const mid = midpoints[age] || 32;
     const years = 67 - mid;
-    if(years > 30) return { value:'30plus',  label:`~${years} years until retirement` };
-    if(years > 15) return { value:'15-30',   label:`~${years} years until retirement` };
-    return              { value:'under15', label:`~${years} years until retirement` };
+    const tpl = this._tr('ui.retirement.yearsUntilRetirement', '~{years} years until retirement');
+    const label = tpl.replace('{years}', years);
+    if(years > 30) return { value:'30plus',  label };
+    if(years > 15) return { value:'15-30',   label };
+    return              { value:'under15', label };
   }
 
   _drawBackground() {
@@ -33,43 +40,58 @@ class RetirementContext extends Phaser.Scene {
 
   _buildUI() {
     const cx=this.W/2;
-    const lang=typeof currentLang!=='undefined'?currentLang:'en';
     this._drawStepDots(2);
-    this.add.text(cx,52,lang==='de'?'Dein Rentensystem':'Your retirement system',{fontFamily:CityTheme.heading,fontSize:30,color:'#296b72'}).setOrigin(0.5);
-    this.add.text(cx,88,lang==='de'?'Diese Antworten personalisieren dein abschließendes Feedback.':'These answers personalize your closing feedback. They never change gameplay.',{fontFamily:CityTheme.body,fontSize:16,color:'#55777a'}).setOrigin(0.5);
+    this.add.text(cx,52,
+      this._tr('ui.retirement.title','Your retirement system'),
+      {fontFamily:CityTheme.heading,fontSize:30,color:'#296b72'}).setOrigin(0.5);
+    this.add.text(cx,88,
+      this._tr('ui.retirement.subtitle','These answers personalize your closing feedback. They never change gameplay.'),
+      {fontFamily:CityTheme.body,fontSize:16,color:'#55777a'}).setOrigin(0.5);
 
-    // Auto-derived retirement notice
     const noticeBox=this.add.graphics();
     noticeBox.fillStyle(0xd7e3d5,0.8);noticeBox.fillRoundedRect(cx-380,116,760,44,8);
     noticeBox.lineStyle(1,0x296b72,0.4);noticeBox.strokeRoundedRect(cx-380,116,760,44,8);
     const ageLabel=window.playerInfo?.age||'28-37';
-    this.add.text(cx,138,(lang==='de'?`Altersgruppe: ${ageLabel}  \xB7  Gesch\xE4tzte Zeit bis zur Rente: `:`Age group: ${ageLabel}  \xB7  Estimated time until retirement: `)+this._yearsFromAge.label,{fontFamily:CityTheme.body,fontSize:15,color:'#296b72'}).setOrigin(0.5);
+    const ageTpl = this._tr('ui.retirement.ageNotice','Age group: {age}  ·  Estimated time until retirement: {years}');
+    const ageNotice = ageTpl.replace('{age}', ageLabel).replace('{years}', this._yearsFromAge.label);
+    this.add.text(cx,138,ageNotice,{fontFamily:CityTheme.body,fontSize:15,color:'#296b72'}).setOrigin(0.5);
 
-    // Q1 Saule — multi-select, with an ℹ tooltip on each card
-    const q1Label=lang==='de'?'Welche Rentenbausteine hast du bereits? (Mehrfachauswahl m\xF6glich)':'Which retirement pillars do you already have? (Select all that apply)';
-    const sauleOpts=[
-      {value:'grv',label:lang==='de'?'\uD83C\uDFDB GRV':'\uD83C\uDFDB GRV',sub:lang==='de'?'Gesetzliche Rente':'State pension',tooltipTitle:lang==='de'?'GRV \u2014 Gesetzliche Rentenversicherung':'GRV \u2014 Statutory Pension Insurance',tooltipBody:lang==='de'?'Pflicht f\xFCr fast alle Arbeitnehmer in Deutschland. Beitr\xE4ge werden automatisch vom Gehalt abgezogen. Die Rente h\xE4ngt von Einzahlungsjahren und Verdienst ab. F\xFCr die meisten Menschen allein nicht ausreichend.':'Mandatory for almost all employees in Germany. Contributions are deducted automatically from salary. Pension depends on years of contributions and earnings. For most people alone not sufficient.',link:'https://www.deutsche-rentenversicherung.de',linkLabel:'deutsche-rentenversicherung.de'},
-      {value:'bav',label:lang==='de'?'\uD83C\uDFE2 bAV':'\uD83C\uDFE2 bAV',sub:lang==='de'?'Betriebliche Altersversorgung':'Occupational pension',tooltipTitle:lang==='de'?'bAV \u2014 Betriebliche Altersversorgung':'bAV \u2014 Occupational Pension',tooltipBody:lang==='de'?'Der Arbeitgeber zahlt mit in die Rente ein. Seit 2019 ist ein Arbeitgeberzuschuss von 15% bei Neuvertr\xE4gen Pflicht. Steuer- und sozialabgabenfrei bis zu bestimmten Grenzen.':'Your employer contributes to your pension. Since 2019, a 15% employer contribution is mandatory for new contracts. Tax and social security free up to certain limits.',link:'https://www.bmas.de/DE/Arbeit/Betriebliche-Altersversorgung/betriebliche-altersversorgung.html',linkLabel:'bmas.de'},
-      {value:'s3',label:lang==='de'?'\uD83C\uDFD7 S\xE4ule 3':'\uD83C\uDFD7 Pillar 3',sub:lang==='de'?'Riester / R\xFCrup / Privat':'Riester / R\xFCrup / Private',tooltipTitle:lang==='de'?'S\xE4ule 3 \u2014 Private Vorsorge':'Pillar 3 \u2014 Private Provision',tooltipBody:lang==='de'?'Freiwillige private Altersvorsorge. Riester: staatlich gef\xF6rdert, f\xFCr Arbeitnehmer. R\xFCrup: steuerlich absetzbar, besonders f\xFCr Selbstst\xE4ndige. Beide haben F\xF6rdergrenzen und Bedingungen.':'Voluntary private retirement savings. Riester: state-subsidized, for employees. R\xFCrup: tax-deductible, especially for self-employed. Both have subsidy limits and conditions.',link:'https://www.verbraucherzentrale.de/wissen/geld-versicherungen/altersvorsorge-und-rente',linkLabel:'verbraucherzentrale.de'},
-      {value:'unsure',label:lang==='de'?'\u2753 Unsicher':'\u2753 Not sure',sub:lang==='de'?'Noch nicht sicher':'I am not sure yet',tooltipTitle:lang==='de'?'Das deutsche Rentensystem':'The German pension system',tooltipBody:lang==='de'?'Deutschland hat ein Drei-S\xE4ulen-System: GRV (gesetzlich), bAV (betrieblich) und private Vorsorge. Die meisten Arbeitnehmer haben mindestens die GRV. bAV und S\xE4ule 3 sind optional aber empfohlen.':'Germany has a three-pillar system: GRV (statutory), bAV (occupational), and private provision. Most employees have at least the GRV. bAV and Pillar 3 are optional but recommended.',link:'https://www.bpb.de/themen/soziale-lage/rentenpolitik/',linkLabel:'bpb.de \u2014 Rentenpolitik'}
+    // Q1 Saule — use i18n if available, fall back to English
+    const rawSaule = this._tr('ui.retirement.sauleOptions', null);
+    const q1Label = this._tr('ui.retirement.q1Label','Which retirement pillars do you already have? (Select all that apply)');
+    const sauleOpts = (rawSaule && Array.isArray(rawSaule)) ? rawSaule : [
+      {value:'grv',label:'🏗 GRV',sub:'State pension',
+        tooltipTitle:'GRV — Statutory Pension Insurance',
+        tooltipBody:'Mandatory for almost all employees in Germany. Contributions are deducted automatically from salary. Pension depends on years of contributions and earnings. For most people alone not sufficient.',
+        link:'https://www.deutsche-rentenversicherung.de',linkLabel:'deutsche-rentenversicherung.de'},
+      {value:'bav',label:'🏢 bAV',sub:'Occupational pension',
+        tooltipTitle:'bAV — Occupational Pension',
+        tooltipBody:'Your employer contributes to your pension. Since 2019, a 15% employer contribution is mandatory for new contracts. Tax and social security free up to certain limits.',
+        link:'https://www.bmas.de/DE/Arbeit/Betriebliche-Altersversorgung/betriebliche-altersversorgung.html',linkLabel:'bmas.de'},
+      {value:'s3',label:'🏗 Pillar 3',sub:'Riester / Rürup / Private',
+        tooltipTitle:'Pillar 3 — Private Provision',
+        tooltipBody:'Voluntary private retirement savings. Riester: state-subsidized, for employees. Rürup: tax-deductible, especially for self-employed. Both have subsidy limits and conditions.',
+        link:'https://www.verbraucherzentrale.de/wissen/geld-versicherungen/altersvorsorge-und-rente',linkLabel:'verbraucherzentrale.de'},
+      {value:'unsure',label:'❓ Not sure',sub:'I am not sure yet',
+        tooltipTitle:'The German pension system',
+        tooltipBody:'Germany has a three-pillar system: GRV (statutory), bAV (occupational), and private provision. Most employees have at least the GRV. bAV and Pillar 3 are optional but recommended.',
+        link:'https://www.bpb.de/themen/soziale-lage/rentenpolitik/',linkLabel:'bpb.de — Rentenpolitik'}
     ];
     this._buildSauleSection(178,q1Label,sauleOpts);
 
-    // Q2 — Investment familiarity (replaces confusing "build experience")
-    const q2Label=lang==='de'?'Wie vertraut bist du mit Sparen und Investieren?':'How familiar are you with saving and investing?';
-    const expOpts=lang==='de'?[
-      {label:'\uD83D\uDD30 Noch nicht gestartet',sub:'Ich spare noch nicht f\xFCr die Rente',value:'none'},
-      {label:'\uD83D\uDCD6 Grundlagen lerne ich',sub:'Ich kenne die Basics, spare etwas',value:'basic'},
-      {label:'\uD83D\uDCC8 Bereits investiert',sub:'Ich investiere aktiv und regelm\xE4\xDFig',value:'experienced'}
-    ]:[
-      {label:'\uD83D\uDD30 Not yet started',sub:'I am not yet saving for retirement',value:'none'},
-      {label:'\uD83D\uDCD6 Learning the basics',sub:'I know the basics and save something',value:'basic'},
-      {label:'\uD83D\uDCC8 Already investing',sub:'I invest actively and regularly',value:'experienced'}
+    // Q2
+    const q2Label = this._tr('ui.retirement.q2Label','How familiar are you with saving and investing?');
+    const rawExp = this._tr('ui.retirement.experienceOptions', null);
+    const expOpts = (rawExp && Array.isArray(rawExp)) ? rawExp : [
+      {label:'🔰 Not yet started',sub:'I am not yet saving for retirement',value:'none'},
+      {label:'📖 Learning the basics',sub:'I know the basics and save something',value:'basic'},
+      {label:'📈 Already investing',sub:'I invest actively and regularly',value:'experienced'}
     ];
     this._buildSimpleSection(486,q2Label,'buildexp',expOpts,3);
     this._buildContinueBtn(632);
-    // Optional: these answers only shape the closing text, never the game.
-    const sk=this.add.text(cx,700,lang==='de'?'Überspringen und direkt bauen \u2192':'Skip and start building \u2192',
+
+    const sk=this.add.text(cx,700,
+      this._tr('ui.retirement.skip','Skip and start building →'),
       {fontFamily:CityTheme.body,fontSize:15,color:'#55777a'}).setOrigin(0.5).setInteractive({useHandCursor:true});
     sk.on('pointerover',()=>sk.setColor('#365d60'));
     sk.on('pointerout',()=>sk.setColor('#55777a'));
@@ -91,8 +113,7 @@ class RetirementContext extends Phaser.Scene {
       const card=this.add.graphics();
       const mainTxt=this.add.text(bx+18,by+20,opt.label,{fontFamily:CityTheme.body,fontSize:17,color:'#365d60',fontStyle:'bold'});
       const subTxt=this.add.text(bx+18,by+50,opt.sub,{fontFamily:CityTheme.body,fontSize:14,color:'#55777a'});
-      // Info icon — tap to see tooltip + link
-      const infoIcon=this.add.text(bx+cW-26,by+12,'\u24D8',{fontFamily:CityTheme.body,fontSize:18,color:'#55777a'}).setInteractive({useHandCursor:true});
+      const infoIcon=this.add.text(bx+cW-26,by+12,'ℹ',{fontFamily:CityTheme.body,fontSize:18,color:'#55777a'}).setInteractive({useHandCursor:true});
       const draw=(sel,hover)=>{card.clear();if(sel){card.fillStyle(0xe0a82e,0.15);card.fillRoundedRect(bx,by,cW,cH,8);card.lineStyle(2,0xe0a82e,0.9);card.strokeRoundedRect(bx,by,cW,cH,8);mainTxt.setColor('#9b6c12');subTxt.setColor('#7a651e');infoIcon.setColor('#296b72');}else if(hover){card.fillStyle(0xd7e3d5,1);card.fillRoundedRect(bx,by,cW,cH,8);card.lineStyle(1,0x4a6080,1);card.strokeRoundedRect(bx,by,cW,cH,8);mainTxt.setColor('#173b40');subTxt.setColor('#55777a');infoIcon.setColor('#296b72');}else{card.fillStyle(0xf2e7c9,0.9);card.fillRoundedRect(bx,by,cW,cH,8);card.lineStyle(1,0xd7e3d5,1);card.strokeRoundedRect(bx,by,cW,cH,8);mainTxt.setColor('#365d60');subTxt.setColor('#55777a');infoIcon.setColor('#55777a');}};
       draw(false,false);
       const isSelected=()=>this.selections.saule.includes(opt.value);
@@ -101,10 +122,6 @@ class RetirementContext extends Phaser.Scene {
       hit.on('pointerover',()=>{if(!isSelected())draw(false,true);});
       hit.on('pointerout',()=>draw(isSelected(),false));
       hit.on('pointerdown',()=>{
-        // "Not sure" is exclusive — picking it clears any other pillar
-        // selections, and picking any real pillar clears "Not sure".
-        // Otherwise, toggle this option in/out of the selection freely,
-        // since someone can genuinely have more than one pillar at once.
         if(opt.value==='unsure'){
           this.selections.saule = this.selections.saule.includes('unsure') ? [] : ['unsure'];
         } else {
@@ -165,7 +182,7 @@ class RetirementContext extends Phaser.Scene {
     const linkBg=this.add.graphics();
     linkBg.fillStyle(0xd7e3d5,1);linkBg.fillRoundedRect(tx+12,linkY-4,tw-24,24,5);
     container.add(linkBg);
-    const linkTxt=this.add.text(tx+18,linkY+8,'\u2192 '+opt.linkLabel,{fontFamily:CityTheme.body,fontSize:11,color:'#296b72',fontStyle:'bold'}).setOrigin(0,0.5).setInteractive({useHandCursor:true});
+    const linkTxt=this.add.text(tx+18,linkY+8,'→ '+opt.linkLabel,{fontFamily:CityTheme.body,fontSize:11,color:'#296b72',fontStyle:'bold'}).setOrigin(0,0.5).setInteractive({useHandCursor:true});
     container.add(linkTxt);
     linkTxt.on('pointerover',()=>linkTxt.setColor('#9b6c12'));
     linkTxt.on('pointerout', ()=>linkTxt.setColor('#296b72'));
@@ -185,7 +202,9 @@ class RetirementContext extends Phaser.Scene {
   _buildContinueBtn(y) {
     const cx=this.W/2,bw=280,bh=58;
     this.continueBtnGfx=this.add.graphics();
-    this.continueBtnTxt=this.add.text(cx,y+bh/2,'Continue \u2192',{fontFamily:CityTheme.heading,fontSize:20,color:'#688486'}).setOrigin(0.5);
+    this.continueBtnTxt=this.add.text(cx,y+bh/2,
+      this._tr('ui.retirement.continue','Continue →'),
+      {fontFamily:CityTheme.heading,fontSize:20,color:'#688486'}).setOrigin(0.5);
     this._continueBtnY=y;this._drawBtn(false);
     this.continueBtnHit=this.add.rectangle(cx,y+bh/2,bw,bh,0xffffff,0);
   }
