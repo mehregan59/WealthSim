@@ -266,18 +266,16 @@ class GameScene extends Phaser.Scene {
       {d:this.districts[3], l: opts ? (opts[3] ? opts[3].label : '⚡ Balanced') : '⚡ Balanced',        v:'balanced',   c:0xddaa00}
     ];
     this.siteMarkers=[];
-    ch.forEach((o,i)=>{
-      this.time.delayedCall(i*260,()=>{
-        this.siteMarkers.push(this._choiceLabel(o.d.cx, o.d.subLabelY(), o.l, o.c));
-        o.d.setSelectable(true, ()=>this._onLevel1Choice(o.d,o.v));
-      });
-    });
     const storyText = ld && ld.story ? ld.story : this._tr('level1.story', 'Tap one of the districts below to start growing your city.');
     const guideText = ld && ld.guide ? ld.guide : this._tr('game.guideDefault', 'Read the situation. Choose a district to begin.');
-    // Bug #1: show guide first, then story + districts on Continue
     this._showGuide(guideText, () => {
       this._showPersistentMessage(storyText);
-      // Districts are already selectable — just show the message
+      ch.forEach((o,i)=>{
+        this.time.delayedCall(i*260,()=>{
+          this.siteMarkers.push(this._choiceLabel(o.d.cx, o.d.subLabelY(), o.l, o.c));
+          o.d.setSelectable(true, ()=>this._onLevel1Choice(o.d,o.v));
+        });
+      });
     });
   }
 
