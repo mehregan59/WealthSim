@@ -186,7 +186,7 @@ class GameScene extends Phaser.Scene {
     const de=(typeof currentLang!=='undefined'&&currentLang==='de');
     const splash = this.add.text(this._cx(), this.H*0.38,
       de ? this.cityName+'\nWillkommen in deiner Stadt.' : this.cityName+'\nWelcome to your city.',
-      { fontFamily:CityTheme.heading, fontSize:this.s(28), color:'#173b40',
+      { fontFamily:CityTheme.heading, fontSize:this.s(36), color:'#173b40',
         align:'center', stroke:'#fffbf1', strokeThickness:this.s(4),
         lineSpacing:this.s(8) }).setOrigin(0.5).setDepth(70).setAlpha(0);
     this.tweens.add({targets:splash,alpha:1,duration:700,hold:1200,yoyo:true,
@@ -346,7 +346,7 @@ class GameScene extends Phaser.Scene {
     const storyMsg = ld && ld.story ? ld.story
       : this._tr('level2.story', 'The technology district has lost value.\nHeadlines are alarming, but nothing concrete has changed.\nWhat does the city do?');
     this.time.delayedCall(1900,()=>{
-      const guideText2 = ld && ld.guide ? ld.guide : this._tr('game.guideDefault', 'Read the situation. Make your choice.');
+      const guideText2 = ld && ld.guide ? ld.guide : this._tr('guide.default', 'Read the situation. Make your choice.');
       const opts = ld && ld.options ? ld.options : null;
       // Bug #1: show guide first, then story + decision panel
       this._showGuide(guideText2, () => {
@@ -414,7 +414,7 @@ class GameScene extends Phaser.Scene {
         const ld = this._levelData(2);
         const opts = ld && ld.options ? ld.options : null;
         // Bug #1: guide then story + panel
-        this._showGuide(this._tr('game.guideDefault', 'Read the situation. Make your choice.'), () => {
+        this._showGuide(this._tr('guide.default', 'Read the situation. Make your choice.'), () => {
         this._showPersistentMessage(newsStory);
         this._showDecisionPanel([
           {icon:'🛡',label: opts && opts[0] ? opts[0].label : this._tr('level2news.opt0','Cut losses'), desc: de?'Distriktvermögen verkaufen\nbevor es schlimmer wird':'Sell the district assets\nbefore it gets worse',value:'cancel',color:0x3a5f8a},
@@ -828,13 +828,13 @@ class GameScene extends Phaser.Scene {
     const msgWidth = Math.min(this.s(760), this._availW());
     const y = this._msgY();
     const guideBox = this.add.text(cx, y, text, {
-      fontFamily: CityTheme.heading, fontSize: this.s(18), color: '#173b40',
+      fontFamily: CityTheme.heading, fontSize: this.s(22), color: '#173b40',
       align: 'center', wordWrap: { width: msgWidth },
-      backgroundColor: '#e8f6f8', padding: { x: this.s(22), y: this.s(13) },
-      lineSpacing: this.s(5), stroke: '#e8f6f8', strokeThickness: 1
+      backgroundColor: '#e8f6f8', padding: { x: this.s(24), y: this.s(15) },
+      lineSpacing: this.s(6), stroke: '#e8f6f8', strokeThickness: 1
     }).setOrigin(0.5, 0).setDepth(48).setAlpha(0);
     this.tweens.add({ targets: guideBox, alpha: 1, duration: 500 });
-    const contBtn = new WorldButton(this, cx, y + this.s(80), this._tr('game.continue', 'Continue →'), () => {
+    const contBtn = new WorldButton(this, cx, y + this.s(80), this._tr('guide.continue', 'Continue →'), () => {
       guideBox.destroy();
       contBtn.destroy();
       if (onContinue) onContinue();
@@ -868,7 +868,7 @@ class GameScene extends Phaser.Scene {
   _showDropRetry(){
     if(this.dropFeedbackTimer){this.dropFeedbackTimer.remove(false);this.dropFeedbackTimer=null;}
     if(this.dropFeedback){this.tweens.killTweensOf(this.dropFeedback);this.dropFeedback.destroy();}
-    this.dropFeedback=this.add.text(this._cx(),this.H-this.s(92),this._tr('game.dropRetry','Try again — drop the coin on the centre of a district.'),{
+    this.dropFeedback=this.add.text(this._cx(),this.H-this.s(92),this._tr('guide.dropRetry','Try again — drop the coin on the centre of a district.'),{
       fontFamily:CityTheme.heading,fontSize:this.s(16),color:'#173b40',align:'center',
       backgroundColor:'#fffbf1',padding:{x:this.s(18),y:this.s(11)}
     }).setOrigin(0.5).setDepth(80).setAlpha(0);
@@ -1172,7 +1172,7 @@ class GameScene extends Phaser.Scene {
       const cx = this._cx();
       const cy = this.H / 2;
       const pw = Math.min(this.s(560), this._availW());
-      const ph = this.s(200);
+      const ph = this.s(260);
       const px = cx - pw / 2;
       const py = cy - ph / 2;
 
@@ -1187,30 +1187,30 @@ class GameScene extends Phaser.Scene {
       tourBg.strokeRoundedRect(px, py, pw, ph, this.s(14));
 
       tourTitle = this.add.text(cx, py + this.s(26), step.title, {
-        fontFamily: CityTheme.heading, fontSize: this.s(19), color: '#173b40',
+        fontFamily: CityTheme.heading, fontSize: this.s(26), color: '#173b40',
         align: 'center', fontStyle: '700'
       }).setOrigin(0.5, 0).setDepth(182);
 
       tourText = this.add.text(cx, py + this.s(60), step.text, {
-        fontFamily: CityTheme.body, fontSize: this.s(15), color: '#2a5a60',
-        align: 'center', wordWrap: { width: pw - this.s(48) }, lineSpacing: this.s(5)
+        fontFamily: CityTheme.body, fontSize: this.s(19), color: '#2a5a60',
+        align: 'center', wordWrap: { width: pw - this.s(48) }, lineSpacing: this.s(6)
       }).setOrigin(0.5, 0).setDepth(182);
 
       const stepLabel = (idx + 1) + ' / ' + steps.length;
       const stepTxt = this.add.text(cx, py + ph - this.s(14), stepLabel, {
-        fontFamily: CityTheme.body, fontSize: this.s(11), color: '#7dbfc8'
+        fontFamily: CityTheme.body, fontSize: this.s(14), color: '#7dbfc8'
       }).setOrigin(0.5, 1).setDepth(182);
 
       const nextLabel = idx < steps.length - 1 ? this._tr('tour.next', 'Next →') : this._tr('tour.done', 'Start Game →');
       nextBtn = this.add.text(cx + this.s(70), py + ph + this.s(14), nextLabel, {
-        fontFamily: CityTheme.body, fontSize: this.s(14), color: '#fffbf1',
-        backgroundColor: '#296b72', padding: { x: this.s(18), y: this.s(9) }
+        fontFamily: CityTheme.body, fontSize: this.s(17), color: '#fffbf1',
+        backgroundColor: '#296b72', padding: { x: this.s(20), y: this.s(11) }
       }).setOrigin(0.5, 0).setDepth(182).setInteractive({ useHandCursor: true });
       nextBtn.on('pointerdown', () => { cleanup(); try { stepTxt.destroy(); } catch(e) {} if (idx + 1 >= steps.length) { if (typeof done === 'function') done(); } else { showStep(idx + 1); } });
 
       skipBtn = this.add.text(cx - this.s(70), py + ph + this.s(14), this._tr('tour.skip', 'Skip Tour'), {
-        fontFamily: CityTheme.body, fontSize: this.s(13), color: '#7dbfc8',
-        backgroundColor: '#0d2b2e', padding: { x: this.s(14), y: this.s(9) }
+        fontFamily: CityTheme.body, fontSize: this.s(16), color: '#7dbfc8',
+        backgroundColor: '#0d2b2e', padding: { x: this.s(16), y: this.s(11) }
       }).setOrigin(0.5, 0).setDepth(182).setInteractive({ useHandCursor: true });
       skipBtn.on('pointerdown', () => { cleanup(); try { stepTxt.destroy(); } catch(e) {} if (typeof done === 'function') done(); });
     };
