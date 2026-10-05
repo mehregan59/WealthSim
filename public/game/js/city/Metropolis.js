@@ -71,7 +71,7 @@ class Metropolis {
     this.districtPoints = [
       p(0.115, 0.430),  // Housing — west bank old town
       p(0.635, 0.195),  // Transport — moved right and up, clear of the avenue
-      p(0.400, 0.820),  // Technology — shifted left into the south-east office streets
+      p(0.375, 0.820),  // Technology — 25% left of original 0.500
       p(0.900, 0.195),  // Energy — solar field lifted farther above the hill road
     ];
 
