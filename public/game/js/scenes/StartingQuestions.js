@@ -6,20 +6,29 @@ class StartingQuestions extends Phaser.Scene {
     this.S=1;
     this.currentQ=0; this.answers=[]; this.questionElements=[];
     this.tutorial=new Tutorial(this);
+    // Use i18n translations for all languages; fall back to English if key missing
     const lang=typeof currentLang!=='undefined'?currentLang:'en';
-    this.questions=lang==='de'?[
-      {text:'Deine Stadt erhält ihr erstes Baubudget.\nWas fühlt sich am angenehmsten an?',options:[{label:'🛡 Fast alles schützen',value:'safe'},{label:'⚖ Einen Teil investieren',value:'balanced'},{label:'🚀 Das meiste investieren',value:'aggressive'}]},
-      {text:'Manche Projekte brauchen viele Jahre.\nWie fühlst du dich dabei?',options:[{label:'⚡ Schnelle Ergebnisse bevorzugt',value:'impatient'},{label:'⏳ Kann warten, wenn besser',value:'moderate'},{label:'🎓 Langfristig lohnt es sich',value:'patient'}]},
-      {text:'Ein Projekt verliert plötzlich an Wert.\nWas würdest du instinktiv tun?',options:[{label:'🛑 Sofort stoppen',value:'stop'},{label:'👁 Abwarten und beobachten',value:'wait'},{label:'🔍 Mehr Informationen sammeln',value:'research'}]}
-    ]:[
-      {text:'Your city receives its first building budget.\nWhat feels most comfortable?',options:[{label:'🛡 Protect almost everything',value:'safe'},{label:'⚖ Invest part of it',value:'balanced'},{label:'🚀 Invest most of it',value:'aggressive'}]},
-      {text:'Some projects need many years before producing results.\nHow do you feel?',options:[{label:'⚡ I prefer quick results',value:'impatient'},{label:'⏳ I can wait if the outcome is better',value:'moderate'},{label:'🎓 Long-term results are worth it',value:'patient'}]},
-      {text:'One project suddenly loses value.\nWhat would you instinctively do?',options:[{label:'🛑 Stop immediately',value:'stop'},{label:'👁 Wait and observe',value:'wait'},{label:'🔍 Gather more information first',value:'research'}]}
-    ];
+    const qi = (typeof t === 'function') ? t('questions.items') : null;
+    if (qi && Array.isArray(qi) && qi.length >= 3) {
+      // Normalize: i18n uses options[].text, but renderer expects options[].label
+      this.questions = qi.map(q => ({
+        text: q.text,
+        options: (q.options || []).map(o => ({ label: o.label || o.text, value: o.value }))
+      }));
+    } else if (lang==='de') {
+      this.questions=[
+        {text:'Deine Stadt erhält ihr erstes Baubudget.\nWas fühlt sich am angenehmsten an?',options:[{label:'🛡 Fast alles schützen',value:'safe'},{label:'⚖ Einen Teil investieren',value:'balanced'},{label:'🚀 Das meiste investieren',value:'aggressive'}]},
+        {text:'Manche Projekte brauchen viele Jahre.\nWie fühlst du dich dabei?',options:[{label:'⚡ Schnelle Ergebnisse bevorzugt',value:'impatient'},{label:'⏳ Kann warten, wenn besser',value:'moderate'},{label:'🎓 Langfristig lohnt es sich',value:'patient'}]},
+        {text:'Ein Projekt verliert plötzlich an Wert.\nWas würdest du instinktiv tun?',options:[{label:'🛑 Sofort stoppen',value:'stop'},{label:'👁 Abwarten und beobachten',value:'wait'},{label:'🔍 Mehr Informationen sammeln',value:'research'}]}
+      ];
+    } else {
+      this.questions=[
+        {text:'Your city receives its first building budget.\nWhat feels most comfortable?',options:[{label:'🛡 Protect almost everything',value:'safe'},{label:'⚖ Invest part of it',value:'balanced'},{label:'🚀 Invest most of it',value:'aggressive'}]},
+        {text:'Some projects need many years before producing results.\nHow do you feel?',options:[{label:'⚡ I prefer quick results',value:'impatient'},{label:'⏳ I can wait if the outcome is better',value:'moderate'},{label:'🎓 Long-term results are worth it',value:'patient'}]},
+        {text:'One project suddenly loses value.\nWhat would you instinctively do?',options:[{label:'🛑 Stop immediately',value:'stop'},{label:'👁 Wait and observe',value:'wait'},{label:'🔍 Gather more information first',value:'research'}]}
+      ];
+    }
     this._drawBackground();
-    // The multi-page briefing lives in Tutorial.js (shared with the
-    // per-level guides) — that copy is deliberately careful not to reveal
-    // that decisions are being scored.
     this.tutorial.showBriefing(()=>this._nameCity());
     this._fadeIn();
   }
@@ -28,18 +37,6 @@ class StartingQuestions extends Phaser.Scene {
     this.backdrop = CityTheme.drawBackdrop(this, { depth:-2 });
   }
 
-  // Ask the player to name their city before anything else happens. All
-  // four districts will later be shown enclosed inside one boundary
-  // labelled with this name.
-  //
-  // This used to call window.prompt(), a synchronous native browser
-  // dialog. That was very likely the cause of a real bug: a blocking
-  // dialog like prompt()/alert() can desync Phaser's pointer input
-  // tracking across the interruption, leaving buttons visually present
-  // but unresponsive afterward — matching a report of the game "getting
-  // stuck" a few steps later. Replaced with a proper in-canvas text input
-  // via Phaser's DOM Element support (enabled in main.js), so there's no
-  // blocking native dialog in the flow at all.
   _nameCity() {
     const lang=typeof currentLang!=='undefined'?currentLang:'en';
     const cx=this.W/2, cy=this.H/2;
@@ -52,10 +49,17 @@ class StartingQuestions extends Phaser.Scene {
     box.lineStyle(1,0xe0a82e,0.55); box.strokeRoundedRect(bx,by,bw,bh,14);
     els.push(box);
 
-    const t=this.add.text(cx,by+40, lang==='de'?'Wie soll deine Stadt heißen?':'What would you like to name your city?', {
+    const cityPrompt = (typeof t === 'function') ? t('questions.cityName') : null;
+    const promptText = cityPrompt || (lang==='de'?'Wie soll deine Stadt heißen?':'What would you like to name your city?');
+    const cityPlaceholder = (typeof t === 'function') ? t('questions.cityPlaceholder') : null;
+    const placeholderText = cityPlaceholder || (lang==='de'?'Meine Stadt':'My City');
+    const continueLabel = (typeof t === 'function') ? t('questions.continue') : null;
+    const continueTxt = continueLabel || (lang==='de'?'Weiter →':'Continue →');
+
+    const tt=this.add.text(cx,by+40, promptText, {
       fontFamily:CityTheme.heading,fontSize:19,color:'#296b72',align:'center',wordWrap:{width:bw-60}
     }).setOrigin(0.5).setDepth(152);
-    els.push(t);
+    els.push(tt);
 
     const inputW = bw-80;
     const inputEl = this.add.dom(cx, by+bh/2-4, 'input',
@@ -65,7 +69,7 @@ class StartingQuestions extends Phaser.Scene {
     ).setDepth(152);
     inputEl.node.setAttribute('type','text');
     inputEl.node.setAttribute('maxlength','28');
-    inputEl.node.setAttribute('placeholder', lang==='de'?'Meine Stadt':'My City');
+    inputEl.node.setAttribute('placeholder', placeholderText);
     els.push(inputEl);
     this.time.delayedCall(80, ()=>{ try{ inputEl.node.focus(); }catch(e){} });
 
@@ -73,7 +77,7 @@ class StartingQuestions extends Phaser.Scene {
     const btnBg=this.add.graphics().setDepth(152);
     const drawBtn=(hv)=>{ btnBg.clear(); btnBg.fillStyle(0xe0a82e,hv?1:0.9); btnBg.fillRoundedRect(btnX,btnY,btnW,btnH,10); };
     drawBtn(false);
-    const btnTxt=this.add.text(cx,btnY+btnH/2, lang==='de'?'Weiter →':'Continue →', {
+    const btnTxt=this.add.text(cx,btnY+btnH/2, continueTxt, {
       fontFamily:CityTheme.heading,fontSize:16,color:'#173b40',fontStyle:'bold'
     }).setOrigin(0.5).setDepth(153);
     const hit=this.add.rectangle(cx,btnY+btnH/2,btnW,btnH,0xffffff,0).setDepth(154).setInteractive({useHandCursor:true});
@@ -81,7 +85,7 @@ class StartingQuestions extends Phaser.Scene {
 
     const submit=()=>{
       let name=(inputEl.node.value||'').trim().slice(0,28);
-      window.cityName = name || (lang==='de' ? 'Meine Stadt' : 'My City');
+      window.cityName = name || placeholderText;
       this.cameras.main.shake(60,0.002);
       els.forEach(e=>{try{e.destroy();}catch(err){}});
       this._renderQuestion();
@@ -89,8 +93,6 @@ class StartingQuestions extends Phaser.Scene {
     hit.on('pointerover',()=>drawBtn(true));
     hit.on('pointerout',()=>drawBtn(false));
     hit.on('pointerdown',submit);
-
-    // Enter key submits too
     inputEl.addListener('keydown');
     inputEl.on('keydown',(event)=>{ if(event.key==='Enter') submit(); });
   }
@@ -134,7 +136,9 @@ class StartingQuestions extends Phaser.Scene {
       });
     });
     if(this.currentQ>0){
-      const back=this.add.text(cx-220,this.H-55,de?'← Zurück':'← Back',{fontFamily:CityTheme.body,fontSize:16,color:'#55777a'}).setOrigin(0.5).setInteractive({useHandCursor:true});
+      const backLabel = (typeof t === 'function') ? t('questions.back') : null;
+      const backTxt = backLabel || (de?'← Zurück':'← Back');
+      const back=this.add.text(cx-220,this.H-55,backTxt,{fontFamily:CityTheme.body,fontSize:16,color:'#55777a'}).setOrigin(0.5).setInteractive({useHandCursor:true});
       back.on('pointerover',()=>back.setColor('#365d60')); back.on('pointerout',()=>back.setColor('#55777a'));
       back.on('pointerdown',()=>{this.currentQ--;this._renderQuestion();});
       this.questionElements.push(back);
