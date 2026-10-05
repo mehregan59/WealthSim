@@ -37,7 +37,11 @@ const FR = {
       { text: "Ta ville reçoit son premier budget de construction. Qu'est-ce qui semble le plus confortable ?", options: [{ text: "Presque tout protéger", value: "safe" }, { text: "En investir une partie", value: "balanced" }, { text: "En investir la majeure partie", value: "aggressive" }] },
       { text: "Certains projets nécessitent de nombreuses années avant de produire des résultats. Comment te sens-tu ?", options: [{ text: "Je préfère des résultats rapides", value: "impatient" }, { text: "Je peux attendre si le résultat est meilleur", value: "moderate" }, { text: "Les résultats à long terme valent l'attente", value: "patient" }] },
       { text: "Un projet perd soudainement de la valeur. Qu'est-ce que tu ferais instinctivement ?", options: [{ text: "Arrêter immédiatement", value: "stop" }, { text: "Attendre et observer", value: "wait" }, { text: "D'abord recueillir plus d'informations", value: "research" }] }
-    ]
+    ],
+    cityName: "Comment veux-tu appeler ta ville ?",
+    cityPlaceholder: "Ma Ville",
+    continue: "Continuer →",
+    back: "← Retour",
   },
   game: { happiness: "Bonheur", development: "Développement", resources: "Ressources", remaining: "Crédits restants :", confirmAllocation: "Confirmer la répartition", levelTag: "Niveau", year: "Année", readMore: "Lire le rapport complet", reportTitle: "Rapport complet de situation" },
   levels: [
@@ -65,6 +69,51 @@ const FR = {
     bav: { under15: "Ta ville dispose de programmes de construction soutenus par l'employeur avec peu de temps restant.", y1530: "Ta ville a des programmes soutenus par l'employeur et un horizon modéré.", y30plus: "Ta ville a des programmes d'employeur et beaucoup de temps de construction devant elle." },
     s3: { under15: "Ta ville dispose de réserves privées en plus d'autres systèmes de soutien.", y1530: "Ta ville a des réserves privées et un horizon modéré.", y30plus: "Ta ville a des réserves privées et de nombreuses années de construction devant elle." },
     unsure: { under15: "Ta structure de soutien à la retraite est encore floue. Avec peu de temps restant, comprendre tes systèmes disponibles est une prochaine étape importante.", y1530: "Comprendre ta structure de soutien à la retraite t'aidera à utiliser efficacement tes années restantes.", y30plus: "Avec de nombreuses années de construction devant toi, il y a du temps pour comprendre et améliorer ta structure de soutien à la retraite." }
+  },
+  ui: {
+    playerSetup: {
+      title: "Parle-nous de ta ville",
+      subtitle: "Cela aide à personnaliser ton expérience. Cela ne change pas le jeu.",
+      disclosure: "Note : cette session observe tes schémas de décision et te les explique dans les résultats finaux.",
+      ageLabel: "Ton groupe d'âge",
+      employmentLabel: "Ta situation professionnelle",
+      experienceLabel: "Expérience d'investissement antérieure",
+      employmentOptions: [
+        {label:"Employé(e)",value:"employed"},
+        {label:"Indépendant(e)",value:"self-employed"},
+        {label:"Étudiant(e)",value:"student"},
+        {label:"Retraité(e)",value:"retired"},
+        {label:"Autre",value:"other"}
+      ],
+      experienceOptions: [
+        {label:"Aucune",value:"none"},
+        {label:"Quelques bases",value:"basic"},
+        {label:"Expérimenté(e)",value:"experienced"}
+      ],
+      continue: "Continuer →",
+      skip: "Passer et commencer à construire →"
+    },
+    retirement: {
+      title: "Ton système de retraite",
+      subtitle: "Ces réponses personnalisent tes retours finaux. Elles ne changent pas le jeu.",
+      ageNotice: "Groupe d’âge : {age}  ·  Temps estimé avant la retraite : {years}",
+      yearsUntilRetirement: "~{years} ans avant la retraite",
+      q1Label: "Quels piliers de retraite as-tu déjà ? (Choix multiples possibles)",
+      q2Label: "Quelle est ta familiarité avec l’épargne et l’investissement ?",
+      sauleOptions: [
+        {value:"grv",label:"🏛 GRV",sub:"Retraite de base",tooltipTitle:"GRV — Assurance retraite légale",tooltipBody:"Obligatoire pour presque tous les salariés en Allemagne.",link:"https://www.deutsche-rentenversicherung.de",linkLabel:"deutsche-rentenversicherung.de"},
+        {value:"bav",label:"🏢 bAV",sub:"Retraite professionnelle",tooltipTitle:"bAV — Retraite professionnelle",tooltipBody:"Ton employeur contribue à ta retraite.",link:"https://www.bmas.de/DE/Arbeit/Betriebliche-Altersversorgung/betriebliche-altersversorgung.html",linkLabel:"bmas.de"},
+        {value:"s3",label:"🏗 Pilier 3",sub:"Riester / Rürup / Privé",tooltipTitle:"Pilier 3 — Provision privée",tooltipBody:"Épargne retraite privée volontaire.",link:"https://www.verbraucherzentrale.de/wissen/geld-versicherungen/altersvorsorge-und-rente",linkLabel:"verbraucherzentrale.de"},
+        {value:"unsure",label:"❓ Pas sûr(e)",sub:"Je ne suis pas encore sûr(e)",tooltipTitle:"Le système de retraite allemand",tooltipBody:"L'Allemagne a un système à trois piliers.",link:"https://www.bpb.de/themen/soziale-lage/rentenpolitik/",linkLabel:"bpb.de"}
+      ],
+      experienceOptions: [
+        {label:"🔰 Pas encore commencé",sub:"Je n'épargne pas encore pour la retraite",value:"none"},
+        {label:"📖 J'apprends les bases",sub:"Je connais les bases et j'épargne un peu",value:"basic"},
+        {label:"📈 Déjà investi",sub:"J'investis activement et régulièrement",value:"experienced"}
+      ],
+      continue: "Continuer →",
+      skip: "Passer et commencer à construire →"
+    }
   },
   common: { next: "Continuer", continue: "Continuer", back: "Retour", skip: "Passer", mute: "Couper le son", unmute: "Réactiver le son", year: "Année", level: "Niveau" }
 };
@@ -108,7 +157,11 @@ const ES = {
       { text: "Tu ciudad recibe su primer presupuesto de construcción. ¿Qué se siente más cómodo?", options: [{ text: "Proteger casi todo", value: "safe" }, { text: "Invertir una parte", value: "balanced" }, { text: "Invertir la mayor parte", value: "aggressive" }] },
       { text: "Algunos proyectos necesitan muchos años antes de producir resultados. ¿Cómo te sientes?", options: [{ text: "Prefiero resultados rápidos", value: "impatient" }, { text: "Puedo esperar si el resultado es mejor", value: "moderate" }, { text: "Los resultados a largo plazo valen la espera", value: "patient" }] },
       { text: "Un proyecto pierde valor de repente. ¿Qué harías instintivamente?", options: [{ text: "Parar inmediatamente", value: "stop" }, { text: "Esperar y observar", value: "wait" }, { text: "Primero recopilar más información", value: "research" }] }
-    ]
+    ],
+    cityName: "¿Cómo quieres llamar a tu ciudad?",
+    cityPlaceholder: "Mi Ciudad",
+    continue: "Continuar →",
+    back: "← Atrás",
   },
   game: { happiness: "Felicidad", development: "Desarrollo", resources: "Recursos", remaining: "Créditos restantes:", confirmAllocation: "Confirmar asignación", levelTag: "Nivel", year: "Año", readMore: "Leer el informe completo", reportTitle: "Informe completo de situación" },
   levels: [
@@ -136,6 +189,51 @@ const ES = {
     bav: { under15: "Tu ciudad tiene programas respaldados por el empleador con poco tiempo restante.", y1530: "Tu ciudad tiene programas respaldados por el empleador y un horizonte moderado.", y30plus: "Tu ciudad tiene programas de empleador y mucho tiempo de construcción por delante." },
     s3: { under15: "Tu ciudad tiene reservas privadas además de otros sistemas de apoyo.", y1530: "Tu ciudad tiene reservas privadas y un horizonte moderado.", y30plus: "Tu ciudad tiene reservas privadas y muchos años de construcción por delante." },
     unsure: { under15: "Tu estructura de apoyo para la jubilación aún no está clara.", y1530: "Comprender tu estructura de apoyo te ayudará a usar tus años restantes de manera efectiva.", y30plus: "Con muchos años de construcción por delante, hay tiempo para comprender y mejorar tu estructura." }
+  },
+  ui: {
+    playerSetup: {
+      title: "Cuéntanos sobre tu ciudad",
+      subtitle: "Esto ayuda a personalizar tu experiencia. Nunca cambia el juego.",
+      disclosure: "Nota: esta sesión observa tus patrones de decisión y te los explica en los resultados finales.",
+      ageLabel: "Tu grupo de edad",
+      employmentLabel: "Tu situación laboral",
+      experienceLabel: "Experiencia previa en inversiones",
+      employmentOptions: [
+        {label:"Empleado/a",value:"employed"},
+        {label:"Autónomo/a",value:"self-employed"},
+        {label:"Estudiante",value:"student"},
+        {label:"Jubilado/a",value:"retired"},
+        {label:"Otro",value:"other"}
+      ],
+      experienceOptions: [
+        {label:"Ninguna",value:"none"},
+        {label:"Algunas nociones",value:"basic"},
+        {label:"Experimentado/a",value:"experienced"}
+      ],
+      continue: "Continuar →",
+      skip: "Saltar y empezar a construir →"
+    },
+    retirement: {
+      title: "Tu sistema de jubilación",
+      subtitle: "Estas respuestas personalizan tu retroalimentación final. No cambian el juego.",
+      ageNotice: "Grupo de edad: {age}  ·  Tiempo estimado hasta la jubilación: {years}",
+      yearsUntilRetirement: "~{years} años hasta la jubilación",
+      q1Label: "¿Qué pilares de jubilación tienes ya? (Selección múltiple posible)",
+      q2Label: "¿Cuánto sabes sobre ahorro e inversión?",
+      sauleOptions: [
+        {value:"grv",label:"🏛 GRV",sub:"Pensión estatal",tooltipTitle:"GRV — Seguro de pensión estatutario",tooltipBody:"Obligatorio para casi todos los empleados en Alemania.",link:"https://www.deutsche-rentenversicherung.de",linkLabel:"deutsche-rentenversicherung.de"},
+        {value:"bav",label:"🏢 bAV",sub:"Pensión ocupacional",tooltipTitle:"bAV — Pensión ocupacional",tooltipBody:"Tu empleador contribuye a tu pensión.",link:"https://www.bmas.de/DE/Arbeit/Betriebliche-Altersversorgung/betriebliche-altersversorgung.html",linkLabel:"bmas.de"},
+        {value:"s3",label:"🏗 Pilar 3",sub:"Riester / Rürup / Privado",tooltipTitle:"Pilar 3 — Provisión privada",tooltipBody:"Ahorro voluntario para la jubilación.",link:"https://www.verbraucherzentrale.de/wissen/geld-versicherungen/altersvorsorge-und-rente",linkLabel:"verbraucherzentrale.de"},
+        {value:"unsure",label:"❓ No estoy seguro/a",sub:"Aún no estoy seguro/a",tooltipTitle:"El sistema de pensiones alemán",tooltipBody:"Alemania tiene un sistema de tres pilares.",link:"https://www.bpb.de/themen/soziale-lage/rentenpolitik/",linkLabel:"bpb.de"}
+      ],
+      experienceOptions: [
+        {label:"🔰 Aún no he empezado",sub:"Todavía no ahorro para la jubilación",value:"none"},
+        {label:"📖 Aprendiendo lo básico",sub:"Conozco lo básico y ahorro algo",value:"basic"},
+        {label:"📈 Ya invierto",sub:"Invierto activa y regularmente",value:"experienced"}
+      ],
+      continue: "Continuar →",
+      skip: "Saltar y empezar a construir →"
+    }
   },
   common: { next: "Continuar", continue: "Continuar", back: "Atrás", skip: "Saltar", mute: "Silenciar", unmute: "Activar sonido", year: "Año", level: "Nivel" }
 };
@@ -179,7 +277,11 @@ const TR = {
       { text: "Şehrin ilk yapı bütçesini alıyor. En rahat ne hissettiriyor?", options: [{ text: "Neredeyse her şeyi koru", value: "safe" }, { text: "Bir kısmını yatır", value: "balanced" }, { text: "Çoğunu yatır", value: "aggressive" }] },
       { text: "Bazı projeler sonuç vermeden önce yıllarca beklemek gerektirir. Nasıl hissediyorsun?", options: [{ text: "Hızlı sonuçları tercih ederim", value: "impatient" }, { text: "Sonuç daha iyiyse bekleyebilirim", value: "moderate" }, { text: "Uzun vadeli sonuçlar beklemeye değer", value: "patient" }] },
       { text: "Bir proje aniden değer kaybeder. Ne yapmak isterdin?", options: [{ text: "Hemen dur", value: "stop" }, { text: "Bekle ve izle", value: "wait" }, { text: "Önce daha fazla bilgi topla", value: "research" }] }
-    ]
+    ],
+    cityName: "Şehrine ne ad vermek istersin?",
+    cityPlaceholder: "Şehrim",
+    continue: "Devam →",
+    back: "← Geri",
   },
   game: { happiness: "Mutluluk", development: "Gelişme", resources: "Kaynaklar", remaining: "Kalan krediler:", confirmAllocation: "Dağılımı onayla", levelTag: "Seviye", year: "Yıl", readMore: "Tam raporu oku", reportTitle: "Tam Durum Raporu" },
   levels: [
@@ -207,6 +309,51 @@ const TR = {
     bav: { under15: "Şehrinin az zaman kalan işveren destekli programları var.", y1530: "Şehrinin işveren destekli programları ve orta düzeyde ufku var.", y30plus: "Şehrinin işveren programları ve önünde çok yapı süresi var." },
     s3: { under15: "Şehrinin diğer destek sistemlerine ek olarak özel rezervleri var.", y1530: "Şehrinin özel rezervleri ve orta düzeyde ufku var.", y30plus: "Şehrinin özel rezervleri ve önünde çok yapı yılı var." },
     unsure: { under15: "Emeklilik destek yapın hâlâ belirsiz. Az kalan süreyle, mevcut sistemleri anlamak önemli bir sonraki adım.", y1530: "Destek yapını anlamak, kalan yapı yıllarını etkili kullanmana yardımcı olur.", y30plus: "Önünde çok yapı yılı olduğundan, emeklilik destek yapını anlama ve iyileştirme zamanın var." }
+  },
+  ui: {
+    playerSetup: {
+      title: "Bize şehrin hakkında bize anlat",
+      subtitle: "Bu, deneyimini kişisel hale getirmeye yardımcı olur. Oyunu asla değiştirmez.",
+      disclosure: "Not: Bu oturum karar örüntülerini gözlemler ve bunları sana sonuçlarda açıklar.",
+      ageLabel: "Yaş grubun",
+      employmentLabel: "İstihdam durumun",
+      experienceLabel: "Önceki yatırım deneyimin",
+      employmentOptions: [
+        {label:"Çalışan",value:"employed"},
+        {label:"Serbest meslek",value:"self-employed"},
+        {label:"Öğrenci",value:"student"},
+        {label:"Emekli",value:"retired"},
+        {label:"Diğer",value:"other"}
+      ],
+      experienceOptions: [
+        {label:"Hiç yok",value:"none"},
+        {label:"Temel bilgi",value:"basic"},
+        {label:"Deneyimli",value:"experienced"}
+      ],
+      continue: "Devam →",
+      skip: "Atla ve inşa etmeye başla →"
+    },
+    retirement: {
+      title: "Emeklilik sistemin",
+      subtitle: "Bu cevaplar kapatış geri bildirimini kişisel hale getirir. Oyunu değiştirmez.",
+      ageNotice: "Yaş grubu: {age}  ·  Emekliliğe tahmini süre: {years}",
+      yearsUntilRetirement: "~{years} yıl emekliliğe",
+      q1Label: "Hangi emeklilik sütunlarına zaten sahipsin? (Birden fazla seçilebilir)",
+      q2Label: "Tasarruf ve yatırım konusunda ne kadar bilgin var?",
+      sauleOptions: [
+        {value:"grv",label:"🏛 GRV",sub:"Devlet emekliliği",tooltipTitle:"GRV — Yasal Emeklilik Sigortası",tooltipBody:"Almanya'da neredeyse tüm çalışanlar için zorunludur.",link:"https://www.deutsche-rentenversicherung.de",linkLabel:"deutsche-rentenversicherung.de"},
+        {value:"bav",label:"🏢 bAV",sub:"Mesleki emeklilik",tooltipTitle:"bAV — Mesleki Emeklilik",tooltipBody:"İşveren emekliliğine katkıda bulunur.",link:"https://www.bmas.de/DE/Arbeit/Betriebliche-Altersversorgung/betriebliche-altersversorgung.html",linkLabel:"bmas.de"},
+        {value:"s3",label:"🏗 3. Sütun",sub:"Riester / Rürup / Özel",tooltipTitle:"3. Sütun — Özel Tasarruf",tooltipBody:"Gönüllü özel emeklilik tasarrufu.",link:"https://www.verbraucherzentrale.de/wissen/geld-versicherungen/altersvorsorge-und-rente",linkLabel:"verbraucherzentrale.de"},
+        {value:"unsure",label:"❓ Emin değilim",sub:"Henüz emin değilim",tooltipTitle:"Alman emeklilik sistemi",tooltipBody:"Almanya'ýn üç sütunlu sistemi vardır.",link:"https://www.bpb.de/themen/soziale-lage/rentenpolitik/",linkLabel:"bpb.de"}
+      ],
+      experienceOptions: [
+        {label:"🔰 Henüz başlamadım",sub:"Emeklilik için henüz biriktirmiyorum",value:"none"},
+        {label:"📖 Temelleri öğreniyorum",sub:"Temelleri biliyorum ve biraz biriktiriyorum",value:"basic"},
+        {label:"📈 Zaten yatırım yapıyorum",sub:"Aktif ve düzenli yatırım yapıyorum",value:"experienced"}
+      ],
+      continue: "Devam →",
+      skip: "Atla ve inşa etmeye başla →"
+    }
   },
   common: { next: "Devam et", continue: "Devam et", back: "Geri", skip: "Atla", mute: "Sesi kapat", unmute: "Sesi aç", year: "Yıl", level: "Seviye" }
 };
@@ -250,7 +397,11 @@ const FA = {
       { text: "شهرت اولین بودجه ساخت را دریافت می‌کند. چه چیزی راحت‌ترین احساس را می‌دهد؟", options: [{ text: "تقریباً همه چیز را محافظت کن", value: "safe" }, { text: "بخشی از آن را سرمایه‌گذاری کن", value: "balanced" }, { text: "بیشتر آن را سرمایه‌گذاری کن", value: "aggressive" }] },
       { text: "برخی پروژه‌ها قبل از تولید نتایج به سال‌ها نیاز دارند. چه احساسی داری؟", options: [{ text: "نتایج سریع را ترجیح می‌دهم", value: "impatient" }, { text: "اگر نتیجه بهتر باشد می‌توانم صبر کنم", value: "moderate" }, { text: "نتایج بلندمدت ارزش صبر دارند", value: "patient" }] },
       { text: "یک پروژه ناگهان ارزش از دست می‌دهد. به‌طور غریزی چه می‌کردی؟", options: [{ text: "فوراً متوقف کن", value: "stop" }, { text: "صبر کن و مشاهده کن", value: "wait" }, { text: "ابتدا اطلاعات بیشتری جمع‌آوری کن", value: "research" }] }
-    ]
+    ],
+    cityName: "میخوواهی شهرت چه نامی داشته باشد؟",
+    cityPlaceholder: "شهر من",
+    continue: "ادامه ←",
+    back: "→ برشگشت",
   },
   game: { happiness: "شادی", development: "توسعه", resources: "منابع", remaining: "اعتبارات باقی‌مانده:", confirmAllocation: "تأیید تخصیص", levelTag: "سطح", year: "سال", readMore: "خواندن گزارش کامل", reportTitle: "گزارش کامل وضعیت" },
   levels: [
@@ -278,6 +429,51 @@ const FA = {
     bav: { under15: "شهرت برنامه‌های حمایت‌شده توسط کارفرما با زمان محدود باقی‌مانده دارد.", y1530: "شهرت برنامه‌های حمایت‌شده توسط کارفرما و افق متوسطی دارد.", y30plus: "شهرت برنامه‌های کارفرما و زمان ساخت زیادی در پیش رو دارد." },
     s3: { under15: "شهرت ذخایر خصوصی علاوه بر سایر سیستم‌های پشتیبانی دارد.", y1530: "شهرت ذخایر خصوصی و افق متوسطی دارد.", y30plus: "شهرت ذخایر خصوصی و سال‌های ساخت زیادی در پیش رو دارد." },
     unsure: { under15: "ساختار حمایت بازنشستگی‌ات هنوز نامشخص است.", y1530: "درک ساختار پشتیبانی‌ات به استفاده مؤثر از سال‌های باقی‌مانده کمک می‌کند.", y30plus: "با سال‌های ساخت زیادی در پیش رو، زمان برای درک و بهبود ساختار پشتیبانی بازنشستگی‌ات وجود دارد." }
+  },
+  ui: {
+    playerSetup: {
+      title: "درباره شهرت بگو",
+      subtitle: "این به شخصی‌سازی تجربه‌ات کمک می‌کند. هرگز بازی را تغییر نمی‌دهد.",
+      disclosure: "توجه: این جلسه الگوهای تصمیم‌گیری تو را مشاهده می‌کند و در نتایج نهایی توضیح می‌دهد.",
+      ageLabel: "گروه سنی تو",
+      employmentLabel: "وضعیت اشتغال تو",
+      experienceLabel: "تجربه سرمایه‌گذاری قبلی",
+      employmentOptions: [
+        {label:"کارمند",value:"employed"},
+        {label:"خوداشتغال",value:"self-employed"},
+        {label:"دانشجو",value:"student"},
+        {label:"بازنشسته",value:"retired"},
+        {label:"سایر",value:"other"}
+      ],
+      experienceOptions: [
+        {label:"هیچ",value:"none"},
+        {label:"مبانی اولیه",value:"basic"},
+        {label:"با تجربه",value:"experienced"}
+      ],
+      continue: "ادامه ←",
+      skip: "رد کردن و شروع ساخت ←"
+    },
+    retirement: {
+      title: "سیستم بازنشستگی تو",
+      subtitle: "این پاسخ‌ها بازخورد پایانی را شخصی‌سازی می‌کنند. بازی را تغییر نمی‌دهند.",
+      ageNotice: "گروه سنی: {age}  ·  زمان تخمینی تا بازنشستگی: {years}",
+      yearsUntilRetirement: "~{years} سال تا بازنشستگی",
+      q1Label: "کدام ستون‌های بازنشستگی را از قبل داری؟ (چند گزینه انتخاب کن)",
+      q2Label: "چقدر با پس‌انداز و سرمایه‌گذاری آشنا هستی؟",
+      sauleOptions: [
+        {value:"grv",label:"🏛 GRV",sub:"بازنشستگی دولتی",tooltipTitle:"GRV — بیمه بازنشستگی قانونی",tooltipBody:"برای تقریباً همه کارمندان در آلمان اجباری است.",link:"https://www.deutsche-rentenversicherung.de",linkLabel:"deutsche-rentenversicherung.de"},
+        {value:"bav",label:"🏢 bAV",sub:"بازنشستگی شغلی",tooltipTitle:"bAV — بازنشستگی شغلی",tooltipBody:"کارفرما به بازنشستگی تو کمک می‌کند.",link:"https://www.bmas.de/DE/Arbeit/Betriebliche-Altersversorgung/betriebliche-altersversorgung.html",linkLabel:"bmas.de"},
+        {value:"s3",label:"🏗 ستون ۳",sub:"ریستر / روروپ / خصوصی",tooltipTitle:"ستون ۳ — پس‌انداز خصوصی",tooltipBody:"پس‌انداز داوطلبانه بازنشستگی خصوصی.",link:"https://www.verbraucherzentrale.de/wissen/geld-versicherungen/altersvorsorge-und-rente",linkLabel:"verbraucherzentrale.de"},
+        {value:"unsure",label:"❓ مطمئن نیستم",sub:"هنوز مطمئن نیستم",tooltipTitle:"سیستم بازنشستگی آلمان",tooltipBody:"آلمان دارای سیستم سه‌ستونی است.",link:"https://www.bpb.de/themen/soziale-lage/rentenpolitik/",linkLabel:"bpb.de"}
+      ],
+      experienceOptions: [
+        {label:"🔰 هنوز شروع نکرده‌ام",sub:"هنوز برای بازنشستگی پس‌انداز نمی‌کنم",value:"none"},
+        {label:"📖 در حال یادگیری",sub:"مبانی را می‌دانم و کمی پس‌انداز می‌کنم",value:"basic"},
+        {label:"📈 در حال سرمایه‌گذاری",sub:"به‌طور فعال و منظم سرمایه‌گذاری می‌کنم",value:"experienced"}
+      ],
+      continue: "ادامه ←",
+      skip: "رد کردن و شروع ساخت ←"
+    }
   },
   common: { next: "ادامه", continue: "ادامه", back: "برگشت", skip: "رد کردن", mute: "بی‌صدا", unmute: "صدا روشن", year: "سال", level: "سطح" }
 };
@@ -321,7 +517,11 @@ const TRANSLATIONS = {
         { text: "Your city receives its first building budget. What feels most comfortable?", options: [{ text: "Protect almost everything", value: "safe" }, { text: "Invest part of it", value: "balanced" }, { text: "Invest most of it", value: "aggressive" }] },
         { text: "Some projects need many years before producing results. How do you feel?", options: [{ text: "I prefer quick results", value: "impatient" }, { text: "I can wait if the outcome is better", value: "moderate" }, { text: "Long-term results are worth waiting for", value: "patient" }] },
         { text: "One project suddenly loses value. What would you instinctively do?", options: [{ text: "Stop immediately", value: "stop" }, { text: "Wait and observe", value: "wait" }, { text: "Gather more information first", value: "research" }] }
-      ]
+      ],
+      cityName: "What would you like to name your city?",
+      cityPlaceholder: "My City",
+      continue: "Continue →",
+      back: "← Back",
     },
     game: { happiness: "Happiness", development: "Development", resources: "Resources", remaining: "Credits remaining:", confirmAllocation: "Confirm allocation", levelTag: "Level", year: "Year", readMore: "Read the full report", reportTitle: "Full Situation Report" },
     levels: [
@@ -349,6 +549,51 @@ const TRANSLATIONS = {
       bav: { under15: "Your city has employer-supported building programs with limited time remaining. This gives you a base of stability. Consider whether private reserves are needed to supplement what the employer programs will provide.", y1530: "Your city has employer-supported building programs and a moderate horizon. This combination gives you flexibility. Your behavioral profile can guide how to use that flexibility well.", y30plus: "Your city has employer-supported programs and significant building time ahead. Combined with your behavioral profile, this positions you well for long-term planning." },
       s3: { under15: "Your city has private construction reserves in addition to other support systems. This gives you flexibility that many cities lack. With limited time remaining, the focus should be on protecting what has been built while maintaining some growth.", y1530: "Your city has private reserves and a moderate horizon. Your behavioral profile shows how you respond under pressure — use this insight to decide when to protect and when to continue building.", y30plus: "Your city has private reserves and significant building years ahead. Your behavioral profile here is especially valuable — you have the time to adjust your approach based on what you learned today." },
       unsure: { under15: "Your retirement support structure is still unclear. With limited building time remaining, understanding which infrastructure systems your city has access to is an important next step.", y1530: "Understanding your retirement support structure will help you use your remaining building years effectively. Your behavioral profile gives you a starting point for that conversation.", y30plus: "With many building years ahead, there is time to understand and improve your retirement support structure. Your behavioral profile today is a useful first step." }
+    },
+    ui: {
+      playerSetup: {
+        title: "Tell us about your city",
+        subtitle: "This helps personalize your experience. It never changes the game.",
+        disclosure: "Note: this session observes your decision patterns and explains them to you in the final results.",
+        ageLabel: "Your age group",
+        employmentLabel: "Your employment situation",
+        experienceLabel: "Previous investment experience",
+        employmentOptions: [
+          {label:"Employed",value:"employed"},
+          {label:"Self-employed",value:"self-employed"},
+          {label:"Student",value:"student"},
+          {label:"Retired",value:"retired"},
+          {label:"Other",value:"other"}
+        ],
+        experienceOptions: [
+          {label:"None",value:"none"},
+          {label:"Some basics",value:"basic"},
+          {label:"Experienced",value:"experienced"}
+        ],
+        continue: "Continue →",
+        skip: "Skip and start building →"
+      },
+      retirement: {
+        title: "Your retirement system",
+        subtitle: "These answers personalize your closing feedback. They never change gameplay.",
+        ageNotice: "Age group: {age}  ·  Estimated time until retirement: {years}",
+        yearsUntilRetirement: "~{years} years until retirement",
+        q1Label: "Which retirement pillars do you already have? (Select all that apply)",
+        q2Label: "How familiar are you with saving and investing?",
+        sauleOptions: [
+          {value:"grv",label:"🏛 GRV",sub:"State pension",tooltipTitle:"GRV — Statutory Pension Insurance",tooltipBody:"Mandatory for almost all employees in Germany.",link:"https://www.deutsche-rentenversicherung.de",linkLabel:"deutsche-rentenversicherung.de"},
+          {value:"bav",label:"🏢 bAV",sub:"Occupational pension",tooltipTitle:"bAV — Occupational Pension",tooltipBody:"Your employer contributes to your pension.",link:"https://www.bmas.de/DE/Arbeit/Betriebliche-Altersversorgung/betriebliche-altersversorgung.html",linkLabel:"bmas.de"},
+          {value:"s3",label:"🏗 Pillar 3",sub:"Riester / Rürup / Private",tooltipTitle:"Pillar 3 — Private Provision",tooltipBody:"Voluntary private retirement savings.",link:"https://www.verbraucherzentrale.de/wissen/geld-versicherungen/altersvorsorge-und-rente",linkLabel:"verbraucherzentrale.de"},
+          {value:"unsure",label:"❓ Not sure",sub:"I am not sure yet",tooltipTitle:"The German pension system",tooltipBody:"Germany has a three-pillar system.",link:"https://www.bpb.de/themen/soziale-lage/rentenpolitik/",linkLabel:"bpb.de — Rentenpolitik"}
+        ],
+        experienceOptions: [
+          {label:"🔰 Not yet started",sub:"I am not yet saving for retirement",value:"none"},
+          {label:"📖 Learning the basics",sub:"I know the basics and save something",value:"basic"},
+          {label:"📈 Already investing",sub:"I invest actively and regularly",value:"experienced"}
+        ],
+        continue: "Continue →",
+        skip: "Skip and start building →"
+      }
     },
     common: { next: "Continue", continue: "Continue", back: "Back", skip: "Skip", mute: "Mute", unmute: "Unmute", year: "Year", level: "Level" }
   },
@@ -391,7 +636,11 @@ const TRANSLATIONS = {
         { text: "Deine Stadt erhält ihr erstes Baubudget. Was fühlt sich am angenehmsten an?", options: [{ text: "Fast alles schützen", value: "safe" }, { text: "Einen Teil investieren", value: "balanced" }, { text: "Das meiste investieren", value: "aggressive" }] },
         { text: "Manche Projekte brauchen viele Jahre, um Ergebnisse zu liefern. Wie fühlst du dich dabei?", options: [{ text: "Ich bevorzuge schnelle Ergebnisse", value: "impatient" }, { text: "Ich kann warten, wenn das Ergebnis besser ist", value: "moderate" }, { text: "Langfristige Ergebnisse sind das Warten wert", value: "patient" }] },
         { text: "Ein Projekt verliert plötzlich an Wert. Was würdest du instinktiv tun?", options: [{ text: "Sofort stoppen", value: "stop" }, { text: "Abwarten und beobachten", value: "wait" }, { text: "Zuerst mehr Informationen sammeln", value: "research" }] }
-      ]
+      ],
+      cityName: "Wie soll deine Stadt heißen?",
+      cityPlaceholder: "Meine Stadt",
+      continue: "Weiter →",
+      back: "← Zurück",
     },
     game: { happiness: "Zufriedenheit", development: "Entwicklung", resources: "Ressourcen", remaining: "Verbleibende Kredite:", confirmAllocation: "Verteilung bestätigen", levelTag: "Level", year: "Jahr", readMore: "Den vollständigen Bericht lesen", reportTitle: "Vollständiger Lagebericht" },
     levels: [
@@ -419,6 +668,51 @@ const TRANSLATIONS = {
       bav: { under15: "Deine Stadt verfügt über arbeitgebergestützte Bauprogramme mit begrenzter verbleibender Zeit. Überlege, ob private Reserven notwendig sind, um zu ergänzen, was die Arbeitgeberprogramme bieten werden.", y1530: "Deine Stadt hat arbeitgebergestützte Bauprogramme und einen moderaten Horizont. Diese Kombination gibt dir Flexibilität.", y30plus: "Deine Stadt hat arbeitgebergestützte Programme und erhebliche Bauzeit voraus. In Kombination mit deinem Verhaltensprofil bist du gut für langfristige Planung positioniert." },
       s3: { under15: "Deine Stadt verfügt über private Baureserven zusätzlich zu anderen Unterstützungssystemen. Mit begrenzter verbleibender Zeit sollte der Fokus darauf liegen, das Aufgebaute zu schützen.", y1530: "Deine Stadt hat private Reserven und einen moderaten Horizont. Dein Verhaltensprofil zeigt, wie du unter Druck reagierst.", y30plus: "Deine Stadt hat private Reserven und erhebliche Baujahre voraus. Du hast die Zeit, deinen Ansatz basierend auf dem, was du heute gelernt hast, anzupassen." },
       unsure: { under15: "Deine Rentenunterstützungsstruktur ist noch unklar. Mit begrenzter verbleibender Bauzeit ist das Verstehen deiner verfügbaren Infrastruktursysteme ein wichtiger nächster Schritt.", y1530: "Das Verstehen deiner Rentenunterstützungsstruktur hilft dir, deine verbleibenden Baujahre effektiv zu nutzen.", y30plus: "Mit vielen Baujahren voraus ist Zeit, deine Rentenunterstützungsstruktur zu verstehen und zu verbessern." }
+    },
+    ui: {
+      playerSetup: {
+        title: "Erzähl uns von deiner Stadt",
+        subtitle: "Dies hilft, dein Erlebnis zu personalisieren. Es ändert nie das Spiel.",
+        disclosure: "Hinweis: Das Spiel beobachtet deine Entscheidungsmuster und erklärt sie dir am Ende in den Ergebnissen.",
+        ageLabel: "Deine Altersgruppe",
+        employmentLabel: "Deine Beschäftigungssituation",
+        experienceLabel: "Frühere Anlageerfahrung",
+        employmentOptions: [
+          {label:"Angestellt",value:"employed"},
+          {label:"Selbständig",value:"self-employed"},
+          {label:"Student/in",value:"student"},
+          {label:"Rentner/in",value:"retired"},
+          {label:"Sonstiges",value:"other"}
+        ],
+        experienceOptions: [
+          {label:"Keine",value:"none"},
+          {label:"Grundlagen",value:"basic"},
+          {label:"Erfahren",value:"experienced"}
+        ],
+        continue: "Weiter →",
+        skip: "Überspringen und direkt bauen →"
+      },
+      retirement: {
+        title: "Dein Rentensystem",
+        subtitle: "Diese Antworten personalisieren dein abschließendes Feedback. Sie ändern nie das Spiel.",
+        ageNotice: "Altersgruppe: {age}  ·  Geschätzte Zeit bis zur Rente: {years}",
+        yearsUntilRetirement: "~{years} Jahre bis zur Rente",
+        q1Label: "Welche Rentenbausteine hast du bereits? (Mehrfachauswahl möglich)",
+        q2Label: "Wie vertraut bist du mit Sparen und Investieren?",
+        sauleOptions: [
+          {value:"grv",label:"🏛 GRV",sub:"Gesetzliche Rente",tooltipTitle:"GRV — Gesetzliche Rentenversicherung",tooltipBody:"Pflicht für fast alle Arbeitnehmer in Deutschland.",link:"https://www.deutsche-rentenversicherung.de",linkLabel:"deutsche-rentenversicherung.de"},
+          {value:"bav",label:"🏢 bAV",sub:"Betriebliche Altersversorgung",tooltipTitle:"bAV — Betriebliche Altersversorgung",tooltipBody:"Der Arbeitgeber zahlt mit in die Rente ein.",link:"https://www.bmas.de/DE/Arbeit/Betriebliche-Altersversorgung/betriebliche-altersversorgung.html",linkLabel:"bmas.de"},
+          {value:"s3",label:"🏗 Säule 3",sub:"Riester / Rürup / Privat",tooltipTitle:"Säule 3 — Private Vorsorge",tooltipBody:"Freiwillige private Altersvorsorge.",link:"https://www.verbraucherzentrale.de/wissen/geld-versicherungen/altersvorsorge-und-rente",linkLabel:"verbraucherzentrale.de"},
+          {value:"unsure",label:"❓ Unsicher",sub:"Noch nicht sicher",tooltipTitle:"Das deutsche Rentensystem",tooltipBody:"Deutschland hat ein Drei-Säulen-System.",link:"https://www.bpb.de/themen/soziale-lage/rentenpolitik/",linkLabel:"bpb.de — Rentenpolitik"}
+        ],
+        experienceOptions: [
+          {label:"🔰 Noch nicht gestartet",sub:"Ich spare noch nicht für die Rente",value:"none"},
+          {label:"📖 Grundlagen lerne ich",sub:"Ich kenne die Basics, spare etwas",value:"basic"},
+          {label:"📈 Bereits investiert",sub:"Ich investiere aktiv und regelmäßig",value:"experienced"}
+        ],
+        continue: "Weiter →",
+        skip: "Überspringen und direkt bauen →"
+      }
     },
     common: { next: "Weiter", continue: "Weiter", back: "Zurück", skip: "Überspringen", mute: "Stummschalten", unmute: "Ton an", year: "Jahr", level: "Level" }
   },
