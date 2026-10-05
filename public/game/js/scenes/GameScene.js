@@ -176,7 +176,7 @@ class GameScene extends Phaser.Scene {
   }
 
   _msgY() {
-    const hudH = this.hud ? this.hud.height() : this.s(56);
+    const hudH = this.hud ? this.hud.height : this.s(56);
     return hudH + this.s(14);
   }
 
