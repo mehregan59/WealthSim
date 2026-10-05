@@ -212,8 +212,7 @@ class GameScene extends Phaser.Scene {
       // The very first time Level 1 starts, show city tour (Bug #4), then panel intro
       if (n===1 && !this._panelIntroShown) {
         this._panelIntroShown = true;
-        this._cityTour(); // Bug #4: guided city tour
-        this.statsPanel.introHighlight(run);
+        this._cityTour(() => { this.statsPanel.introHighlight(run); }); // tour done → show panel intro
       } else {
         run();
       }
@@ -1126,7 +1125,7 @@ class GameScene extends Phaser.Scene {
   }
 
   // ══ Bug #4 — City tour at level 1 start ══
-  _cityTour() {
+  _cityTour(done) {
     const steps = [
       {
         title: this._tr('tour.step1.title', '🏙 Welcome to Your City!'),
@@ -1207,13 +1206,13 @@ class GameScene extends Phaser.Scene {
         fontFamily: CityTheme.body, fontSize: this.s(14), color: '#fffbf1',
         backgroundColor: '#296b72', padding: { x: this.s(18), y: this.s(9) }
       }).setOrigin(0.5, 0).setDepth(182).setInteractive({ useHandCursor: true });
-      nextBtn.on('pointerdown', () => { cleanup(); try { stepTxt.destroy(); } catch(e) {} showStep(idx + 1); });
+      nextBtn.on('pointerdown', () => { cleanup(); try { stepTxt.destroy(); } catch(e) {} if (idx + 1 >= steps.length) { if (typeof done === 'function') done(); } else { showStep(idx + 1); } });
 
       skipBtn = this.add.text(cx - this.s(70), py + ph + this.s(14), this._tr('tour.skip', 'Skip Tour'), {
         fontFamily: CityTheme.body, fontSize: this.s(13), color: '#7dbfc8',
         backgroundColor: '#0d2b2e', padding: { x: this.s(14), y: this.s(9) }
       }).setOrigin(0.5, 0).setDepth(182).setInteractive({ useHandCursor: true });
-      skipBtn.on('pointerdown', () => { cleanup(); try { stepTxt.destroy(); } catch(e) {} });
+      skipBtn.on('pointerdown', () => { cleanup(); try { stepTxt.destroy(); } catch(e) {} if (typeof done === 'function') done(); });
     };
 
     showStep(0);
