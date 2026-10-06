@@ -219,7 +219,7 @@ class GameScene extends Phaser.Scene {
         run();
       }
     };
-    if (skipTutorial) proceed();
+    if (skipTutorial || n===1) proceed(); // Level 1 skips the Tutorial card — city tour covers it
     else {
       const titleAlreadyShown = n===1 && this._introLevelTitleShown;
       if(titleAlreadyShown)this._introLevelTitleShown=false;
