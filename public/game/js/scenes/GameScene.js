@@ -206,7 +206,11 @@ class GameScene extends Phaser.Scene {
     this.hud.setLevel(n,this._levelName(n));
     if(this.ambient)this.ambient.setSimulationLevel(n);
     const run = () => this.time.delayedCall(460, fn.bind(this));
+    let proceedCalled = false;
     const proceed = () => {
+      if (proceedCalled) return; // guard against Tutorial auto-close firing after user already clicked
+      proceedCalled = true;
+      this.tutorial.hide(); // cancel any pending auto-close timer
       // The very first time Level 1 starts, show city tour (Bug #4), then panel intro
       if (n===1 && !this._panelIntroShown) {
         this._panelIntroShown = true;
