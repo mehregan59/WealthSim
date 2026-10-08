@@ -10,6 +10,8 @@
 - [x] Guides below top bar, faster pacing with tap-to-skip, vertical city coins, per-coin growth in all districts, energy cleanup + power station, river offer ship, plain status labels, Back to home fix.
 - [x] Move Energy, Transport, and Technology landmarks clear of roads; add outward Technology growth; shorten Level 8 storm; simplify result statuses and prevent text overlap.
 - [ ] Verify the complete Level 1–10 results flow in the preview.
+- [x] Restore all six Level 3 coins, the complete Level 9–10 question sequences, and the final results transition.
+- [x] Prevent option titles and descriptions from overlapping inside decision cards.
 - [x] Refine solar tilt/placement, station alignment, ship docking, and faster level openings.
 - [x] Add progression-linked day/night lighting and interactive district detail panels.
 - [x] Always open the landing page after refresh and keep Back to home visible on the final screen.
@@ -19,3 +21,5 @@
 - [x] Make the final Back to home action restore the landing page in both the app and GitHub Pages build.
 - [x] Combine the opening city and first-opportunity titles, and move the station label clear of the instruction card.
 - [x] Enlarge the three starting questions, move Level 3 instructions into the empty corner, show failed-drop guidance, widen results, and make pension details toggle closed.
+
+- [x] Fit decision and report borders to wrapped text; separate opposing trains onto dual tracks; reveal Level 10 forecast outcomes individually.

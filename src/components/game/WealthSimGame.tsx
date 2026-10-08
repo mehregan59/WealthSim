@@ -21,6 +21,7 @@ const SCRIPTS = [
   "ui/StatsPanel",
   "ui/WorldButton",
   "ui/Tutorial",
+  "ui/RotateHint",
   "scenes/Boot",
   "scenes/PlayerSetup",
   "scenes/RetirementContext",

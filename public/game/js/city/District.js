@@ -25,6 +25,15 @@ class District {
     bg.fillStyle(0x0e2b2c,0.92); bg.fillRoundedRect(-w/2,-h/2,w,h,this.s(7));
     bg.lineStyle(this.s(2),this.accentColor,0.95); bg.strokeRoundedRect(-w/2,-h/2,w,h,this.s(7));
     this.labelContainer.add([bg,t]); this.labelH=h;
+    // Two-word reminder of the quarter's character (e.g. "Safe & Steady").
+    const tagTxt=(typeof currentLang!=='undefined'&&currentLang==='de')?this.tagDE:this.tag;
+    if(tagTxt){
+      const tt=this.scene.add.text(0,-h/2-this.s(13),tagTxt,{fontFamily:CityTheme.body,fontSize:this.s(12),color:'#173b40',fontStyle:'700'}).setOrigin(0.5);
+      const tw=tt.width+this.s(16),th=this.s(20),tb=this.scene.add.graphics();
+      tb.fillStyle(0xfffbf1,0.96);tb.fillRoundedRect(-tw/2,-h/2-this.s(13)-th/2,tw,th,th/2);
+      tb.lineStyle(this.s(1.5),this.accentColor,1);tb.strokeRoundedRect(-tw/2,-h/2-this.s(13)-th/2,tw,th,th/2);
+      this.labelContainer.add([tb,tt]);
+    }
     // Keep the name fully on screen: never tucked behind the side panel or
     // cut off at the right edge.
     const minX=(this.scene.PANEL||0)+w/2+this.s(10), maxX=this.scene.W-w/2-this.s(10);

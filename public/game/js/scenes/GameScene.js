@@ -48,7 +48,7 @@ class GameScene extends Phaser.Scene {
     this.statsPanel.recordSnapshot(this.cityStats.happiness,this.cityStats.development,this.cityStats.resources,0);
 
     this._initAudio(); // Bug #10
-    this._addMuteButton(); // Bug #10
+    if(this.isCompact) this._addMuteButton(); // phones: side panel hidden
     this.input.keyboard.on('keydown-P', () => this._toProfile());
     this.events.removeAllListeners('resourceDropped');
     this.events.on('resourceDropped', ({district,value,cube}) => this._onResourceDropped(district,value,cube));
@@ -99,19 +99,19 @@ class GameScene extends Phaser.Scene {
     const p3=at(3,.88,baseY+this.s(18));
 
     this.districts = [
-      new District(this, {id:'housing',name:'Housing',nameDE:'Wohnviertel',label:'Housing District',labelDE:'Wohnviertel',
+      new District(this, {id:'housing',tag:'Safe & Steady',tagDE:'Sicher & stetig',name:'Housing',nameDE:'Wohnviertel',label:'Housing District',labelDE:'Wohnviertel',
         color:0xc96b4b,darkColor:0x6f9c62,accentColor:0xd87c5c,cx:p0.cx,cy:p0.cy,health:45,scale:this.S*1.16,
         tooltip:'Stable homes for citizens.\nLow risk, steady growth.\nLike bonds in a portfolio.',
         tooltipDE:'Stabile Häuser für Bürger.\nGeringes Risiko, stetiges Wachstum.'}),
-      new District(this, {id:'transport',name:'Transport',nameDE:'Verkehrsviertel',label:'Transport District',labelDE:'Verkehrsviertel',
+      new District(this, {id:'transport',tag:'Reliable Returns',tagDE:'Verlässliche Erträge',name:'Transport',nameDE:'Verkehrsviertel',label:'Transport District',labelDE:'Verkehrsviertel',
         color:0x4f8fa0,darkColor:0x6f9c62,accentColor:0x4f9aa4,cx:p1.cx,cy:p1.cy,health:45,scale:this.S*1.16,
         tooltip:'Roads and transit connect the city.\nModerate risk, reliable returns.',
         tooltipDE:'Straßen verbinden die Stadt.\nModerates Risiko, zuverlässige Erträge.'}),
-      new District(this, {id:'technology',name:'Technology',nameDE:'Technologieviertel',label:'Technology District',labelDE:'Technologieviertel',
+      new District(this, {id:'technology',tag:'High Potential',tagDE:'Hohes Potenzial',name:'Technology',nameDE:'Technologieviertel',label:'Technology District',labelDE:'Technologieviertel',
         color:0x557b89,darkColor:0x6f9c62,accentColor:0x296b72,cx:p2.cx,cy:p2.cy,health:45,scale:this.S*1.16,labelLift:46,
         tooltip:'High growth potential.\nHigh uncertainty.\nCan double — or fall sharply.',
         tooltipDE:'Hohes Wachstumspotenzial.\nHohe Unsicherheit.'}),
-      new District(this, {id:'energy',name:'Energy',nameDE:'Energieviertel',label:'Energy District',labelDE:'Energieviertel',
+      new District(this, {id:'energy',tag:'Essential Base',tagDE:'Grundversorgung',name:'Energy',nameDE:'Energieviertel',label:'Energy District',labelDE:'Energieviertel',
         color:0xe0a82e,darkColor:0x6f9c62,accentColor:0xe0a82e,cx:p3.cx,cy:p3.cy,health:45,scale:this.S*1.16,
         tooltip:'Wind and solar power the city.\nEssential infrastructure.',
         tooltipDE:'Wind und Solar versorgen die Stadt.'})
@@ -176,7 +176,7 @@ class GameScene extends Phaser.Scene {
   }
 
   _msgY() {
-    const hudH = this.hud ? this.hud.height : this.s(56);
+    const hudH = this.hud && Number.isFinite(this.hud.height) ? this.hud.height : this.s(56);
     return hudH + this.s(14);
   }
 
@@ -189,7 +189,6 @@ class GameScene extends Phaser.Scene {
         lineSpacing:this.s(8) }).setOrigin(0.5).setDepth(70).setAlpha(0);
     this.tweens.add({targets:splash,alpha:1,duration:700,hold:1200,yoyo:true,
       onComplete:()=>{ splash.destroy(); this._introLevelTitleShown=true; this._startLevel(1); }});
-    this._drawCityBoundary();
   }
 
   _startLevel(n, skipTutorial) {
@@ -272,15 +271,10 @@ class GameScene extends Phaser.Scene {
     this.siteMarkers=[];
     const storyText = ld && ld.story ? ld.story : this._tr('level1.story', 'Tap one of the districts below to start growing your city.');
     const guideText = ld && ld.guide ? ld.guide : this._tr('game.guideDefault', 'Read the situation. Choose a district to begin.');
-    this._showGuide(guideText, () => {
+    {
       this._showPersistentMessage(storyText);
-      ch.forEach((o,i)=>{
-        this.time.delayedCall(i*260,()=>{
-          this.siteMarkers.push(this._choiceLabel(o.d.cx, o.d.subLabelY(), o.l, o.c));
-          o.d.setSelectable(true, ()=>this._onLevel1Choice(o.d,o.v));
-        });
-      });
-    });
+      ch.forEach((o)=>{ o.d.setSelectable(true, ()=>this._onLevel1Choice(o.d,o.v)); });
+    }
   }
 
   _choiceLabel(x,y,text,color) {
@@ -345,11 +339,11 @@ class GameScene extends Phaser.Scene {
     const ld = this._levelData(2);
     const storyMsg = ld && ld.story ? ld.story
       : this._tr('level2.story', 'The technology district has lost value.\nHeadlines are alarming, but nothing concrete has changed.\nWhat does the city do?');
-    this.time.delayedCall(1900,()=>{
+    this.time.delayedCall(700,()=>{
       const guideText2 = ld && ld.guide ? ld.guide : this._tr('guide.default', 'Read the situation. Make your choice.');
       const opts = ld && ld.options ? ld.options : null;
       // Bug #1: show guide first, then story + decision panel
-      this._showGuide(guideText2, () => {
+      {
       this._showPersistentMessage(storyMsg);
       this._showDecisionPanel([
         {icon:'🛡',label: opts && opts[0] ? opts[0].label : this._tr('level2.opt0', 'Cancel project'), desc: opts && opts[0] ? opts[0].description : this._tr('level2.opt0desc', 'Stop work now,\nkeep the resources'),value:'cancel',color:0x3a5f8a},
@@ -378,7 +372,7 @@ class GameScene extends Phaser.Scene {
         else if(c==='cancel') this.districts[2].takeDamage(8);
         this._showConsequence(e.m,()=>this._level2Recovery(c));
       });
-      }); // end _showGuide callback
+      } // end guide-free block
     });
   }
 
@@ -406,15 +400,15 @@ class GameScene extends Phaser.Scene {
 
   _level2News() {
     const de=(typeof currentLang!=='undefined'&&currentLang==='de');
-    this.time.delayedCall(1200,()=>{
+    this.time.delayedCall(300,()=>{
       this.districts[1].takeDamage(30); this._updateStats(-5,-8,0);
       this._shake(200,0.003);
-      this.time.delayedCall(1600,()=>{
+      this.time.delayedCall(500,()=>{
         const newsStory = this._tr('level2.newsStory', 'Now the transport district is falling.\nThis time there is real news: its largest employer\nis leaving the city for good. What does the city do?');
         const ld = this._levelData(2);
         const opts = ld && ld.options ? ld.options : null;
         // Bug #1: guide then story + panel
-        this._showGuide(this._tr('guide.default', 'Read the situation. Make your choice.'), () => {
+        {
         this._showPersistentMessage(newsStory);
         this._showDecisionPanel([
           {icon:'🛡',label: opts && opts[0] ? opts[0].label : this._tr('level2news.opt0','Cut losses'), desc: de?'Distriktvermögen verkaufen\nbevor es schlimmer wird':'Sell the district assets\nbefore it gets worse',value:'cancel',color:0x3a5f8a},
@@ -433,7 +427,7 @@ class GameScene extends Phaser.Scene {
           else if(c==='continue') this.districts[1].takeDamage(6);
           this._showConsequence(e.m,()=>this._nextLevel());
         });
-        }); // end _showGuide callback
+        } // end guide-free block
       });
     });
   }
@@ -452,23 +446,49 @@ class GameScene extends Phaser.Scene {
 
   // ══ LEVEL 3 ══
   _level3() {
-    const de=(typeof currentLang!=='undefined'&&currentLang==='de');
-    const ld = this._levelData(3);
-    const storyMsg = ld && ld.story ? ld.story
-      : this._tr('level3.story', 'The city has grown. Now it\'s time to expand.\nYou have resources to invest. Choose wisely.');
-    this._showPersistentMessage(storyMsg);
-    const opts = ld && ld.options ? ld.options : null;
-    this.districts.forEach((d,i)=>{
-      d.setSelectable(true,()=>this._onLevel3Choice(d,i));
-    });
-    this.cubeTotal=3;
-    this._spawnCube();
+    this._level3PlacedCubes = new Set();
+    this._level3Resolved = false;
+    this._spawnResourceCubes(6);
+    this.districts.forEach(d=>d.setSelectable(true,dd=>this._tapAllocate(dd)));
+    this._showLevel3Progress();
     this._level3Idle();
+  }
+
+  _showLevel3Progress() {
+    const de=(typeof currentLang!=='undefined'&&currentLang==='de');
+    const placed=this.cubeDropped||0;
+    this._showPersistentMessage(de
+      ? `600 neue Credits\nZiehe jede Münze in die Mitte eines Viertels\noder tippe ein Viertel an.\n${placed} von 6 platziert.`
+      : `600 new credits\nDrop each coin on the centre of a district\nor tap a district to send the next coin.\n${placed} of 6 placed.`,{corner:true});
+  }
+
+  _tapAllocate(district) {
+    if(this.currentLevel!==3 || this._level3Resolved) return;
+    const cube=(this.cubes||[]).find(c=>c&&!c._used&&!c.isDragging&&c.container&&c.container.active);
+    if(cube) cube._dropOnDistrict(district);
+  }
+
+  _spawnResourceCubes(n) {
+    this.cubeTotal=n; this.cubeDropped=0;
+    const usableTop=Math.max(this._msgY()+this.s(130),this.H*(this.isCompact ? 0.38 : 0.44));
+    if(this.isCompact){
+      const gap=Math.min(this.s(70),(this.W-this.s(80))/(n-1));
+      const start=this.W/2-gap*(n-1)/2;
+      for(let i=0;i<n;i++) this.time.delayedCall(i*70,()=>{
+        if(this.currentLevel===3) this.cubes.push(new ResourceCube(this,start+i*gap,this.H-this.s(70),1));
+      });
+      return;
+    }
+    const x=this.PANEL+this.s(48);
+    const gap=Math.max(this.s(48),Math.min(this.s(66),(this.H-usableTop-this.s(50))/(n-1)));
+    for(let i=0;i<n;i++) this.time.delayedCall(i*70,()=>{
+      if(this.currentLevel===3) this.cubes.push(new ResourceCube(this,x,usableTop+i*gap,1));
+    });
   }
 
   _level3Idle() {
     this._clearLevel3Idle();
-    this._level3IdleTimer = this.time.delayedCall(18000,()=>{
+    this._level3IdleTimer = this.time.delayedCall(9000,()=>{
       if(this.cubeDropped<this.cubeTotal) this._showDropRetry();
     });
   }
@@ -476,40 +496,46 @@ class GameScene extends Phaser.Scene {
     if(this._level3IdleTimer){this._level3IdleTimer.remove(false);this._level3IdleTimer=null;}
   }
 
-  _spawnCube(){
-    if(this.cubeDropped>=this.cubeTotal)return;
-    const cube=new ResourceCube(this,this._cx(),this.s(100));
-    this.cubes.push(cube);
-    cube.spawn(this.districts);
-  }
-
   _onResourceDropped(district,value,cube) {
-    if(this.currentLevel!==3)return;
-    this.cubeDropped++;
-    district.receiveResource(value);
+    if(this.currentLevel!==3 || this._level3Resolved)return;
+    if(!this._level3PlacedCubes)this._level3PlacedCubes=new Set();
+    if(!cube||this._level3PlacedCubes.has(cube))return;
+    this._level3PlacedCubes.add(cube);
+    this.cubeDropped=this._level3PlacedCubes.size;
     this._shake(160,0.003);
-    ScoringEngine.recordDecision(3,'drop',{districtId:district.id,value});
-    this._updateStats(0,8,-10);
+    ScoringEngine.recordDecision(3,'allocate',{districtId:district.id,value});
+    this._updateStats(2,4,-3);
     if(this.cubeDropped>=this.cubeTotal){
+      this._level3Resolved=true;
       this._clearLevel3Idle();
-      this.time.delayedCall(600,()=>this._level3Outcome());
+      this.districts.forEach(d=>d.setSelectable(false));
+      const counts={};
+      (ScoringEngine.decisions||[]).filter(d=>d.level===3).forEach(d=>{counts[d.districtId]=(counts[d.districtId]||0)+1;});
+      const spread=Object.entries(counts).map(([k,n])=>`${Number(n)*100} in ${k}`).join(', ');
+      const de=(typeof currentLang!=='undefined'&&currentLang==='de');
+      this._showPersistentMessage(de
+        ? `Alle sechs platziert.\nDeine Credits: ${spread}.\nNächstes Jahr wird ein unbekanntes Viertel getroffen.`
+        : `All six placed.\nYour credits: ${spread}.\nNext year one unknown district will be hit.`,{corner:true});
+      this.time.delayedCall(2600,()=>{this._clearPersistentMessage();this._level3Outcome();});
     } else {
-      this.time.delayedCall(400,()=>{ this._spawnCube(); this._level3Idle(); });
+      this._showLevel3Progress();
+      this._level3Idle();
     }
   }
 
   _level3Outcome() {
     this.districts.forEach(d=>d.setSelectable(false));
     const de=(typeof currentLang!=='undefined'&&currentLang==='de');
-    const ld = this._levelData(3);
-    const resultMsg = ld && ld.outcome ? ld.outcome
-      : this._tr('level3.outcome', 'Resources invested. The city expands.\nWatch how each district develops over time.');
-    this._showConsequence(resultMsg,()=>this._nextLevel());
-  }
-
-  _onLevel3Choice(d,i) {
-    // Districts are selectable in level 3 for visual feedback only
-    // actual resource allocation is via cube drops
+    const loser=this.districts[Phaser.Math.Between(0,3)];
+    const placed=(ScoringEngine.decisions||[]).filter(d=>d.level===3&&d.districtId===loser.id).length;
+    const exposed=placed*100, lost=Math.round(exposed*.4), share=placed/(this.cubeTotal||6);
+    loser.takeDamage(8+Math.round(40*share));
+    this._shake(120+Math.round(400*share),.002+.006*share);
+    this._updateStats(-Math.round(10*share),-Math.round(15*share),0);
+    const name=de?(loser.nameDE||loser.name):loser.name;
+    this._showConsequence(de
+      ? `Das ${name}-Viertel fällt um 40 %.\nDu hattest ${exposed} Credits dort → Verlust: ${lost} Credits.`
+      : `The ${name} district fell 40%.\nYou had ${exposed} credits there → you lost ${lost} credits.`,()=>this._nextLevel());
   }
 
   // ══ LEVEL 4 ══
@@ -676,77 +702,131 @@ class GameScene extends Phaser.Scene {
     });
   }
 
-  // ══ LEVEL 9 ══
+  // ══ LEVEL 9 — The Project Review (disposition effect) ══
   _level9() {
     const de=(typeof currentLang!=='undefined'&&currentLang==='de');
-    const ld = this._levelData(9);
-    const storyMsg = ld && ld.story ? ld.story
-      : this._tr('level9.story', 'Project review time.\nSome districts thrived, others struggled. How does the city allocate remaining resources?');
-    const opts = ld && ld.options ? ld.options : null;
-    this._showPersistentMessage(storyMsg);
+    this._showPersistentMessage(de
+      ? 'Die Stadt braucht Geld für das Budget im nächsten Jahr. Ein Projekt muss verkauft werden.\nAnalysten bewerten beide Projekte ab heute exakt gleich.'
+      : 'The city needs cash for next year’s budget. It must sell one project.\nAnalysts rate both with exactly the same outlook from here.');
     this._showDecisionPanel([
-      {icon:'🏆',label: opts && opts[0] ? opts[0].label : this._tr('level9.opt0','Reward success'), desc: opts && opts[0] ? opts[0].description : this._tr('level9.opt0desc','Invest in top performers'),value:'reward',color:0xddaa00},
-      {icon:'⚖️',label: opts && opts[1] ? opts[1].label : this._tr('level9.opt1','Balance the city'), desc: opts && opts[1] ? opts[1].description : this._tr('level9.opt1desc','Support struggling districts'),value:'balance',color:0x5c8ab0},
-      {icon:'🔬',label: opts && opts[2] ? opts[2].label : this._tr('level9.opt2','Invest in research'), desc: opts && opts[2] ? opts[2].description : this._tr('level9.opt2desc','Fund future innovation'),value:'research',color:0x9966cc}
+      {icon:'☀',label:de?'Solarpark verkaufen':'Sell Solar Park',desc:de?'Für 400 gekauft.\nHeute 560 wert (+40 %).':'Bought for 400.\nNow worth 560 (+40%).',value:'sell_winner',color:0x4aaa5c},
+      {icon:'🚋',label:de?'Straßenbahn verkaufen':'Sell Tram Line',desc:de?'Für 400 gekauft.\nHeute 280 wert (−30 %).':'Bought for 400.\nNow worth 280 (−30%).',value:'sell_loser',color:0xe2a840}
     ],(c)=>{
-      ScoringEngine.recordDecision(9,c);
+      ScoringEngine.recordDecision(9,c,{phase:'pair'});
       this._clearPersistentMessage();
-      const e={reward:{d:[5,12,-10],m:this._tr('level9.rewardResult','Top performers accelerate.\nThe gap between districts widens.')},
-               balance:{d:[8,5,-8],m:this._tr('level9.balanceResult','Balance restored.\nAll districts move forward together.')},
-               research:{d:[3,10,-12],m:this._tr('level9.researchResult','Research investment pays dividends.\nFuture growth looks promising.')}}[c]
-               ||{d:[0,0,0],m:'Decision recorded.'};
-      this._updateStats(e.d[0],e.d[1],e.d[2]);
-      this._showConsequence(e.m,()=>this._nextLevel());
+      this._updateStats(0,0,6);
+      const msg=c==='sell_winner'
+        ? (de?'Der Solarpark wird verkauft und der Gewinn fühlt sich gut an.\nDie Straßenbahn bleibt — gleicher Ausblick, aber der Verlust steht weiter in den Büchern.':'The Solar Park is sold and the gain feels good.\nThe Tram Line stays — its outlook is the same, but its loss is still on the books.')
+        : (de?'Die Straßenbahn wird verkauft und der Verlust wird real.\nDer Solarpark arbeitet weiter für die Stadt.':'The Tram Line is sold and the loss becomes real.\nThe Solar Park keeps working for the city.');
+      this._showConsequence(msg,()=>this._level9Twins());
     });
   }
 
-  // ══ LEVEL 10 ══
-  _level10() {
+  _level9Twins() {
     const de=(typeof currentLang!=='undefined'&&currentLang==='de');
-    const ld = this._levelData(10);
-    const storyMsg = ld && ld.story ? ld.story
-      : this._tr('level10.story', 'The Planning Desk.\nThe city has grown. Now design its future.');
-    this._showPersistentMessage(storyMsg);
-    this.time.delayedCall(1200,()=>this._level10Ask());
+    this._showPersistentMessage(de
+      ? 'Zwei identische Werkstätten, gleiche Straße, gleiche Zukunft.\nDie Stadt kaufte eine früh und günstig, die andere später und teuer. Eine muss gehen.'
+      : 'Two identical workshops, same street, same future.\nThe city bought one early and cheap, the other later and expensive. One must go.');
+    this._showDecisionPanel([
+      {icon:'🔨',label:de?'Werkstatt A verkaufen':'Sell Workshop A',desc:de?'Für 200 gekauft.\nHeute 300 wert.':'Bought for 200.\nWorth 300 today.',value:'sell_gain',color:0x4aaa5c},
+      {icon:'🔨',label:de?'Werkstatt B verkaufen':'Sell Workshop B',desc:de?'Für 400 gekauft.\nHeute 300 wert.':'Bought for 400.\nWorth 300 today.',value:'sell_loss',color:0xe2a840},
+      {icon:'⚖',label:de?'Eine von beiden':'Either one',desc:de?'Gleicher Wert, gleiche Zukunft.\nDer Kaufpreis ist Vergangenheit.':'Same value, same future.\nThe price paid is history.',value:'either',color:0x5c8ab0}
+    ],(c)=>{
+      ScoringEngine.recordDecision(9,c,{phase:'twin'}); this._clearPersistentMessage();
+      this._updateStats(0,2,4);
+      this._showConsequence(de
+        ? 'Beide Werkstätten waren 300 wert und hatten dieselbe Zukunft.\nWas die Stadt einst zahlte, ändert ihre künftigen Erträge nicht.'
+        : 'Both workshops were worth 300 and had the same future.\nWhat the city once paid does not change what either will earn from here.',()=>this._nextLevel());
+    });
   }
+
+  // ══ LEVEL 10 — The Planning Desk (forecast calibration) ══
+  _level10() {
+    this._forecasts=[]; this._fcIndex=0; this._level10Ask();
+  }
+
+  _forecastOptions(){
+    const de=(typeof currentLang!=='undefined'&&currentLang==='de');
+    return [
+      {icon:'✔',label:de?'Ja — sehr sicher':'Yes — very sure',desc:de?'90 % sicher':'90% confident',value:'y90',color:0x4aaa5c},
+      {icon:'✓',label:de?'Ja — wahrscheinlich':'Yes — probably',desc:de?'65 % sicher':'65% confident',value:'y65',color:0x4ecdc4},
+      {icon:'❓',label:de?'Keine Ahnung':'No idea',desc:'50 / 50',value:'n50',color:0x6b7a8d},
+      {icon:'✗',label:de?'Nein — wahrscheinlich':'No — probably',desc:de?'65 % sicher':'65% confident',value:'x65',color:0xe2a840},
+      {icon:'✘',label:de?'Nein — sehr sicher':'No — very sure',desc:de?'90 % sicher':'90% confident',value:'x90',color:0xe74c3c}
+    ];
+  }
+  _parseForecast(v){return{pick:v==='n50'?null:v[0]==='y',conf:parseInt(v.slice(1),10)};}
 
   _level10Ask() {
     const de=(typeof currentLang!=='undefined'&&currentLang==='de');
-    const ld = this._levelData(10);
-    const opts = ld && ld.options ? ld.options : null;
-    this._showDecisionPanel([
-      {icon:'🌱',label: opts && opts[0] ? opts[0].label : this._tr('level10.opt0','Green city'), desc: opts && opts[0] ? opts[0].description : this._tr('level10.opt0desc','Prioritise sustainability'),value:'green',color:0x4aaa5c},
-      {icon:'🏙',label: opts && opts[1] ? opts[1].label : this._tr('level10.opt1','Smart city'), desc: opts && opts[1] ? opts[1].description : this._tr('level10.opt1desc','Prioritise technology'),value:'smart',color:0x5c8ab0},
-      {icon:'🫦',label: opts && opts[2] ? opts[2].label : this._tr('level10.opt2','People first'), desc: opts && opts[2] ? opts[2].description : this._tr('level10.opt2desc','Prioritise community'),value:'people',color:0xddaa00}
-    ],(c)=>{
-      ScoringEngine.recordDecision(10,c);
+    const F=Assessment.FORECASTS,i=this._fcIndex;
+    if(i>=F.length)return this._level10Reveal();
+    this._showPersistentMessage((de?'Prognose ':'Forecast ')+(i+1)+' '+(de?'von':'of')+' '+F.length+':\n'+F[i].q);
+    this._showDecisionPanel(this._forecastOptions(),(v)=>{
+      const f=this._parseForecast(v);
+      ScoringEngine.recordDecision(10,v,{phase:'forecast',id:F[i].id,pick:f.pick,conf:f.conf,outcome:F[i].outcome});
+      this._forecasts.push(Object.assign({outcome:F[i].outcome},f));
       this._clearPersistentMessage();
-      this.time.delayedCall(400,()=>this._level10Reveal(c));
+      this._fcIndex++;
+      this.time.delayedCall(250,()=>this._level10Ask());
     });
   }
 
-  _level10Reveal(choice) {
-    const e={
-      green:{d:[8,12,-10],m:this._tr('level10.greenResult','A green city emerges.\nSustainable, healthy, and resilient.')},
-      smart:{d:[5,15,-12],m:this._tr('level10.smartResult','A smart city takes shape.\nEfficient systems, data-driven decisions.')},
-      people:{d:[12,8,-8],m:this._tr('level10.peopleResult','A people-first city flourishes.\nCommunity bonds are its greatest asset.')}
-    }[choice]||{d:[0,0,0],m:'The city\'s future is set.'};
-    this._updateStats(e.d[0],e.d[1],e.d[2]);
-    this.districts.forEach(d=>d.receiveResource(2));
-    this._celebrateCity(this._tr('level10.celebrate','🏆 City Complete!'));
-    this._showConsequence(e.m,()=>this._level10Practice());
+  _level10Reveal(index=0) {
+    const de=(typeof currentLang!=='undefined'&&currentLang==='de');
+    if(index<Assessment.FORECASTS.length){
+      const q=Assessment.FORECASTS[index],f=this._forecasts[index];
+      const unsure=f.pick===null,correct=f.pick===q.outcome;
+      const verdict=unsure?(de?'Keine feste Prognose':'No firm prediction'):
+        correct?(de?'✓ Deine Prognose traf ein':'✓ Your prediction matched the outcome'):
+        (de?'✗ Deine Prognose traf nicht ein':'✗ Your prediction did not match');
+      const answer=v=>v?(de?'Ja':'Yes'):(de?'Nein':'No');
+      const events=de?[
+        'Das Wohnviertel gewann an Wert.',
+        'Die Energiekosten fielen nicht um mehr als 10 %.',
+        'Technologie übertraf Verkehr nicht.',
+        'Die Zufriedenheit stieg bis zum Jahresende.'
+      ]:[
+        'Housing gained value.',
+        'Energy costs did not fall by more than 10%.',
+        'Technology did not outperform transport.',
+        'Citizen happiness finished the year higher.'
+      ];
+      this._reportModal((de?'Ergebnis ':'Outcome ')+(index+1)+' / 4',
+        q.q+'\n\n'+(de?'Deine Antwort: ':'Your answer: ')+(unsure?'50 / 50':answer(f.pick))+
+        ' · '+f.conf+'% '+(de?'sicher':'confident')+'\n\n'+events[index]+'\n'+verdict+
+        '\n\n'+(de?'Ein einzelnes Ergebnis macht eine Entscheidung nicht gut oder schlecht.':'One outcome does not make a decision good or bad.'),
+        ()=>this._level10Reveal(index+1));
+      return;
+    }
+    const r=Assessment.forecastResult(this._forecasts);
+    this.hud.advanceYear(1);
+    const summary=(de?'Durchschnittliche Sicherheit: ':'Average confidence: ')+Math.round(r.avgConf*100)+'%\n'+
+      (de?'Trefferquote: ':'Accuracy: ')+Math.round(r.hitRate*100)+'%'+
+      (r.gap>.1?(de?'\n\nDu warst sicherer, als du richtig lagst.':'\n\nYou were more confident than you were right.'):r.gap<-.1?(de?'\n\nDu lagst öfter richtig, als du erwartet hast.':'\n\nYou were right more often than you expected.'):(de?'\n\nDeine Sicherheit passte gut zu deiner Trefferquote.':'\n\nYour confidence matched your accuracy closely.'))+
+      (de?'\n\nVier Prognosen beschreiben diese Sitzung, nicht deine Persönlichkeit.':'\n\nFour forecasts describe this session, not your personality.');
+    this._reportModal(de?'Deine vier Prognosen':'Your four forecasts',summary,()=>this._level10Practice());
   }
 
   _level10Practice() {
     const de=(typeof currentLang!=='undefined'&&currentLang==='de');
-    const summary = ScoringEngine.getSummary ? ScoringEngine.getSummary() : null;
-    const finalMsg = summary
-      ? this._tr('level10.finalWithScore', 'Journey complete. Your decisions shaped this city.\nYour score reflects your choices across all levels.')
-      : this._tr('level10.final', 'Journey complete.\nEvery decision you made shaped this city.\nYou can now explore or restart.');
-    this._showConsequence(finalMsg, ()=>{
-      this._clearConsequence();
-      this._showPersistentMessage(this._tr('level10.done', '🏙 Your city journey is complete. Well done!'));
-    }, {auto:false});
+    const P=Assessment.PRACTICE;
+    this._showPersistentMessage((de?'Eine Übungsprognose, nachdem du deine Ergebnisse gesehen hast:\n':'One practice forecast, now that you have seen your results:\n')+P.q);
+    this._showDecisionPanel(this._forecastOptions(),v=>{
+      const f=this._parseForecast(v);
+      ScoringEngine.recordDecision(10,v,{phase:'practice',id:P.id,pick:f.pick,conf:f.conf,outcome:P.outcome});
+      this._clearPersistentMessage();
+      const result=f.pick===null?(de?'Du nanntest 50/50.':'You called it 50/50.'):(f.pick===P.outcome?(de?'Du lagst richtig.':'You were right.'):(de?'Du lagst falsch.':'You were wrong.'));
+      this._updateStats(2,4,0);
+      this._showConsequence((de?'Das Verkehrsviertel erholte sich. ':'The transport district did recover. ')+result+'\n'+(de?'Gute Prognosen sind nicht immer richtig — ihre Sicherheit passt dazu, wie oft sie stimmen.':'Good forecasters are not always right — their confidence matches how often they are.'),()=>this._finish());
+    });
+  }
+
+  _finish() {
+    this._clearConsequence(); this._clearWorldBtn();
+    this.statsPanel.recordSnapshot(this.cityStats.happiness,this.cityStats.development,this.cityStats.resources,10);
+    const overlay=this.add.graphics().setDepth(190),fade={alpha:0};
+    this.tweens.add({targets:fade,alpha:1,duration:1800,onUpdate:()=>{overlay.clear();overlay.fillStyle(0x061019,fade.alpha);overlay.fillRect(0,0,this.W,this.H);},onComplete:()=>this._toProfile()});
   }
 
   // City-wide celebration burst
@@ -777,30 +857,24 @@ class GameScene extends Phaser.Scene {
   }
 
   _reportModal(title, text, onClose) {
-    const cx=this._cx(), cy=this.H/2;
-    const pw=Math.min(this.s(560),this._availW()), ph=this.s(280);
-    const px=cx-pw/2, py=cy-ph/2;
+    const cx=this._cx(),pw=Math.min(this.s(680),this._availW());
+    const ink='#'+CityTheme.colors.ink.toString(16).padStart(6,'0');
+    const paper='#'+CityTheme.colors.paper.toString(16).padStart(6,'0');
+    const ttl=this.add.text(cx,0,title,{fontFamily:CityTheme.heading,fontSize:this.s(22),color:ink,fontStyle:'700',align:'center',wordWrap:{width:pw-this.s(48)}}).setOrigin(.5,0).setDepth(92);
+    const txt=this.add.text(cx,0,text,{fontFamily:CityTheme.body,fontSize:this.s(17),color:ink,align:'center',wordWrap:{width:pw-this.s(48)},lineSpacing:this.s(5)}).setOrigin(.5,0).setDepth(92);
+    const maxH=this.H-this.s(48);
+    while(ttl.height+txt.height+this.s(130)>maxH && parseInt(txt.style.fontSize,10)>this.s(12)) txt.setFontSize(parseInt(txt.style.fontSize,10)-1);
+    const ph=ttl.height+txt.height+this.s(130),py=(this.H-ph)/2,px=cx-pw/2;
     const dim=this.add.graphics().setDepth(90);
-    dim.fillStyle(0x000000,0.55); dim.fillRect(0,0,this.W,this.H);
+    dim.fillStyle(CityTheme.colors.ink,.55);dim.fillRect(0,0,this.W,this.H);
     const bg=this.add.graphics().setDepth(91);
-    bg.fillStyle(0xfffbf1,0.98); bg.fillRoundedRect(px,py,pw,ph,this.s(14));
-    bg.lineStyle(this.s(2),0x296b72,0.8); bg.strokeRoundedRect(px,py,pw,ph,this.s(14));
-    const ttl=this.add.text(cx,py+this.s(24),title,{
-      fontFamily:CityTheme.heading,fontSize:this.s(19),color:'#173b40',fontStyle:'700',align:'center'
-    }).setOrigin(0.5,0).setDepth(92);
-    const txt=this.add.text(cx,py+this.s(60),text,{
-      fontFamily:CityTheme.body,fontSize:this.s(14),color:'#2a5a60',
-      align:'center',wordWrap:{width:pw-this.s(48)},lineSpacing:this.s(5)
-    }).setOrigin(0.5,0).setDepth(92);
-    const de=(typeof currentLang!=='undefined'&&currentLang==='de');
-    const btn=this.add.text(cx,py+ph-this.s(30),this._tr('game.close','Close'),{
-      fontFamily:CityTheme.body,fontSize:this.s(14),color:'#fffbf1',
-      backgroundColor:'#296b72',padding:{x:this.s(20),y:this.s(10)}
-    }).setOrigin(0.5).setDepth(92).setInteractive({useHandCursor:true});
-    btn.on('pointerdown',()=>{
-      [dim,bg,ttl,txt,btn].forEach(e=>{try{e.destroy();}catch(e){}});
-      if(onClose)onClose();
-    });
+    CityTheme.panel(bg,px,py,pw,ph);
+    ttl.y=py+this.s(24);txt.y=ttl.y+ttl.height+this.s(18);
+    const btn=this.add.text(cx,py+ph-this.s(32),this._tr('guide.continue','Continue →'),{
+      fontFamily:CityTheme.body,fontSize:this.s(17),color:paper,
+      backgroundColor:'#'+CityTheme.colors.teal.toString(16),padding:{x:this.s(24),y:this.s(10)}
+    }).setOrigin(.5).setDepth(92).setInteractive({useHandCursor:true});
+    btn.on('pointerdown',()=>{[dim,bg,ttl,txt,btn].forEach(e=>e.destroy());if(onClose)onClose();});
   }
 
   _saveSnapshot(n){
@@ -984,12 +1058,19 @@ class GameScene extends Phaser.Scene {
     const cols=options.length;
     const avail=this._availW();
     const btnW=Math.min(this.s(180),(avail-this.s(48)-(cols-1)*this.s(12))/cols);
-    const btnH=this.s(100);
+    const ink='#'+CityTheme.colors.ink.toString(16).padStart(6,'0');
+    const muted='#'+CityTheme.colors.muted.toString(16).padStart(6,'0');
+    const measured=options.map(o=>{
+      const label=this.add.text(0,0,o.label,{fontFamily:CityTheme.body,fontSize:this.s(16),color:ink,fontStyle:'700',align:'center',wordWrap:{width:btnW-this.s(24)}}).setOrigin(.5,0);
+      const description=this.add.text(0,0,o.desc,{fontFamily:CityTheme.body,fontSize:this.s(14),color:muted,align:'center',wordWrap:{width:btnW-this.s(24)},lineSpacing:this.s(3)}).setOrigin(.5,0);
+      return {label,description,height:this.s(39)+label.height+this.s(12)+description.height+this.s(18)};
+    });
+    const btnH=Math.max(this.s(132),...measured.map(m=>m.height));
     const panelW=cols*btnW+(cols-1)*this.s(12)+this.s(48);
     const panelH=btnH+this.s(28), panelX=cx-panelW/2, panelY=this.H-panelH-this.s(18);
     this.decisionPanel=this.add.container(0,0).setDepth(60);
     const bg=this.add.graphics();
-    bg.fillStyle(0xfffbf1,0.96); bg.fillRoundedRect(panelX,panelY,panelW,panelH,this.s(12));
+    bg.fillStyle(CityTheme.colors.paper,0.98); bg.fillRoundedRect(panelX,panelY,panelW,panelH,this.s(12));
     bg.lineStyle(1,0x24405f,1); bg.strokeRoundedRect(panelX,panelY,panelW,panelH,this.s(12));
     this.decisionPanel.add(bg);
     options.forEach((o,i)=>{
@@ -999,13 +1080,10 @@ class GameScene extends Phaser.Scene {
         g.fillStyle(o.color,hv?0.42:0.15); g.fillRoundedRect(bx,by,btnW,btnH,this.s(9));
         g.lineStyle(hv?this.s(2.4):1,o.color,hv?0.98:0.5); g.strokeRoundedRect(bx,by,btnW,btnH,this.s(9));};
       draw(false); this.decisionPanel.add(g);
-      const ic=this.add.text(bx+btnW/2,by+this.s(20),o.icon,{fontSize:this.s(23)}).setOrigin(0.5);
-      const lb=this.add.text(bx+btnW/2,by+this.s(50),o.label,{
-        fontFamily:CityTheme.body,fontSize:this.s(14),color:'#173b40',
-        fontStyle:'700',align:'center',wordWrap:{width:btnW-this.s(14)}}).setOrigin(0.5);
-      const de=this.add.text(bx+btnW/2,by+this.s(78),o.desc,{
-        fontFamily:CityTheme.body,fontSize:this.s(12),color:'#55777a',
-        align:'center',wordWrap:{width:btnW-this.s(14)},lineSpacing:this.s(3)}).setOrigin(0.5);
+      const ic=this.add.text(bx+btnW/2,by+this.s(18),o.icon,{fontSize:this.s(22)}).setOrigin(0.5);
+      const lb=measured[i].label,de=measured[i].description;
+      lb.setPosition(bx+btnW/2,by+this.s(39));
+      de.setPosition(bx+btnW/2,lb.y+lb.height+this.s(12));
       this.decisionPanel.add([ic,lb,de]);
       const hit=this.add.rectangle(bx+btnW/2,by+btnH/2,btnW-this.s(4),btnH-this.s(2),0xffffff,0)
         .setInteractive({useHandCursor:true});
@@ -1048,195 +1126,238 @@ class GameScene extends Phaser.Scene {
     this.districts.forEach(d=>d.update(time,delta));
   }
 
-  // ══ Bug #10 — Web Audio sound system ══
+  // ══ Sound: layered city ambience + soft interface sounds (Web Audio) ══
   _initAudio() {
     try {
-      this._audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      this._muted = false;
+      if (!GameScene._audioCtx) GameScene._audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      this._audioCtx = GameScene._audioCtx;
+      this._muted = !!GameScene._muted;
+      this._master = this._audioCtx.createGain();
+      this._master.gain.value = 0.9;
+      this._master.connect(this._audioCtx.destination);
       this._ambientNode = null;
+      const resume = () => { if (this._audioCtx.state === 'suspended') this._audioCtx.resume(); };
+      this.input.on('pointerdown', resume);
       this._startAmbient();
+      this.events.once('shutdown', () => this._stopAmbient());
+      this.events.once('destroy', () => this._stopAmbient());
     } catch(e) { this._audioCtx = null; }
   }
 
+  _noiseBuffer(seconds, brown) {
+    const ctx = this._audioCtx, len = Math.floor(ctx.sampleRate * seconds);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < len; i++) {
+      const w = Math.random() * 2 - 1;
+      if (brown) { last = (last + 0.02 * w) / 1.02; d[i] = last * 3.2; } else d[i] = w;
+    }
+    return buf;
+  }
+
   _startAmbient() {
-    if (!this._audioCtx || this._muted) return;
-    const ctx = this._audioCtx;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(55, ctx.currentTime);
-    gain.gain.setValueAtTime(0.04, ctx.currentTime);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    this._ambientNode = { osc, gain };
+    if (!this._audioCtx || this._muted || this._ambientNode) return;
+    const ctx = this._audioCtx, now = ctx.currentTime, nodes = [];
+    const bus = ctx.createGain(); bus.gain.setValueAtTime(0, now); bus.gain.linearRampToValueAtTime(1, now + 3);
+    bus.connect(this._master);
+    // 1) distant city hum + breeze: brown noise, low-passed, slowly breathing
+    const wind = ctx.createBufferSource(); wind.buffer = this._noiseBuffer(6, true); wind.loop = true;
+    const wf = ctx.createBiquadFilter(); wf.type = 'lowpass'; wf.frequency.value = 520; wf.Q.value = 0.4;
+    const wg = ctx.createGain(); wg.gain.value = 0.11;
+    const lfo = ctx.createOscillator(); lfo.frequency.value = 0.07;
+    const lfoG = ctx.createGain(); lfoG.gain.value = 0.05; lfo.connect(lfoG); lfoG.connect(wg.gain);
+    const lfo2 = ctx.createOscillator(); lfo2.frequency.value = 0.045;
+    const lfo2G = ctx.createGain(); lfo2G.gain.value = 260; lfo2.connect(lfo2G); lfo2G.connect(wf.frequency);
+    wind.connect(wf); wf.connect(wg); wg.connect(bus);
+    wind.start(); lfo.start(); lfo2.start(); nodes.push(wind, lfo, lfo2);
+    // 2) warm, hopeful pad (D major add9), softly detuned and filtered
+    const padF = ctx.createBiquadFilter(); padF.type = 'lowpass'; padF.frequency.value = 900;
+    const padG = ctx.createGain(); padG.gain.value = 0.022; padF.connect(padG); padG.connect(bus);
+    [146.83, 220.0, 293.66, 369.99, 329.63].forEach((f, i) => {
+      [-4, 4].forEach(det => {
+        const o = ctx.createOscillator(); o.type = i < 2 ? 'sine' : 'triangle';
+        o.frequency.value = f; o.detune.value = det;
+        const g = ctx.createGain(); g.gain.value = i < 2 ? 0.8 : 0.35;
+        const tr = ctx.createOscillator(); tr.frequency.value = 0.05 + i * 0.023;
+        const trG = ctx.createGain(); trG.gain.value = 0.3; tr.connect(trG); trG.connect(g.gain);
+        o.connect(g); g.connect(padF); o.start(); tr.start(); nodes.push(o, tr);
+      });
+    });
+    this._ambientNode = { bus, nodes };
+    // 3) life: occasional birdsong by day, a distant tram bell now and then
+    const schedule = () => {
+      if (!this._ambientNode) return;
+      this._ambientTimer = this.time.delayedCall(4000 + Math.random() * 7000, () => {
+        if (!this._ambientNode || this._muted) return;
+        const night = (this.nightStrength || 0) > 0.55;
+        if (!night && Math.random() < 0.7) this._birdChirp(); else this._tramBell();
+        schedule();
+      });
+    };
+    schedule();
+  }
+
+  _birdChirp() {
+    const ctx = this._audioCtx, t0 = ctx.currentTime, n = 2 + Math.floor(Math.random() * 3), base = 2600 + Math.random() * 1400;
+    for (let i = 0; i < n; i++) {
+      const t = t0 + i * (0.11 + Math.random() * 0.05);
+      const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine';
+      o.frequency.setValueAtTime(base, t); o.frequency.exponentialRampToValueAtTime(base * 1.45, t + 0.06);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.025, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0008, t + 0.09);
+      o.connect(g); g.connect(this._ambientNode.bus); o.start(t); o.stop(t + 0.1);
+    }
+  }
+
+  _tramBell() {
+    const ctx = this._audioCtx, t = ctx.currentTime;
+    [1, 2.76, 5.4].forEach((m, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = 660 * m;
+      g.gain.setValueAtTime(0.018 / (i + 1), t); g.gain.exponentialRampToValueAtTime(0.0005, t + 1.6);
+      o.connect(g); g.connect(this._ambientNode.bus); o.start(t); o.stop(t + 1.7);
+    });
   }
 
   _stopAmbient() {
-    if (this._ambientNode) {
-      try { this._ambientNode.osc.stop(); } catch(e) {}
-      this._ambientNode = null;
-    }
+    if (this._ambientTimer) { try { this._ambientTimer.remove(false); } catch(e) {} this._ambientTimer = null; }
+    const a = this._ambientNode; this._ambientNode = null;
+    if (!a || !this._audioCtx) return;
+    const t = this._audioCtx.currentTime;
+    try { a.bus.gain.cancelScheduledValues(t); a.bus.gain.setValueAtTime(a.bus.gain.value, t); a.bus.gain.linearRampToValueAtTime(0, t + 0.6); } catch(e) {}
+    setTimeout(() => { a.nodes.forEach(n => { try { n.stop(); } catch(e) {} }); try { a.bus.disconnect(); } catch(e) {} }, 700);
+  }
+
+  _tone(freq, start, dur, vol, type, attack) {
+    const ctx = this._audioCtx, o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type || 'sine'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(vol, start + (attack || 0.01));
+    g.gain.exponentialRampToValueAtTime(0.0005, start + dur);
+    o.connect(g); g.connect(this._master); o.start(start); o.stop(start + dur + 0.05);
   }
 
   _playClick() {
     if (!this._audioCtx || this._muted) return;
-    const ctx = this._audioCtx;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.frequency.setValueAtTime(440, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 0.1);
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.start(); osc.stop(ctx.currentTime + 0.15);
+    const ctx = this._audioCtx, t = ctx.currentTime;
+    // soft wooden tap: a short filtered noise tick plus a rounded pitch blip
+    const src = ctx.createBufferSource(); src.buffer = this._noiseBuffer(0.04, false);
+    const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1800; f.Q.value = 2.5;
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.0005, t + 0.04);
+    src.connect(f); f.connect(g); g.connect(this._master); src.start(t);
+    const o = ctx.createOscillator(), og = ctx.createGain(); o.type = 'sine';
+    o.frequency.setValueAtTime(880, t); o.frequency.exponentialRampToValueAtTime(520, t + 0.08);
+    og.gain.setValueAtTime(0.09, t); og.gain.exponentialRampToValueAtTime(0.0005, t + 0.12);
+    o.connect(og); og.connect(this._master); o.start(t); o.stop(t + 0.14);
   }
 
   _playTransition() {
     if (!this._audioCtx || this._muted) return;
-    const ctx = this._audioCtx;
-    [261, 329, 392].forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.12);
-      gain.gain.linearRampToValueAtTime(0.2, ctx.currentTime + i * 0.12 + 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.12 + 0.5);
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.start(ctx.currentTime + i * 0.12);
-      osc.stop(ctx.currentTime + i * 0.12 + 0.5);
+    const t = this._audioCtx.currentTime;
+    // gentle bell phrase: each note has a soft overtone so it rings like glass
+    [[587.33,0],[739.99,0.16],[880,0.32]].forEach(([f,d]) => {
+      this._tone(f, t + d, 1.4, 0.09, 'sine', 0.02);
+      this._tone(f * 2.01, t + d, 0.7, 0.025, 'sine', 0.01);
     });
   }
 
   _playCelebration() {
     if (!this._audioCtx || this._muted) return;
-    const ctx = this._audioCtx;
-    [523, 659, 784, 1046].forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.08);
-      gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + i * 0.08 + 0.04);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.08 + 0.6);
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.start(ctx.currentTime + i * 0.08);
-      osc.stop(ctx.currentTime + i * 0.08 + 0.7);
+    const t = this._audioCtx.currentTime;
+    [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => {
+      this._tone(f, t + i * 0.09, 0.9, 0.08, 'triangle', 0.015);
+      this._tone(f / 2, t + i * 0.09, 0.6, 0.03, 'sine', 0.02);
     });
+    [523.25, 659.25, 783.99].forEach(f => this._tone(f, t + 0.55, 1.8, 0.04, 'sine', 0.08));
   }
 
   _toggleMute() {
-    this._muted = !this._muted;
-    if (this._muted) {
-      this._stopAmbient();
-    } else {
-      if (this._audioCtx && this._audioCtx.state === 'suspended') {
-        this._audioCtx.resume();
-      }
-      this._startAmbient();
+    this._muted = !this._muted; GameScene._muted = this._muted;
+    if (this._muted) this._stopAmbient();
+    else {
+      if (this._audioCtx && this._audioCtx.state === 'suspended') this._audioCtx.resume();
+      this._startAmbient(); this._playClick();
     }
     if (this._muteBtn) this._muteBtn.setText(this._muted ? this._tr('game.unmute', '🔇 Unmute') : this._tr('game.mute', '🔊 Mute'));
   }
 
   _addMuteButton() {
-    this._muteBtn = this.add.text(this.W - this.s(10), this.s(10), this._tr('game.mute', '🔊 Mute'), {
-      fontFamily: CityTheme.body, fontSize: this.s(12), color: '#7dbfc8',
-      backgroundColor: '#0d2b2e', padding: { x: this.s(8), y: this.s(4) }
+    this._muteBtn = this.add.text(this.W - this.s(10), this.s(52), this._muted ? this._tr('game.unmute', '🔇 Unmute') : this._tr('game.mute', '🔊 Mute'), {
+      fontFamily: CityTheme.body, fontSize: this.s(14), color: '#fffbf1',
+      backgroundColor: '#296b72', padding: { x: this.s(8), y: this.s(4) }
     }).setOrigin(1, 0).setDepth(200).setInteractive({ useHandCursor: true });
     this._muteBtn.on('pointerdown', () => this._toggleMute());
   }
 
-  // ══ Bug #4 — City tour at level 1 start ══
+  // ══ Level 1 city tour: a spotlight moves across the real screen areas;
+  //    tap anywhere to continue. Shown once, only at the start of Level 1. ══
   _cityTour(done) {
+    const de = (typeof currentLang !== 'undefined' && currentLang === 'de');
+    const W = this.W, H = this.H, hudH = (this.hud && this.hud.height) || this.s(48), P = this.PANEL || 0;
+    const cityTop = hudH + this.s(10), cityBottom = H - this.s(150);
     const steps = [
-      {
-        title: this._tr('tour.step1.title', '🏙 Welcome to Your City!'),
-        text: this._tr('tour.step1.text', 'This is your city dashboard. The top bar (HUD) shows the city name, current year, and level. Watch it update as your city grows!')
-      },
-      {
-        title: this._tr('tour.step2.title', '🏘 Your Districts'),
-        text: this._tr('tour.step2.text', 'Each coloured area on the map is a district: Housing, Transport, Technology, and Energy. Each district has a different risk and growth profile.')
-      },
-      {
-        title: this._tr('tour.step3.title', '📊 Stats Panel'),
-        text: this._tr('tour.step3.text', 'On the left you can see three key stats: Happiness, Development, and Resources. Every decision you make affects these numbers.')
-      },
-      {
-        title: this._tr('tour.step4.title', '🗳 Decision Area'),
-        text: this._tr('tour.step4.text', 'At the bottom of the screen you\'ll see decision panels. Read each option carefully — your choices have lasting consequences for the city!')
-      },
-      {
-        title: this._tr('tour.step5.title', '🏆 Level Progress'),
-        text: this._tr('tour.step5.text', 'Complete each level by making a key decision. There are 10 levels total. Each one teaches a different lesson about wealth and city management.')
-      }
-    ];
+      { r: { x: 0, y: 0, w: W, h: hudH },
+        t: de ? 'Die Kopfleiste' : 'The top bar',
+        b: de ? 'Hier stehen Stadtname, aktuelles Jahr und Level. Sie ändern sich, während deine Stadt wächst.' : 'City name, current year and level live here. They update as your city grows.' },
+      { r: { x: P + this.s(10), y: cityTop, w: W - P - this.s(20), h: cityBottom - cityTop },
+        t: de ? 'Deine vier Stadtteile' : 'Your four districts',
+        b: de ? 'Wohnen, Verkehr, Technologie und Energie. Jedes Viertel wächst anders — das kurze Schild über dem Namen verrät, wie.' : 'Housing, Transport, Technology and Energy. Each grows differently — the short sign above each name tells you how.' },
+      { r: { x: 0, y: hudH, w: Math.max(P, this.s(10)), h: H - hudH }, skip: !P,
+        t: de ? 'Die Seitenleiste' : 'The side panel',
+        b: de ? 'Zufriedenheit, Wachstum und Mittel deiner Stadt — plus Ton, Licht-Vorschau und Textgröße.' : 'Your city’s happiness, growth and funds — plus sound, lighting preview and text size.' },
+      { r: { x: P + this.s(10), y: H - this.s(150), w: W - P - this.s(20), h: this.s(140) },
+        t: de ? 'Entscheidungen' : 'Decisions',
+        b: de ? 'Hier erscheinen deine Wahlmöglichkeiten. Nimm dir Zeit — jede Wahl prägt die Stadt dauerhaft.' : 'Your choices appear here. Take your time — every choice leaves a lasting mark on the city.' }
+    ].filter(s => !s.skip);
 
-    let currentStep = 0;
-    let tourOverlay = null;
-    let tourBg = null;
-    let tourTitle = null;
-    let tourText = null;
-    let nextBtn = null;
-    let skipBtn = null;
+    const layer = this.add.container(0, 0).setDepth(180);
+    const dim = this.add.graphics(), ring = this.add.graphics();
+    const card = this.add.graphics();
+    const title = this.add.text(0, 0, '', { fontFamily: CityTheme.heading, fontSize: this.s(21), color: '#173b40', fontStyle: '700' }).setOrigin(0, 0);
+    const body = this.add.text(0, 0, '', { fontFamily: CityTheme.body, fontSize: this.s(16), color: '#2a5a60', lineSpacing: this.s(5) }).setOrigin(0, 0);
+    const hint = this.add.text(0, 0, '', { fontFamily: CityTheme.body, fontSize: this.s(13), color: '#9b6c12', fontStyle: '700' }).setOrigin(0, 0);
+    const hit = this.add.rectangle(W / 2, H / 2, W, H, 0xffffff, 0.001).setInteractive();
+    layer.add([dim, ring, card, title, body, hint, hit]);
+    const cur = { x: W / 2, y: H / 2, w: 10, h: 10 };
+    let idx = -1, tw = null, finished = false;
 
-    const cleanup = () => {
-      [tourOverlay, tourBg, tourTitle, tourText, nextBtn, skipBtn].forEach(el => {
-        if (el) { try { el.destroy(); } catch(e) {} }
-      });
-      tourOverlay = tourBg = tourTitle = tourText = nextBtn = skipBtn = null;
+    const paint = () => {
+      const { x, y, w, h } = cur;
+      dim.clear(); dim.fillStyle(0x0b1f22, 0.62);
+      dim.fillRect(0, 0, W, y); dim.fillRect(0, y + h, W, H - y - h);
+      dim.fillRect(0, y, x, h); dim.fillRect(x + w, y, W - x - w, h);
+      ring.clear(); ring.lineStyle(this.s(3), CityTheme.colors.gold, 1); ring.strokeRoundedRect(x, y, w, h, this.s(10));
     };
-
-    const showStep = (idx) => {
-      cleanup();
-      if (idx >= steps.length) return;
-
-      const step = steps[idx];
-      const cx = this._cx();
-      const cy = this.H / 2;
-      const pw = Math.min(this.s(560), this._availW());
-      const ph = this.s(260);
-      const px = cx - pw / 2;
-      const py = cy - ph / 2;
-
-      tourOverlay = this.add.graphics().setDepth(180);
-      tourOverlay.fillStyle(0x000000, 0.45);
-      tourOverlay.fillRect(0, 0, this.W, this.H);
-
-      tourBg = this.add.graphics().setDepth(181);
-      tourBg.fillStyle(0xfffbf1, 0.97);
-      tourBg.fillRoundedRect(px, py, pw, ph, this.s(14));
-      tourBg.lineStyle(this.s(2), 0x296b72, 0.8);
-      tourBg.strokeRoundedRect(px, py, pw, ph, this.s(14));
-
-      tourTitle = this.add.text(cx, py + this.s(26), step.title, {
-        fontFamily: CityTheme.heading, fontSize: this.s(26), color: '#173b40',
-        align: 'center', fontStyle: '700'
-      }).setOrigin(0.5, 0).setDepth(182);
-
-      tourText = this.add.text(cx, py + this.s(60), step.text, {
-        fontFamily: CityTheme.body, fontSize: this.s(19), color: '#2a5a60',
-        align: 'center', wordWrap: { width: pw - this.s(48) }, lineSpacing: this.s(6)
-      }).setOrigin(0.5, 0).setDepth(182);
-
-      const stepLabel = (idx + 1) + ' / ' + steps.length;
-      const stepTxt = this.add.text(cx, py + ph - this.s(14), stepLabel, {
-        fontFamily: CityTheme.body, fontSize: this.s(14), color: '#7dbfc8'
-      }).setOrigin(0.5, 1).setDepth(182);
-
-      const nextLabel = idx < steps.length - 1 ? this._tr('tour.next', 'Next →') : this._tr('tour.done', 'Start Game →');
-      nextBtn = this.add.text(cx + this.s(70), py + ph + this.s(14), nextLabel, {
-        fontFamily: CityTheme.body, fontSize: this.s(17), color: '#fffbf1',
-        backgroundColor: '#296b72', padding: { x: this.s(20), y: this.s(11) }
-      }).setOrigin(0.5, 0).setDepth(182).setInteractive({ useHandCursor: true });
-      nextBtn.on('pointerdown', () => { cleanup(); try { stepTxt.destroy(); } catch(e) {} if (idx + 1 >= steps.length) { if (typeof done === 'function') done(); } else { showStep(idx + 1); } });
-
-      skipBtn = this.add.text(cx - this.s(70), py + ph + this.s(14), this._tr('tour.skip', 'Skip Tour'), {
-        fontFamily: CityTheme.body, fontSize: this.s(16), color: '#7dbfc8',
-        backgroundColor: '#0d2b2e', padding: { x: this.s(16), y: this.s(11) }
-      }).setOrigin(0.5, 0).setDepth(182).setInteractive({ useHandCursor: true });
-      skipBtn.on('pointerdown', () => { cleanup(); try { stepTxt.destroy(); } catch(e) {} if (typeof done === 'function') done(); });
+    const placeCard = (r) => {
+      const cw = Math.min(this.s(400), W - this.s(40));
+      title.setWordWrapWidth(cw - this.s(36)); body.setWordWrapWidth(cw - this.s(36));
+      const ch = this.s(28) + title.height + this.s(8) + body.height + this.s(14) + hint.height + this.s(18);
+      let cx, cy;
+      if (r.x + r.w + cw + this.s(24) < W && r.w < W * 0.4) { cx = r.x + r.w + this.s(18); cy = Math.min(H - ch - this.s(16), r.y + this.s(40)); }
+      else if (r.y + r.h + ch + this.s(20) < H) { cx = Math.max(this.s(16), Math.min(W - cw - this.s(16), r.x + r.w / 2 - cw / 2)); cy = r.y + r.h + this.s(16); }
+      else if (r.y - ch - this.s(20) > 0) { cx = Math.max(this.s(16), Math.min(W - cw - this.s(16), r.x + r.w / 2 - cw / 2)); cy = r.y - ch - this.s(16); }
+      else { cx = r.x + r.w / 2 - cw / 2; cy = r.y + r.h / 2 - ch / 2; }
+      card.clear(); card.fillStyle(0xfffbf1, 0.98); card.fillRoundedRect(cx, cy, cw, ch, this.s(12));
+      card.fillStyle(0xe0a82e, 1); card.fillRect(cx, cy, cw, this.s(4));
+      title.setPosition(cx + this.s(18), cy + this.s(18));
+      body.setPosition(cx + this.s(18), title.y + title.height + this.s(8));
+      hint.setPosition(cx + this.s(18), body.y + body.height + this.s(14));
+      [card, title, body, hint].forEach(o => o.setAlpha(1));
     };
-
-    showStep(0);
+    const finish = () => {
+      if (finished) return; finished = true;
+      this.tweens.add({ targets: layer, alpha: 0, duration: 300, onComplete: () => { layer.destroy(); if (typeof done === 'function') done(); } });
+    };
+    const next = () => {
+      idx++;
+      if (idx >= steps.length) return finish();
+      this._playClick();
+      const s = steps[idx];
+      title.setText(s.t); body.setText(s.b);
+      hint.setText((idx===steps.length-1 ? (de ? 'Tippe irgendwo, um Level 1 zu starten →' : 'Click anywhere to start Level 1 →') : (de ? 'Klicke irgendwo für den nächsten Schritt →' : 'Click anywhere for the next step →')) + '  ·  ' + (idx + 1) + '/' + steps.length);
+      if (tw) tw.stop();
+      tw = this.tweens.add({ targets: cur, x: s.r.x, y: s.r.y, w: s.r.w, h: s.r.h, duration: idx === 0 ? 10 : 520, ease: 'Sine.easeInOut', onUpdate: paint, onComplete: paint });
+      placeCard(s.r);
+    };
+    let ready = 0;
+    hit.on('pointerdown', () => { if (this.time.now - ready < 350) return; ready = this.time.now; next(); });
+    next();
   }
 }

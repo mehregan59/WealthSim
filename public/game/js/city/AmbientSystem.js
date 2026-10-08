@@ -55,6 +55,7 @@ class AmbientSystem {
   getNightStrength(){ return Math.max(0,Math.min(1,this.phase||0)); }
   isNightTime(){ return this.getNightStrength()>.55; }
   isDaytime(){ return (this.phase||0) < 0.05; }
+  setPreview(v){ this.previewPhase=(v===null||v===undefined)?null:v; }
   setSimulationLevel(n){
     this.level=n;
     if(n===7){ this.phaseTarget=0.55; this.phaseRate=1/45000; }   // slow dusk
@@ -83,9 +84,14 @@ class AmbientSystem {
     this.speed += (this.speedTarget - this.speed) * Math.min(1, delta/9000);
     this.time += delta * this.speed;
     if(this.phase===undefined){ this.phase=0; this.phaseTarget=0; this.phaseRate=1/4000; }
+    // Lighting preview (side panel): jump straight to day/dusk/night for
+    // inspection without changing the story-driven schedule underneath.
+    if(this.previewPhase!==null&&this.previewPhase!==undefined){ this.phase=this.previewPhase; }
+    else {
     const step=delta*(this.phaseRate||1/4000);
     if(this.phase<this.phaseTarget) this.phase=Math.min(this.phaseTarget,this.phase+step);
     else if(this.phase>this.phaseTarget) this.phase=Math.max(this.phaseTarget,this.phase-step);
+    }
     this.W = this.scene.scale.width;
     const t = this.getDayProgress();
     const night = this.isNightTime();

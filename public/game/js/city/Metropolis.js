@@ -153,27 +153,30 @@ class Metropolis {
     road(this.roads.crossSt, this.s(14));
     road(this.roads.hillRoad, this.s(14));
 
-    // Rail line with sleepers, on its own embankment.
-    line(this.roads.rail, this.s(16), 0x8e9382, 1);
-    line(this.roads.rail, this.s(10), 0x6a6f63, 1);
-    g.lineStyle(Math.max(1, this.s(1.4)), 0xd8d6c6, 0.85);
-    const r = this.roads.rail;
-    for (let i = 0; i < r.length - 1; i++) {
-      const a = r[i], b = r[i + 1], n = 26;
-      for (let k = 0; k < n; k++) {
-        const t = k / n, x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t;
-        g.lineBetween(x, y - this.s(5), x, y + this.s(5));
-      }
-    }
-    g.lineStyle(Math.max(1, this.s(1.6)), 0xe6e3d2, 0.9);
-    [-3, 3].forEach(o => {
-      g.beginPath(); g.moveTo(r[0].x, r[0].y + this.s(o));
-      for (let i = 1; i < r.length; i++) g.lineTo(r[i].x, r[i].y + this.s(o));
-      g.strokePath();
+    // Two complete parallel tracks, each with its own sleepers and rails.
+    const r=this.roads.rail,trackOffset=this.s(10);
+    line(r,this.s(40),CityTheme.colors.pavement,1);
+    const parallel=offset=>r.map((q,i)=>{
+      const a=r[Math.max(0,i-1)],b=r[Math.min(r.length-1,i+1)];
+      const ang=Math.atan2(b.y-a.y,b.x-a.x);
+      return {x:q.x-Math.sin(ang)*offset,y:q.y+Math.cos(ang)*offset};
     });
-
-    this._drawBridge(this.bridge, this.s(30), 3);
-    this._drawBridge(this.railBridge, this.s(20), 2);
+    [-trackOffset,trackOffset].forEach(offset=>{
+      const track=parallel(offset);
+      line(track,this.s(14),CityTheme.colors.road,1);
+      g.lineStyle(Math.max(1,this.s(1.4)),CityTheme.colors.pavement,.9);
+      for(let i=0;i<track.length-1;i++){
+        const a=track[i],b=track[i+1],ang=Math.atan2(b.y-a.y,b.x-a.x);
+        for(let k=0;k<26;k++){
+          const t=k/26,x=a.x+(b.x-a.x)*t,y=a.y+(b.y-a.y)*t;
+          g.lineBetween(x-Math.sin(ang)*this.s(6),y+Math.cos(ang)*this.s(6),x+Math.sin(ang)*this.s(6),y-Math.cos(ang)*this.s(6));
+        }
+      }
+      line(parallel(offset-this.s(4)),Math.max(1,this.s(1.6)),CityTheme.colors.paper,1);
+      line(parallel(offset+this.s(4)),Math.max(1,this.s(1.6)),CityTheme.colors.paper,1);
+    });
+    this._drawBridge(this.bridge,this.s(30),3);
+    this._drawBridge(this.railBridge,this.s(46),2);
 
     // Crossings where the avenues meet the boulevard.
     [[0.455, 0.588], [0.605, 0.560], [0.36, 0.605], [0.815, 0.512]].forEach(c => {
@@ -328,8 +331,8 @@ class Metropolis {
     add('crossSt', 3, { lane: this.s(4) });
     add('hillRoad', 2, { lane: this.s(4) });
     // Commuter trains, always on the rails.
-    this.movers.push({ route: 'rail', p: 0.1, dir: 1, sp: 0.055, type: 'train', color: 0xc4482f, cars: 4, lane: -this.s(3) });
-    this.movers.push({ route: 'rail', p: 0.6, dir: -1, sp: 0.048, type: 'train', color: 0xdfe4e2, cars: 3, lane: this.s(3) });
+    this.movers.push({ route: 'rail', p: 0.1, dir: 1, sp: 0.055, type: 'train', color: 0xc4482f, cars: 4, lane: -this.s(10) });
+    this.movers.push({ route: 'rail', p: 0.6, dir: -1, sp: 0.048, type: 'train', color: 0xdfe4e2, cars: 3, lane: this.s(10) });
     // Trams share the boulevard kerb lane.
     this.movers.push({ route: 'boulevard', p: 0.25, dir: 1, sp: 0.024, type: 'train', color: 0x3f8f97, cars: 2, lane: -this.s(16) });
     this.movers.push({ route: 'boulevard', p: 0.75, dir: -1, sp: 0.024, type: 'train', color: 0x3f8f97, cars: 2, lane: this.s(16) });
@@ -441,7 +444,7 @@ class Metropolis {
     // Traffic — strictly on its own road, in its own lane.
     this.movers.forEach(m => {
       if (!still) m.p = (m.p + m.sp * m.dir * dt * (0.72+this.night*0.28) + 1) % 1;
-      const q = this._at(m.route, m.p, m.lane * m.dir);
+      const q = this._at(m.route, m.p, m.lane);
       if (m.type === 'train') this._drawTrain(g, q, m);
       else this._drawCar(g, q, m);
     });

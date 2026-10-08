@@ -206,3 +206,19 @@ describe('previously unwired beats', () => {
     expect(withP).toBe(Math.round(without * 0.9));
   });
 });
+
+describe('complete gameplay flow regressions', () => {
+  const scene = readFileSync('public/game/js/scenes/GameScene.js', 'utf8');
+  it('level 3 always creates all six funding coins', () => {
+    expect(scene).toContain('this._spawnResourceCubes(6)');
+  });
+  it('level 9 keeps both disposition-effect questions', () => {
+    expect(scene).toContain("phase:'pair'");
+    expect(scene).toContain("phase:'twin'");
+  });
+  it('level 10 keeps four forecasts, the practice question, and opens results', () => {
+    expect(A.FORECASTS).toHaveLength(4);
+    expect(scene).toContain("phase:'practice'");
+    expect(scene).toContain('onComplete:()=>this._toProfile()');
+  });
+});

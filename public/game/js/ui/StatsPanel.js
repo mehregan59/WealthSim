@@ -101,7 +101,7 @@ class StatsPanel {
     const plotX = px + pad + this.s(24);
     const plotY = y;
     const plotW = pw - pad*2 - this.s(24);
-    const plotH = Math.max(this.s(110), Math.min(this.s(170), py+ph-y-this.s(140)));
+    const plotH = Math.max(this.s(110), Math.min(this.s(170), py+ph-y-this.s(236)));
     this.chart = { x:plotX, y:plotY, w:plotW, h:plotH };
 
     const ax = this.scene.add.graphics();
@@ -145,6 +145,33 @@ class StatsPanel {
       });
       this.container.add([d,tx]);
     });
+
+    // ── Lighting preview + sound ──
+    const mkBtn=(bx,by,bw,bh,label,isOn,onTap)=>{
+      const g=this.scene.add.graphics();
+      const txt=this.scene.add.text(bx+bw/2,by+bh/2,label,{fontFamily:CityTheme.body,fontSize:this.s(11),fontStyle:'700',color:'#365d60'}).setOrigin(0.5);
+      const draw=()=>{const on=isOn();g.clear();g.fillStyle(on?0xe0a82e:0xdce9df,on?0.92:1);g.fillRoundedRect(bx,by,bw,bh,this.s(5));g.lineStyle(1,on?0xe0a82e:0x7ca5a1,1);g.strokeRoundedRect(bx,by,bw,bh,this.s(5));txt.setColor(on?'#173b40':'#365d60');};
+      draw();
+      const hit=this.scene.add.rectangle(bx+bw/2,by+bh/2,bw,bh,0xffffff,0).setInteractive({useHandCursor:true}).setDepth(59);
+      hit.on('pointerdown',()=>{onTap();this._ctrlRedraw.forEach(f=>f());});
+      this.container.add([g,txt,hit]); this._ctrlRedraw.push(draw);
+      return txt;
+    };
+    this._ctrlRedraw=[];
+    const de=(typeof currentLang!=='undefined'&&currentLang==='de');
+    const ly=py+ph-this.s(170);
+    this.container.add(this.scene.add.text(px+pad,ly,de?'LICHT-VORSCHAU':'LIGHTING PREVIEW',{fontFamily:CityTheme.body,fontSize:this.s(9),color:'#456a8c',letterSpacing:2,fontStyle:'600'}).setOrigin(0,0.5));
+    const amb=()=>this.scene.ambient;
+    const lOpts=[{l:'Auto',v:null},{l:de?'Tag':'Day',v:0},{l:de?'Abend':'Dusk',v:0.55},{l:de?'Nacht':'Night',v:1}];
+    const lw=Math.floor((pw-pad*2-this.s(3*4))/4);
+    lOpts.forEach((o,i)=>mkBtn(px+pad+i*(lw+this.s(4)),ly+this.s(12),lw,this.s(24),o.l,
+      ()=>{const a=amb();const cur=a&&a.previewPhase!==undefined?a.previewPhase:null;return cur===o.v;},
+      ()=>{if(amb())amb().setPreview(o.v);}));
+    const sy=py+ph-this.s(118);
+    this.container.add(this.scene.add.text(px+pad,sy,de?'TON':'SOUND',{fontFamily:CityTheme.body,fontSize:this.s(9),color:'#456a8c',letterSpacing:2,fontStyle:'600'}).setOrigin(0,0.5));
+    const soundLbl=()=>this.scene._muted?(de?'🔇  Ton aus':'🔇  Sound off'):(de?'🔊  Ton an':'🔊  Sound on');
+    const st=mkBtn(px+pad,sy+this.s(12),this.s(126),this.s(26),soundLbl(),()=>!this.scene._muted,()=>{if(this.scene._toggleMute)this.scene._toggleMute();});
+    this._ctrlRedraw.push(()=>st.setText(soundLbl()));
 
     // ── Text size control ──
     const cy = py + ph - this.s(54);

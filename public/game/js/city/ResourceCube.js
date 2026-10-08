@@ -103,13 +103,20 @@ class ResourceCube {
     if (this._used) return;
     this._used = true;
     this.scene.tweens.killTweensOf(this.container);
-    this.scene.tweens.add({
-      targets: this.container, x: district.cx, y: district.cy, scaleX: 0.1, scaleY: 0.1, alpha: 0, duration: 300, ease: 'Power2.easeIn',
-      onComplete: () => {
-        district.receiveResource(this.value);
-        this.scene.events.emit('resourceDropped', { district, value: this.value, cube: this });
-        this.destroy();
-      }
+    this.scene.tweens.killTweensOf(this.glowRing);
+    if (this.hitZone && this.hitZone.input) this.hitZone.disableInteractive();
+    // Animate on the next tick, and finish on a timer rather than the tween's
+    // onComplete: a tween added in the same frame as killTweensOf can be dropped,
+    // which previously left the coin "stuck" and froze Level 3.
+    this.scene.time.delayedCall(0, () => {
+      if (this.container && this.container.active) this.scene.tweens.add({
+        targets: this.container, x: district.cx, y: district.cy, scaleX: 0.1, scaleY: 0.1, alpha: 0, duration: 300, ease: 'Power2.easeIn'
+      });
+    });
+    this.scene.time.delayedCall(330, () => {
+      district.receiveResource(this.value);
+      this.scene.events.emit('resourceDropped', { district, value: this.value, cube: this });
+      this.destroy();
     });
   }
 

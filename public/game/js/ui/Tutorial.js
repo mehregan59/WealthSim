@@ -93,14 +93,14 @@ class Tutorial {
     const W=this.scene.scale.width, H=this.scene.scale.height;
     const panelL=this.scene.PANEL||0;
     const cx = centred ? W/2 : panelL+(W-panelL)/2;
-    const bw = Math.min(this.s(centred?680:620), W-(centred?this.s(80):panelL+this.s(70)));
+    const bw = Math.min(this.s(centred?918:620), W-(centred?this.s(80):panelL+this.s(70)));
 
     const title=this.scene.add.text(0,0,titleTxt,{
-      fontFamily:CityTheme.heading, fontSize:this.s(centred?23:19), color:'#296b72'
+      fontFamily:CityTheme.heading, fontSize:this.s(centred?31:19), color:'#296b72'
     }).setOrigin(0.5,0).setDepth(131);
     const body=this.scene.add.text(0,0,bodyTxt,{
-      fontFamily:CityTheme.body, fontSize:this.s(centred?16:15), color:'#365d60',
-      align:'center', lineSpacing:this.s(8), wordWrap:{width:bw-this.s(60)}
+      fontFamily:CityTheme.body, fontSize:this.s(centred?22:15), color:'#365d60',
+      align:'center', lineSpacing:this.s(centred?11:8), wordWrap:{width:bw-this.s(60)}
     }).setOrigin(0.5,0).setDepth(131);
 
     const pad=this.s(24);
@@ -142,13 +142,13 @@ class Tutorial {
       extras.push(skipTxt);
     }
 
-    const btnW=this.s(160), btnH=this.s(36);
+    const btnW=this.s(centred?216:160), btnH=this.s(centred?48:36);
     const btnY=by+bh-btnH-this.s(14), btnX=cx-btnW/2;
     const btn=this.scene.add.graphics().setDepth(131);
     const drawBtn=(hv)=>{ btn.clear(); btn.fillStyle(0xe0a82e,hv?1:0.9); btn.fillRoundedRect(btnX,btnY,btnW,btnH,this.s(8)); };
     drawBtn(false);
     const btnTxt=this.scene.add.text(cx,btnY+btnH/2,btnLabel,{
-      fontFamily:CityTheme.body, fontSize:this.s(15), color:'#173b40', fontStyle:'700'
+      fontFamily:CityTheme.body, fontSize:this.s(centred?20:15), color:'#173b40', fontStyle:'700'
     }).setOrigin(0.5).setDepth(132);
     const hit=this.scene.add.rectangle(cx,btnY+btnH/2,btnW,btnH,0xffffff,0)
       .setDepth(133).setInteractive({useHandCursor:true});

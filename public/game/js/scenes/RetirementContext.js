@@ -43,7 +43,7 @@ class RetirementContext extends Phaser.Scene {
     this._drawStepDots(2);
     this.add.text(cx,52,
       this._tr('ui.retirement.title','Your retirement system'),
-      {fontFamily:CityTheme.heading,fontSize:30,color:'#296b72'}).setOrigin(0.5);
+      {fontFamily:CityTheme.heading,fontSize:30,color:'#000000'}).setOrigin(0.5);
     this.add.text(cx,88,
       this._tr('ui.retirement.subtitle','These answers personalize your closing feedback. They never change gameplay.'),
       {fontFamily:CityTheme.body,fontSize:16,color:'#55777a'}).setOrigin(0.5);

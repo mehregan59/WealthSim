@@ -32,7 +32,7 @@ class PlayerSetup extends Phaser.Scene {
 
     this.add.text(cx,compact?55:62,
       this._tr('ui.playerSetup.title','Tell us about your city'),
-      {fontFamily:CityTheme.heading,fontSize:compact?28:40,color:'#296b72'}).setOrigin(0.5);
+      {fontFamily:CityTheme.heading,fontSize:compact?28:40,color:'#000000'}).setOrigin(0.5);
     this.add.text(cx,compact?92:112,
       this._tr('ui.playerSetup.subtitle','This helps personalize your experience. It never changes the game.'),
       {fontFamily:CityTheme.body,fontSize:compact?14:19,color:'#55777a',align:'center',wordWrap:{width:this.W-36}}).setOrigin(0.5);
